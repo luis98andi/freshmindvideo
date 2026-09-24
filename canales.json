@@ -1,0 +1,10 @@
+{
+  "canales": [
+    { "nombre": "Canal de ejemplo 1", "url": "https://www.youtube.com/@ejemplo1", "imagen": "" },
+    { "nombre": "Canal de ejemplo 2", "url": "https://www.youtube.com/@ejemplo2", "imagen": "" },
+    { "nombre": "Canal de ejemplo 3", "url": "https://www.youtube.com/@ejemplo3", "imagen": "" },
+    { "nombre": "Canal de ejemplo 4", "url": "https://www.youtube.com/@ejemplo4", "imagen": "" },
+    { "nombre": "Canal de ejemplo 5", "url": "https://www.youtube.com/@ejemplo5", "imagen": "" },
+    { "nombre": "Canal de ejemplo 6", "url": "https://www.youtube.com/@ejemplo6", "imagen": "" }
+  ]
+}
