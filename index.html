@@ -39,13 +39,26 @@
   dialog::backdrop { background: rgba(10, 20, 30, .78); }
   .barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 8px 6px 16px; background: #1d2b3a; }
   .barra h2 { margin: 0; font-size: 1rem; font-weight: 700; }
-  .cerrar { min-width: 44px; min-height: 44px; border: 0; background: none; color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer; border-radius: 8px; }
-  .cerrar:hover { background: rgba(255, 255, 255, .12); }
-  .cerrar:focus-visible { outline: 3px solid var(--acento); }
-  .video { aspect-ratio: 16 / 9; width: 100%; background: #000; }
+  .reproductor { background: #000; }
+  .reproductor:fullscreen { display: flex; flex-direction: column; }
+  .reproductor:-webkit-full-screen { display: flex; flex-direction: column; }
+  .video { position: relative; aspect-ratio: 16 / 9; width: 100%; background: #000; }
+  .reproductor:fullscreen .video { flex: 1; aspect-ratio: auto; }
+  .reproductor:-webkit-full-screen .video { flex: 1; aspect-ratio: auto; }
   .video iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .controles { display: flex; align-items: center; gap: 4px; padding: 6px 10px; background: #1d2b3a; }
+  .controles button, .cerrar {
+    min-width: 44px; min-height: 44px; border: 0; background: none; color: #fff; border-radius: 8px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; line-height: 1;
+  }
+  .controles button:hover, .cerrar:hover { background: rgba(255, 255, 255, .12); }
+  .controles button:focus-visible, .cerrar:focus-visible, .controles input:focus-visible { outline: 3px solid var(--acento); }
+  .controles svg { width: 24px; height: 24px; fill: currentColor; }
+  .controles input[type=range] { flex: 1; min-width: 60px; accent-color: var(--acento); }
+  .tiempo { min-width: 92px; text-align: center; font-size: .85rem; font-variant-numeric: tabular-nums; }
 
   @media (max-width: 760px) { .cuadricula { grid-template-columns: repeat(2, 1fr); gap: 14px; } }
+  @media (max-width: 480px) { .tiempo { display: none; } }
   @media (max-width: 360px) { .cuadricula { grid-template-columns: 1fr; } }
   @media (prefers-reduced-motion: reduce) { .tarjeta { transition: none; } .tarjeta:hover { transform: none; } }
 </style>
@@ -62,19 +75,153 @@
     <h2 id="titulo-video"></h2>
     <button class="cerrar" id="cerrar" type="button" aria-label="Cerrar reproductor">×</button>
   </div>
-  <div class="video">
-    <iframe id="marco" title="Reproductor de video"
-      allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-      allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  <div class="reproductor" id="reproductor">
+    <div class="video"><div id="marco"></div></div>
+    <div class="controles">
+      <button type="button" id="b-anterior" aria-label="Video anterior"></button>
+      <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
+      <button type="button" id="b-siguiente" aria-label="Video siguiente"></button>
+      <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
+      <span class="tiempo" id="tiempo">0:00 / 0:00</span>
+      <button type="button" id="b-sonido" aria-label="Activar o quitar sonido"></button>
+      <button type="button" id="b-pantalla" aria-label="Pantalla completa"></button>
+    </div>
   </div>
 </dialog>
 
 <script>
   var COLORES = ["#ffd166", "#7bdff2", "#b2f7b8", "#ffb3c1", "#cdb4ff", "#ffc98b"];
-  var dialogo = document.getElementById("dialogo");
-  var marco = document.getElementById("marco");
-  var ultimaTarjeta = null;
+  var ICONOS = {
+    anterior: '<svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
+    siguiente: '<svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
+    play: '<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>',
+    pausa: '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+    sonido: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9zM16.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>',
+    mudo: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15 9l6 6M21 9l-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
+    pantalla: '<svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zM20 4v6h-2V6h-4V4zM4 20v-6h2v4h4v2zM20 20h-6v-2h4v-4h2z"/></svg>'
+  };
 
+  var dialogo = document.getElementById("dialogo");
+  var reproductor = document.getElementById("reproductor");
+  var bPlay = document.getElementById("b-play");
+  var bSonido = document.getElementById("b-sonido");
+  var rango = document.getElementById("rango");
+  var tiempo = document.getElementById("tiempo");
+
+  document.getElementById("b-anterior").innerHTML = ICONOS.anterior;
+  document.getElementById("b-siguiente").innerHTML = ICONOS.siguiente;
+  document.getElementById("b-pantalla").innerHTML = ICONOS.pantalla;
+  bPlay.innerHTML = ICONOS.play;
+  bSonido.innerHTML = ICONOS.sonido;
+
+  var jugador = null, listo = false, canalActual = null;
+  var ultimaTarjeta = null, temporizador = null, arrastrando = false, errores = 0, apiPendiente = null;
+
+  /* ---------- API de YouTube (se carga solo al abrir el primer canal) ---------- */
+  function cargarApi(cb) {
+    if (window.YT && YT.Player) { cb(); return; }
+    apiPendiente = cb;
+    if (!document.getElementById("yt-api")) {
+      var s = document.createElement("script");
+      s.id = "yt-api";
+      s.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(s);
+    }
+  }
+  window.onYouTubeIframeAPIReady = function () {
+    if (apiPendiente) { var f = apiPendiente; apiPendiente = null; f(); }
+  };
+
+  function formato(seg) {
+    seg = Math.max(0, Math.floor(seg || 0));
+    var m = Math.floor(seg / 60), s = seg % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function cargarLista() {
+    if (!canalActual || !listo || !dialogo.open) return;
+    errores = 0;
+    jugador.loadPlaylist({ listType: "playlist", list: canalActual });
+  }
+
+  function crearJugador() {
+    if (jugador) { cargarLista(); return; }
+    var vars = { controls: 0, fs: 0, rel: 0, disablekb: 1, iv_load_policy: 3, playsinline: 1 };
+    if (location.protocol.indexOf("http") === 0) vars.origin = location.origin;
+    jugador = new YT.Player("marco", {
+      width: "100%", height: "100%", playerVars: vars,
+      events: {
+        onReady: function () { listo = true; cargarLista(); },
+        onStateChange: function (e) {
+          bPlay.innerHTML = (e.data === 1) ? ICONOS.pausa : ICONOS.play;
+          if (e.data === 1) errores = 0;
+        },
+        // Si un video no se puede reproducir aquí, pasa al siguiente (máximo 5 seguidos).
+        onError: function () {
+          errores++;
+          if (errores < 5) jugador.nextVideo();
+        }
+      }
+    });
+  }
+
+  function actualizar() {
+    if (!listo || !jugador.getDuration) return;
+    var dur = jugador.getDuration() || 0, t = jugador.getCurrentTime() || 0;
+    if (!arrastrando && dur > 0) rango.value = Math.round(t / dur * 1000);
+    tiempo.textContent = formato(arrastrando ? rango.value / 1000 * dur : t) + " / " + formato(dur);
+    bSonido.innerHTML = jugador.isMuted() ? ICONOS.mudo : ICONOS.sonido;
+  }
+
+  function abrirReproductor(nombre, idCanal, tarjeta) {
+    ultimaTarjeta = tarjeta;
+    canalActual = "UU" + idCanal.slice(2);   // lista de subidas del canal
+    document.getElementById("titulo-video").textContent = nombre;
+    rango.value = 0;
+    tiempo.textContent = "0:00 / 0:00";
+    dialogo.showModal();
+    document.getElementById("cerrar").focus();
+    temporizador = setInterval(actualizar, 500);
+    cargarApi(crearJugador);
+  }
+
+  function cerrarReproductor() { dialogo.close(); }
+
+  dialogo.addEventListener("close", function () {
+    clearInterval(temporizador);
+    canalActual = null;
+    if (listo) jugador.stopVideo();
+    if (document.fullscreenElement) document.exitFullscreen();
+    if (ultimaTarjeta) ultimaTarjeta.focus();
+  });
+  dialogo.addEventListener("click", function (e) { if (e.target === dialogo) cerrarReproductor(); });
+  document.getElementById("cerrar").addEventListener("click", cerrarReproductor);
+
+  /* ---------- Botones propios ---------- */
+  document.getElementById("b-anterior").addEventListener("click", function () { if (listo) jugador.previousVideo(); });
+  document.getElementById("b-siguiente").addEventListener("click", function () { if (listo) jugador.nextVideo(); });
+  bPlay.addEventListener("click", function () {
+    if (!listo) return;
+    if (jugador.getPlayerState() === 1) jugador.pauseVideo(); else jugador.playVideo();
+  });
+  bSonido.addEventListener("click", function () {
+    if (!listo) return;
+    if (jugador.isMuted()) jugador.unMute(); else jugador.mute();
+    actualizar();
+  });
+  rango.addEventListener("input", function () { arrastrando = true; actualizar(); });
+  rango.addEventListener("change", function () {
+    if (listo) jugador.seekTo(jugador.getDuration() * rango.value / 1000, true);
+    arrastrando = false;
+  });
+  var bPantalla = document.getElementById("b-pantalla");
+  if (!(reproductor.requestFullscreen || reproductor.webkitRequestFullscreen)) bPantalla.hidden = true;
+  bPantalla.addEventListener("click", function () {
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    (reproductor.requestFullscreen || reproductor.webkitRequestFullscreen).call(reproductor);
+  });
+
+  /* ---------- Cuadrícula de canales ---------- */
   function idDeVideo(url) {
     try {
       var u = new URL(url);
@@ -101,25 +248,6 @@
     d.textContent = nombre.charAt(0).toUpperCase();
     return d;
   }
-
-  // Reproduce todos los videos subidos del canal (lista "UU..." = subidas del canal "UC...")
-  function abrirReproductor(nombre, idCanal, tarjeta) {
-    ultimaTarjeta = tarjeta;
-    document.getElementById("titulo-video").textContent = nombre;
-    marco.src = "https://www.youtube.com/embed/videoseries?list=UU" + idCanal.slice(2) +
-      "&autoplay=1&rel=0&playsinline=1";
-    dialogo.showModal();
-    document.getElementById("cerrar").focus();
-  }
-
-  function cerrarReproductor() { dialogo.close(); }
-
-  dialogo.addEventListener("close", function () {
-    marco.src = "about:blank";
-    if (ultimaTarjeta) ultimaTarjeta.focus();
-  });
-  dialogo.addEventListener("click", function (e) { if (e.target === dialogo) cerrarReproductor(); });
-  document.getElementById("cerrar").addEventListener("click", cerrarReproductor);
 
   function crearTarjeta(item, i) {
     var url = item.url || item.enlace || "";
