@@ -1,1 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FreshMindVideo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fondo: #f3f6f8;
+    --tarjeta: #ffffff;
+    --texto: #1d2b3a;
+    --acento: #12a37f;
+    /* Proporción de la imagen de cada tarjeta. Cámbiala a 1 / 1 para cuadrados exactos. */
+    --proporcion: 16 / 9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: "Nunito", "Segoe UI", Arial, sans-serif;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--tarjeta);
+    padding: 14px 24px;
+    box-shadow: 0 1px 0 rgba(29, 43, 58, .12);
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--acento);
+    letter-spacing: -.01em;
+  }
+  main { max-width: 1000px; margin: 0 auto; padding: 28px 20px 48px; }
+  .cuadricula {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+  }
+  .tarjeta {
+    display: block;
+    background: var(--tarjeta);
+    border-radius: 10px;
+    overflow: hidden;
+    color: inherit;
+    text-decoration: none;
+    box-shadow: 0 1px 4px rgba(29, 43, 58, .14);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .tarjeta:hover { transform: translateY(-3px); box-shadow: 0 6px 14px rgba(29, 43, 58, .18); }
+  .tarjeta:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+  .media { aspect-ratio: var(--proporcion); background: #dfe6ea; }
+  .media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .inicial {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 3.2rem; font-weight: 800; color: rgba(29, 43, 58, .75);
+  }
+  .nombre { margin: 0; padding: 12px 14px 14px; font-size: 1rem; font-weight: 700; line-height: 1.3; }
+  .mensaje { text-align: center; padding: 40px 16px; font-weight: 600; }
+  @media (max-width: 760px) { .cuadricula { grid-template-columns: repeat(2, 1fr); gap: 14px; } }
+  @media (max-width: 360px) { .cuadricula { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { .tarjeta { transition: none; } .tarjeta:hover { transform: none; } }
+</style>
+</head>
+<body>
+<header><h1>FreshMindVideo</h1></header>
+<main>
+  <div id="cuadricula" class="cuadricula"></div>
+  <p id="mensaje" class="mensaje">Cargando…</p>
+</main>
 
+<script>
+  var COLORES = ["#ffd166", "#7bdff2", "#b2f7b8", "#ffb3c1", "#cdb4ff", "#ffc98b"];
+
+  function idDeVideo(url) {
+    try {
+      var u = new URL(url);
+      if (u.hostname.indexOf("youtu.be") !== -1) return u.pathname.slice(1);
+      if (u.searchParams.get("v")) return u.searchParams.get("v");
+      var m = u.pathname.match(/\/(shorts|embed)\/([\w-]+)/);
+      if (m) return m[2];
+    } catch (e) {}
+    return null;
+  }
+
+  function nombreDesdeUrl(url) {
+    try {
+      var partes = new URL(url).pathname.split("/").filter(Boolean);
+      var ultimo = partes[partes.length - 1] || "Canal";
+      return decodeURIComponent(ultimo.replace(/^@/, ""));
+    } catch (e) { return "Canal"; }
+  }
+
+  function inicial(nombre, i) {
+    var d = document.createElement("div");
+    d.className = "inicial";
+    d.style.background = COLORES[i % COLORES.length];
+    d.textContent = nombre.charAt(0).toUpperCase();
+    return d;
+  }
+
+  function crearTarjeta(item, i) {
+    var url = item.url || item.enlace || "";
+    if (url.indexOf("http") !== 0) return null;
+    var nombre = item.nombre || item.name || nombreDesdeUrl(url);
+    var imagen = item.imagen || item.image || "";
+    if (!imagen) {
+      var id = idDeVideo(url);
+      if (id) imagen = "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg";
+    }
+
+    var a = document.createElement("a");
+    a.className = "tarjeta";
+    a.href = url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+
+    var media = document.createElement("div");
+    media.className = "media";
+    if (imagen) {
+      var img = document.createElement("img");
+      img.src = imagen;
+      img.alt = "";
+      img.loading = "lazy";
+      img.onerror = function () { media.replaceChildren(inicial(nombre, i)); };
+      media.appendChild(img);
+    } else {
+      media.appendChild(inicial(nombre, i));
+    }
+
+    var titulo = document.createElement("p");
+    titulo.className = "nombre";
+    titulo.textContent = nombre;
+
+    a.appendChild(media);
+    a.appendChild(titulo);
+    return a;
+  }
+
+  fetch("canales.json", { cache: "no-cache" })
+    .then(function (r) {
+      if (!r.ok) throw new Error("No se encontró canales.json");
+      return r.json();
+    })
+    .then(function (datos) {
+      var lista = Array.isArray(datos) ? datos : (datos.canales || datos.channels || []);
+      var cuadricula = document.getElementById("cuadricula");
+      lista.forEach(function (item, i) {
+        var t = crearTarjeta(item, i);
+        if (t) cuadricula.appendChild(t);
+      });
+      document.getElementById("mensaje").hidden = cuadricula.children.length > 0;
+      if (!cuadricula.children.length) {
+        document.getElementById("mensaje").textContent = "Todavía no hay canales en canales.json.";
+      }
+    })
+    .catch(function () {
+      document.getElementById("mensaje").textContent =
+        "No se pudo leer canales.json. Revisa que esté en la misma carpeta que index.html y que el formato sea correcto.";
+    });
+</script>
+</body>
+</html>
