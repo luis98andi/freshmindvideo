@@ -46,7 +46,16 @@
   .video { position: relative; aspect-ratio: 16 / 9; width: 100%; background: #000; }
   .reproductor:fullscreen .video { flex: 1; aspect-ratio: auto; }
   .reproductor:-webkit-full-screen .video { flex: 1; aspect-ratio: auto; }
-  .video iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .video iframe { width: 100%; height: 100%; border: 0; display: block; pointer-events: none; }
+  /* Tapa la pantalla de pausa/inicio de YouTube (título, logo, sugerencias) con una capa propia. */
+  .tapa {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0; margin: 0; padding: 0;
+    background: #000; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .tapa[hidden] { display: none; }
+  .tapa svg { width: 68px; height: 68px; fill: #fff; opacity: .92; }
+  .tapa:hover svg { opacity: 1; }
+  .tapa:focus-visible { outline: 3px solid var(--acento); outline-offset: -3px; }
   .controles { display: flex; align-items: center; gap: 4px; padding: 6px 10px; background: #1d2b3a; }
   .controles button, .cerrar {
     min-width: 44px; min-height: 44px; border: 0; background: none; color: #fff; border-radius: 8px;
@@ -80,7 +89,12 @@
     <button class="cerrar" id="cerrar" type="button" aria-label="Cerrar reproductor">×</button>
   </div>
   <div class="reproductor" id="reproductor">
-    <div class="video"><div id="marco"></div></div>
+    <div class="video">
+      <div id="marco"></div>
+      <button type="button" id="tapa" class="tapa" aria-label="Reproducir">
+        <svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>
+      </button>
+    </div>
     <div class="controles">
       <button type="button" id="b-anterior" aria-label="Video anterior"></button>
       <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
@@ -117,6 +131,7 @@
   var rango = document.getElementById("rango");
   var tiempo = document.getElementById("tiempo");
   var indiceTexto = document.getElementById("indice");
+  var tapa = document.getElementById("tapa");
 
   bAnterior.innerHTML = ICONOS.anterior;
   bSiguiente.innerHTML = ICONOS.siguiente;
@@ -200,6 +215,7 @@
         onReady: function () { listo = true; cargarLista(); },
         onStateChange: function (e) {
           bPlay.innerHTML = (e.data === 1) ? ICONOS.pausa : ICONOS.play;
+          tapa.hidden = (e.data === 1); // solo se ve el video sin tapa mientras reproduce
           if (e.data === 1) errores = 0;
           // Al terminar un video, para si ya llegó al tope en lugar de seguir con toda la lista real.
           if (e.data === 0) {
@@ -233,6 +249,7 @@
     rango.value = 0;
     tiempo.textContent = "0:00 / 0:00";
     indiceTexto.textContent = "";
+    tapa.hidden = false;
     dialogo.showModal();
     document.getElementById("cerrar").focus();
     temporizador = setInterval(actualizar, 500);
@@ -257,6 +274,9 @@
   bPlay.addEventListener("click", function () {
     if (!listo) return;
     if (jugador.getPlayerState() === 1) jugador.pauseVideo(); else jugador.playVideo();
+  });
+  tapa.addEventListener("click", function () {
+    if (listo) jugador.playVideo();
   });
   bSonido.addEventListener("click", function () {
     if (!listo) return;
