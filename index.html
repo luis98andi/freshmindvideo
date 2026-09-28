@@ -39,6 +39,7 @@
   dialog::backdrop { background: rgba(10, 20, 30, .78); }
   .barra { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 8px 6px 16px; background: #1d2b3a; }
   .barra h2 { margin: 0; font-size: 1rem; font-weight: 700; }
+  .barra .indice { font-size: .8rem; font-weight: 600; opacity: .75; margin-right: 6px; white-space: nowrap; }
   .reproductor { background: #000; }
   .reproductor:fullscreen { display: flex; flex-direction: column; }
   .reproductor:-webkit-full-screen { display: flex; flex-direction: column; }
@@ -52,6 +53,8 @@
     cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; line-height: 1;
   }
   .controles button:hover, .cerrar:hover { background: rgba(255, 255, 255, .12); }
+  .controles button:disabled { opacity: .35; cursor: default; }
+  .controles button:disabled:hover { background: none; }
   .controles button:focus-visible, .cerrar:focus-visible, .controles input:focus-visible { outline: 3px solid var(--acento); }
   .controles svg { width: 24px; height: 24px; fill: currentColor; }
   .controles input[type=range] { flex: 1; min-width: 60px; accent-color: var(--acento); }
@@ -73,6 +76,7 @@
 <dialog id="dialogo" aria-labelledby="titulo-video">
   <div class="barra">
     <h2 id="titulo-video"></h2>
+    <span class="indice" id="indice"></span>
     <button class="cerrar" id="cerrar" type="button" aria-label="Cerrar reproductor">×</button>
   </div>
   <div class="reproductor" id="reproductor">
@@ -90,6 +94,9 @@
 </dialog>
 
 <script>
+  // Tope de videos por canal. Cámbialo aquí si más adelante quieres otro número.
+  var MAX_VIDEOS = 10;
+
   var COLORES = ["#ffd166", "#7bdff2", "#b2f7b8", "#ffb3c1", "#cdb4ff", "#ffc98b"];
   var ICONOS = {
     anterior: '<svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
@@ -105,11 +112,14 @@
   var reproductor = document.getElementById("reproductor");
   var bPlay = document.getElementById("b-play");
   var bSonido = document.getElementById("b-sonido");
+  var bAnterior = document.getElementById("b-anterior");
+  var bSiguiente = document.getElementById("b-siguiente");
   var rango = document.getElementById("rango");
   var tiempo = document.getElementById("tiempo");
+  var indiceTexto = document.getElementById("indice");
 
-  document.getElementById("b-anterior").innerHTML = ICONOS.anterior;
-  document.getElementById("b-siguiente").innerHTML = ICONOS.siguiente;
+  bAnterior.innerHTML = ICONOS.anterior;
+  bSiguiente.innerHTML = ICONOS.siguiente;
   document.getElementById("b-pantalla").innerHTML = ICONOS.pantalla;
   bPlay.innerHTML = ICONOS.play;
   bSonido.innerHTML = ICONOS.sonido;
@@ -138,10 +148,46 @@
     return m + ":" + (s < 10 ? "0" : "") + s;
   }
 
+  // Cuántos videos hay disponibles para navegar, respetando el tope MAX_VIDEOS.
+  function totalDisponible() {
+    if (!listo || !jugador.getPlaylist) return MAX_VIDEOS;
+    var lista = jugador.getPlaylist() || [];
+    return Math.min(lista.length || MAX_VIDEOS, MAX_VIDEOS);
+  }
+
+  function actualizarIndice() {
+    if (!listo || !jugador.getPlaylistIndex) return;
+    var i = jugador.getPlaylistIndex();
+    if (i < 0) i = 0;
+    var total = totalDisponible();
+    indiceTexto.textContent = (i + 1) + " / " + total;
+    bAnterior.disabled = (i <= 0);
+    bSiguiente.disabled = (i >= total - 1);
+  }
+
+  function irA(i) {
+    var total = totalDisponible();
+    if (i < 0) i = 0;
+    if (i > total - 1) i = total - 1;
+    jugador.playVideoAt(i);
+  }
+
+  function siguienteConTope() {
+    if (!listo) return;
+    var i = jugador.getPlaylistIndex();
+    if (i < totalDisponible() - 1) irA(i + 1);
+  }
+
+  function anteriorConTope() {
+    if (!listo) return;
+    var i = jugador.getPlaylistIndex();
+    if (i > 0) irA(i - 1);
+  }
+
   function cargarLista() {
     if (!canalActual || !listo || !dialogo.open) return;
     errores = 0;
-    jugador.loadPlaylist({ listType: "playlist", list: canalActual });
+    jugador.loadPlaylist({ listType: "playlist", list: canalActual, index: 0 });
   }
 
   function crearJugador() {
@@ -155,11 +201,17 @@
         onStateChange: function (e) {
           bPlay.innerHTML = (e.data === 1) ? ICONOS.pausa : ICONOS.play;
           if (e.data === 1) errores = 0;
+          // Al terminar un video, para si ya llegó al tope en lugar de seguir con toda la lista real.
+          if (e.data === 0) {
+            var i = jugador.getPlaylistIndex();
+            if (i < totalDisponible() - 1) irA(i + 1);
+          }
+          actualizarIndice();
         },
-        // Si un video no se puede reproducir aquí, pasa al siguiente (máximo 5 seguidos).
+        // Si un video no se puede reproducir aquí, pasa al siguiente (máximo 5 seguidos) sin salir del tope.
         onError: function () {
           errores++;
-          if (errores < 5) jugador.nextVideo();
+          if (errores < 5) siguienteConTope();
         }
       }
     });
@@ -171,6 +223,7 @@
     if (!arrastrando && dur > 0) rango.value = Math.round(t / dur * 1000);
     tiempo.textContent = formato(arrastrando ? rango.value / 1000 * dur : t) + " / " + formato(dur);
     bSonido.innerHTML = jugador.isMuted() ? ICONOS.mudo : ICONOS.sonido;
+    actualizarIndice();
   }
 
   function abrirReproductor(nombre, idCanal, tarjeta) {
@@ -179,6 +232,7 @@
     document.getElementById("titulo-video").textContent = nombre;
     rango.value = 0;
     tiempo.textContent = "0:00 / 0:00";
+    indiceTexto.textContent = "";
     dialogo.showModal();
     document.getElementById("cerrar").focus();
     temporizador = setInterval(actualizar, 500);
@@ -197,9 +251,9 @@
   dialogo.addEventListener("click", function (e) { if (e.target === dialogo) cerrarReproductor(); });
   document.getElementById("cerrar").addEventListener("click", cerrarReproductor);
 
-  /* ---------- Botones propios ---------- */
-  document.getElementById("b-anterior").addEventListener("click", function () { if (listo) jugador.previousVideo(); });
-  document.getElementById("b-siguiente").addEventListener("click", function () { if (listo) jugador.nextVideo(); });
+  /* ---------- Botones propios (respetan el tope de MAX_VIDEOS) ---------- */
+  bAnterior.addEventListener("click", anteriorConTope);
+  bSiguiente.addEventListener("click", siguienteConTope);
   bPlay.addEventListener("click", function () {
     if (!listo) return;
     if (jugador.getPlayerState() === 1) jugador.pauseVideo(); else jugador.playVideo();
@@ -265,7 +319,7 @@
     a.href = url;
     a.target = "_blank";
     a.rel = "noopener noreferrer";
-    // Con id de canal se reproduce aquí mismo; sin id se abre YouTube en otra pestaña.
+    // Con id de canal se reproduce aquí mismo (máximo MAX_VIDEOS videos); sin id se abre YouTube en otra pestaña.
     if (/^UC[\w-]{22}$/.test(idCanal) && dialogo.showModal) {
       a.addEventListener("click", function (e) {
         e.preventDefault();
