@@ -12,48 +12,44 @@
     --tarjeta: #ffffff;
     --texto: #1d2b3a;
     --acento: #12a37f;
-    /* Proporción de la imagen de cada tarjeta. Cámbiala a 1 / 1 para cuadrados exactos. */
     --proporcion: 16 / 9;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--fondo); color: var(--texto); font-family: "Nunito", "Segoe UI", Arial, sans-serif; }
-  header { position: sticky; top: 0; z-index: 10; background: var(--tarjeta); padding: 14px 24px; box-shadow: 0 1px 0 rgba(29, 43, 58, .12); }
-  header h1 { margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--acento); letter-spacing: -.01em; }
+  header { position: sticky; top: 0; z-index: 10; background: var(--tarjeta); padding: 14px 24px; box-shadow: 0 1px 0 rgba(29, 43, 58, .12); display: flex; align-items: center; justify-content: space-between; }
+  header h1 { margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--acento); letter-spacing: -.01em; cursor: pointer; }
   main { max-width: 1000px; margin: 0 auto; padding: 28px 20px 48px; }
   .cuadricula { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
   .tarjeta {
     display: block; background: var(--tarjeta); border-radius: 10px; overflow: hidden;
     color: inherit; text-decoration: none; box-shadow: 0 1px 4px rgba(29, 43, 58, .14);
-    transition: transform .15s ease, box-shadow .15s ease;
+    transition: transform .15s ease, box-shadow .15s ease; cursor: pointer;
   }
   .tarjeta:hover { transform: translateY(-3px); box-shadow: 0 6px 14px rgba(29, 43, 58, .18); }
   .tarjeta:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
-  .media { aspect-ratio: var(--proporcion); background: #dfe6ea; }
+  .media { aspect-ratio: var(--proporcion); background: #dfe6ea; position: relative; }
   .media img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .inicial { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 3.2rem; font-weight: 800; color: rgba(29, 43, 58, .75); }
   .nombre { margin: 0; padding: 12px 14px 14px; font-size: 1rem; font-weight: 700; line-height: 1.3; }
   .mensaje { text-align: center; padding: 40px 16px; font-weight: 600; }
 
-  /* Reproductor */
-  dialog { width: min(920px, 96vw); padding: 0; border: 0; border-radius: 12px; overflow: hidden; background: #0f1720; color: #fff; }
-  dialog::backdrop { background: rgba(10, 20, 30, .78); }
-  .barra { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 10px; background: #1d2b3a; }
-  .barra h2 { margin: 0; font-size: 1rem; font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .barra .indice { font-size: .8rem; font-weight: 600; opacity: .75; white-space: nowrap; }
+  /* Vista de Canal / Reproductor Orgánico */
+  #vista-canal { display: none; }
+  #vista-canal.activo { display: block; }
+  #vista-principal.oculto { display: none; }
+
+  .barra-navegacion { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
   .volver {
-    min-width: 40px; min-height: 40px; border: 0; background: none; color: #fff; border-radius: 8px;
-    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;
+    padding: 8px 16px; border: 0; background: var(--acento); color: #fff; border-radius: 8px;
+    cursor: pointer; font-weight: 700; font-family: inherit; display: flex; align-items: center; gap: 6px;
   }
-  .volver:hover { background: rgba(255, 255, 255, .12); }
-  .volver[hidden] { display: none; }
-  .reproductor { background: #000; }
-  .reproductor:fullscreen { display: flex; flex-direction: column; }
-  .reproductor:-webkit-full-screen { display: flex; flex-direction: column; }
-  .video { position: relative; aspect-ratio: 16 / 9; width: 100%; background: #000; }
-  .reproductor:fullscreen .video { flex: 1; aspect-ratio: auto; }
-  .reproductor:-webkit-full-screen .video { flex: 1; aspect-ratio: auto; }
-  .video iframe { width: 100%; height: 100%; border: 0; display: block; pointer-events: none; }
-  /* Tapa la pantalla de pausa/inicio de YouTube (título, logo, sugerencias) con una capa propia. */
+  .volver:hover { opacity: 0.9; }
+  .titulo-canal-activo { font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--texto); }
+
+  .contenedor-reproductor-principal { background: #0f1720; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-bottom: 24px; color: #fff; }
+  .video-marco-wrapper { position: relative; aspect-ratio: 16 / 9; width: 100%; background: #000; }
+  .video-marco-wrapper iframe { width: 100%; height: 100%; border: 0; display: block; pointer-events: none; }
+  
   .tapa {
     position: absolute; inset: 0; width: 100%; height: 100%; border: 0; margin: 0; padding: 0;
     background: #000; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5;
@@ -61,88 +57,83 @@
   .tapa[hidden] { display: none; }
   .tapa svg { width: 68px; height: 68px; fill: #fff; opacity: .92; }
   .tapa:hover svg { opacity: 1; }
-  .tapa:focus-visible { outline: 3px solid var(--acento); outline-offset: -3px; }
 
-  /* Selector de videos individuales del canal */
-  .selector {
-    position: absolute; inset: 0; background: #0f1720; z-index: 8; overflow-y: auto;
-    padding: 14px; display: flex; flex-direction: column; gap: 12px;
+  .controles { display: flex; align-items: center; gap: 4px; padding: 8px 14px; background: #1d2b3a; }
+  .controles button {
+    min-width: 40px; min-height: 40px; border: 0; background: none; color: #fff; border-radius: 8px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
   }
-  .selector[hidden] { display: none; }
-  .selector-mensaje { margin: auto; text-align: center; font-weight: 600; opacity: .85; }
-  .selector-mensaje[hidden] { display: none; }
-  .selector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+  .controles button:hover { background: rgba(255, 255, 255, .12); }
+  .controles svg { width: 22px; height: 22px; fill: currentColor; }
+  .controles input[type=range] { flex: 1; min-width: 60px; accent-color: var(--acento); }
+  .tiempo { min-width: 92px; text-align: center; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+
+  /* Selector inferior de todos los videos del canal */
+  .seccion-videos-canal h3 { margin: 0 0 12px 0; font-size: 1.1rem; }
+  .selector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
   .selector-grid button {
-    position: relative; border: 0; padding: 0; background: #000; border-radius: 8px; overflow: hidden;
-    cursor: pointer; aspect-ratio: 16 / 9; display: block;
+    position: border; border: 0; padding: 0; background: #000; border-radius: 8px; overflow: hidden;
+    cursor: pointer; aspect-ratio: 16 / 9; display: block; text-align: left;
   }
-  .selector-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .selector-grid button img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .selector-grid .num {
     position: absolute; bottom: 4px; right: 4px; background: rgba(0, 0, 0, .75); color: #fff;
     font-size: .7rem; font-weight: 700; padding: 1px 6px; border-radius: 4px;
   }
   .selector-grid button:hover { outline: 2px solid var(--acento); }
-  .selector-grid button:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
-
-  .controles { display: flex; align-items: center; gap: 4px; padding: 6px 10px; background: #1d2b3a; }
-  .controles[hidden] { display: none; }
-  .controles button {
-    min-width: 44px; min-height: 44px; border: 0; background: none; color: #fff; border-radius: 8px;
-    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; line-height: 1;
-  }
-  .controles button:hover { background: rgba(255, 255, 255, .12); }
-  .controles button:focus-visible, .controles input:focus-visible { outline: 3px solid var(--acento); }
-  .controles svg { width: 24px; height: 24px; fill: currentColor; }
-  .controles input[type=range] { flex: 1; min-width: 60px; accent-color: var(--acento); }
-  .tiempo { min-width: 92px; text-align: center; font-size: .85rem; font-variant-numeric: tabular-nums; }
 
   @media (max-width: 760px) { .cuadricula { grid-template-columns: repeat(2, 1fr); gap: 14px; } }
   @media (max-width: 480px) { .tiempo { display: none; } }
   @media (max-width: 360px) { .cuadricula { grid-template-columns: 1fr; } }
-  @media (prefers-reduced-motion: reduce) { .tarjeta { transition: none; } .tarjeta:hover { transform: none; } }
 </style>
 </head>
 <body>
-<header><h1>FreshMindVideo</h1></header>
-<main>
-  <div id="cuadricula" class="cuadricula"></div>
-  <p id="mensaje" class="mensaje">Cargando…</p>
-</main>
 
-<dialog id="dialogo" aria-labelledby="titulo-video">
-  <div class="barra">
-    <button class="volver" id="volver" type="button" aria-label="Ver todos los videos del canal">←</button>
-    <h2 id="titulo-video"></h2>
-    <span class="indice" id="indice"></span>
-    <button class="cerrar" id="cerrar" type="button" aria-label="Cerrar reproductor">×</button>
+<header>
+  <h1 id="logo-inicio">FreshMindVideo</h1>
+</header>
+
+<main>
+  <!-- VISTA PRINCIPAL: Cuadrícula de Canales -->
+  <div id="vista-principal">
+    <div id="cuadricula" class="cuadricula"></div>
+    <p id="mensaje" class="mensaje">Cargando canales…</p>
   </div>
-  <div class="reproductor" id="reproductor">
-    <div class="video">
-      <div id="marco"></div>
-      <button type="button" id="tapa" class="tapa" aria-label="Reproducir" hidden>
-        <svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>
-      </button>
-      <div id="selector" class="selector" hidden>
-        <p class="selector-mensaje" id="selector-mensaje">Cargando videos…</p>
-        <div class="selector-grid" id="selector-grid"></div>
+
+  <!-- VISTA DE CANAL: Reproductor orgánico y lista completa de videos -->
+  <div id="vista-canal">
+    <div class="barra-navegacion">
+      <button class="volver" id="btn-volver" type="button">← Volver a canales</button>
+      <h2 class="titulo-canal-activo" id="titulo-canal-activo"></h2>
+    </div>
+
+    <div class="contenedor-reproductor-principal">
+      <div class="video-marco-wrapper">
+        <div id="marco"></div>
+        <button type="button" id="tapa" class="tapa" aria-label="Reproducir">
+          <svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>
+        </button>
+      </div>
+      <div class="controles" id="controles">
+        <button type="button" id="b-anterior" aria-label="Video anterior"></button>
+        <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
+        <button type="button" id="b-siguiente" aria-label="Video siguiente"></button>
+        <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
+        <span class="tiempo" id="tiempo">0:00 / 0:00</span>
+        <button type="button" id="b-sonido" aria-label="Activar o quitar sonido"></button>
+        <button type="button" id="b-pantalla" aria-label="Pantalla completa"></button>
       </div>
     </div>
-    <div class="controles" id="controles" hidden>
-      <button type="button" id="b-anterior" aria-label="Video anterior"></button>
-      <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
-      <button type="button" id="b-siguiente" aria-label="Video siguiente"></button>
-      <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
-      <span class="tiempo" id="tiempo">0:00 / 0:00</span>
-      <button type="button" id="b-sonido" aria-label="Activar o quitar sonido"></button>
-      <button type="button" id="b-pantalla" aria-label="Pantalla completa"></button>
+
+    <div class="seccion-videos-canal">
+      <h3>Todos los videos del canal (<span id="contador-total">0</span>)</h3>
+      <p id="selector-mensaje">Cargando lista completa de videos…</p>
+      <div class="selector-grid" id="selector-grid"></div>
     </div>
   </div>
-</dialog>
+</main>
 
 <script>
-  // Tope de videos por canal. Cámbialo aquí si más adelante quieres otro número.
-  var MAX_VIDEOS = 10;
-
   var COLORES = ["#ffd166", "#7bdff2", "#b2f7b8", "#ffb3c1", "#cdb4ff", "#ffc98b"];
   var ICONOS = {
     anterior: '<svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
@@ -154,21 +145,21 @@
     pantalla: '<svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zM20 4v6h-2V6h-4V4zM4 20v-6h2v4h4v2zM20 20h-6v-2h4v-4h2z"/></svg>'
   };
 
-  var dialogo = document.getElementById("dialogo");
-  var reproductor = document.getElementById("reproductor");
+  var vistaPrincipal = document.getElementById("vista-principal");
+  var vistaCanal = document.getElementById("vista-canal");
+  var tituloCanalActivo = document.getElementById("titulo-canal-activo");
+  var selectorGrid = document.getElementById("selector-grid");
+  var selectorMensaje = document.getElementById("selector-mensaje");
+  var contadorTotal = document.getElementById("contador-total");
+
   var bPlay = document.getElementById("b-play");
   var bSonido = document.getElementById("b-sonido");
   var bAnterior = document.getElementById("b-anterior");
   var bSiguiente = document.getElementById("b-siguiente");
   var rango = document.getElementById("rango");
   var tiempo = document.getElementById("tiempo");
-  var indiceTexto = document.getElementById("indice");
   var tapa = document.getElementById("tapa");
-  var selector = document.getElementById("selector");
-  var selectorGrid = document.getElementById("selector-grid");
-  var selectorMensaje = document.getElementById("selector-mensaje");
-  var controlesBar = document.getElementById("controles");
-  var volverBtn = document.getElementById("volver");
+  var wrapperVideo = document.querySelector(".video-marco-wrapper");
 
   bAnterior.innerHTML = ICONOS.anterior;
   bSiguiente.innerHTML = ICONOS.siguiente;
@@ -177,11 +168,10 @@
   bSonido.innerHTML = ICONOS.sonido;
 
   var jugador = null, listo = false, canalActual = null;
-  var listaVideos = [];       // IDs de los videos del canal actual (hasta MAX_VIDEOS), en orden fijo
+  var listaVideos = []; 
   var indiceActual = 0;
-  var ultimaTarjeta = null, temporizador = null, arrastrando = false, errores = 0, apiPendiente = null;
+  var temporizador = null, arrastrando = false, errores = 0, apiPendiente = null;
 
-  /* ---------- API de YouTube (se carga solo al abrir el primer canal) ---------- */
   function cargarApi(cb) {
     if (window.YT && YT.Player) { cb(); return; }
     apiPendiente = cb;
@@ -202,29 +192,15 @@
     return m + ":" + (s < 10 ? "0" : "") + s;
   }
 
-  function totalDisponible() {
-    return listaVideos.length || MAX_VIDEOS;
-  }
-
-  /* ---------- Cambiar entre "elegir video" y "reproductor" dentro del mismo diálogo ---------- */
-  function mostrarSelector() {
-    controlesBar.hidden = true;
-    tapa.hidden = true;
-    selector.hidden = false;
-    if (listo) jugador.pauseVideo();
-  }
-  function mostrarReproductor() {
-    selector.hidden = true;
-    controlesBar.hidden = false;
-  }
-
-  function construirSelector() {
-    selectorMensaje.hidden = true;
+  function construirSelectorCompleto() {
+    selectorMensaje.style.display = "none";
     selectorGrid.innerHTML = "";
+    contadorTotal.textContent = listaVideos.length;
+    
     listaVideos.forEach(function (id, i) {
       var b = document.createElement("button");
       b.type = "button";
-      b.setAttribute("aria-label", "Video " + (i + 1));
+      b.style.position = "relative";
       var img = document.createElement("img");
       img.src = "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg";
       img.alt = "";
@@ -234,92 +210,102 @@
       num.textContent = (i + 1);
       b.appendChild(img);
       b.appendChild(num);
-      b.addEventListener("click", function () { reproducirIndice(i); });
+      b.addEventListener("click", function () {
+        reproducirIndice(i);
+      });
       selectorGrid.appendChild(b);
     });
   }
 
   function reproducirIndice(i) {
     indiceActual = i;
-    mostrarReproductor();
-    tapa.hidden = true;       // sin retraso: se destapa de inmediato al elegir
-    jugador.playVideoAt(i);
+    tapa.hidden = true;
+    if (listo && jugador.playVideoAt) {
+      jugador.playVideoAt(i);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // Avanza/retrocede en orden fijo (1,2,3…) y da la vuelta al llegar al final — nunca aleatorio, nunca se queda video sin pasar.
-  function siguienteConTope() {
-    if (!listo || !totalDisponible()) return;
-    indiceActual = (indiceActual + 1) % totalDisponible();
-    jugador.playVideoAt(indiceActual);
-  }
-  function anteriorConTope() {
-    if (!listo || !totalDisponible()) return;
-    indiceActual = (indiceActual - 1 + totalDisponible()) % totalDisponible();
+  function siguienteVideo() {
+    if (!listo || !listaVideos.length) return;
+    indiceActual = (indiceActual + 1) % listaVideos.length;
     jugador.playVideoAt(indiceActual);
   }
 
-  function actualizarIndice() {
-    if (selector.hidden === false) { indiceTexto.textContent = ""; return; }
-    var total = totalDisponible();
-    indiceTexto.textContent = total ? (indiceActual + 1) + " / " + total : "";
+  function anteriorVideo() {
+    if (!listo || !listaVideos.length) return;
+    indiceActual = (indiceActual - 1 + listaVideos.length) % listaVideos.length;
+    jugador.playVideoAt(indiceActual);
   }
 
-  function pedirListaDeVideos(intento) {
+  // Carga recursiva para obtener TODOS los videos de la lista de reproducción sin límite de 10
+  function pedirTodosLosVideos(intento) {
     var lista = jugador.getPlaylist() || [];
     if (lista.length) {
-      listaVideos = lista.slice(0, MAX_VIDEOS);
-      construirSelector();
-    } else if ((intento || 0) < 6) {
-      setTimeout(function () { pedirListaDeVideos((intento || 0) + 1); }, 400);
+      listaVideos = lista; // Sin cortes, agarra absolutamente todos
+      construirSelectorCompleto();
+    } else if ((intento || 0) < 15) {
+      setTimeout(function () { pedirTodosLosVideos((intento || 0) + 1); }, 500);
     } else {
-      selectorMensaje.hidden = false;
-      selectorMensaje.textContent = "No se pudieron cargar los videos de este canal.";
+      selectorMensaje.style.display = "block";
+      selectorMensaje.textContent = "No se pudieron recuperar los videos de este canal.";
     }
   }
 
-  function cargarLista() {
-    if (!canalActual || !listo || !dialogo.open) return;
-    errores = 0;
+  function iniciarCanal(idCanal, nombreCanal) {
+    canalActual = "UU" + idCanal.slice(2);
+    tituloCanalActivo.textContent = nombreCanal;
+    vistaPrincipal.classList.add("oculto");
+    vistaCanal.classList.add("activo");
+    
     listaVideos = [];
-    mostrarSelector();
-    selectorMensaje.hidden = false;
-    selectorMensaje.textContent = "Cargando videos…";
     selectorGrid.innerHTML = "";
-    // Se deja "cued" (no reproduce sola); el usuario elige el video.
-    jugador.cuePlaylist({ listType: "playlist", list: canalActual, index: 0 });
-  }
+    selectorMensaje.style.display = "block";
+    selectorMensaje.textContent = "Cargando todos los videos del canal...";
+    contadorTotal.textContent = "0";
+    tapa.hidden = false;
 
-  function crearJugador() {
-    if (jugador) { cargarLista(); return; }
-    var vars = { controls: 0, fs: 0, rel: 0, disablekb: 1, iv_load_policy: 3, playsinline: 1 };
-    if (location.protocol.indexOf("http") === 0) vars.origin = location.origin;
-    jugador = new YT.Player("marco", {
-      width: "100%", height: "100%", playerVars: vars,
-      events: {
-        onReady: function () { listo = true; cargarLista(); },
-        onStateChange: function (e) {
-          bPlay.innerHTML = (e.data === 1) ? ICONOS.pausa : ICONOS.play;
-          if (e.data === 1) { tapa.hidden = true; errores = 0; }      // reproduciendo: destapado, sin retraso
-          else if (e.data === 2) { tapa.hidden = false; }              // pausado: tapa puesta
-
-          if (e.data === 5 && !listaVideos.length) {                  // lista recién "cued": armar selector
-            pedirListaDeVideos(0);
+    cargarApi(function() {
+      if (!jugador) {
+        var vars = { controls: 0, fs: 0, rel: 0, disablekb: 1, iv_load_policy: 3, playsinline: 1 };
+        if (location.protocol.indexOf("http") === 0) vars.origin = location.origin;
+        jugador = new YT.Player("marco", {
+          width: "100%", height: "100%", playerVars: vars,
+          events: {
+            onReady: function () {
+              listo = true;
+              jugador.cuePlaylist({ listType: "playlist", list: canalActual, index: 0 });
+              pedirTodosLosVideos(0);
+            },
+            onStateChange: function (e) {
+              bPlay.innerHTML = (e.data === 1) ? ICONOS.pausa : ICONOS.play;
+              if (e.data === 1) { tapa.hidden = true; errores = 0; }
+              else if (e.data === 2) { tapa.hidden = false; }
+              if (e.data === 5 && !listaVideos.length) {
+                pedirTodosLosVideos(0);
+              }
+              if (e.data === 0) {
+                siguienteVideo();
+              }
+            },
+            onError: function () {
+              errores++;
+              if (errores < 5) siguienteVideo();
+            }
           }
-          if (e.data === 0) {                                         // terminó: siguiente en orden, en bucle
-            siguienteConTope();
-          }
-          actualizarIndice();
-        },
-        // Si un video no se puede reproducir aquí, pasa al siguiente (máximo 5 seguidos) sin romper el ciclo.
-        onError: function () {
-          errores++;
-          if (errores < 5) siguienteConTope();
-        }
+        });
+      } else {
+        jugador.cuePlaylist({ listType: "playlist", list: canalActual, index: 0 });
+        pedirTodosLosVideos(0);
       }
     });
+
+    if (!temporizador) {
+      temporizador = setInterval(actualizarCronometro, 500);
+    }
   }
 
-  function actualizar() {
+  function actualizarCronometro() {
     if (!listo || !jugador.getDuration) return;
     var dur = jugador.getDuration() || 0, t = jugador.getCurrentTime() || 0;
     if (!arrastrando && dur > 0) rango.value = Math.round(t / dur * 1000);
@@ -327,37 +313,24 @@
     bSonido.innerHTML = jugador.isMuted() ? ICONOS.mudo : ICONOS.sonido;
   }
 
-  function abrirReproductor(nombre, idCanal, tarjeta) {
-    ultimaTarjeta = tarjeta;
-    canalActual = "UU" + idCanal.slice(2);   // lista de subidas del canal
-    document.getElementById("titulo-video").textContent = nombre;
-    rango.value = 0;
-    tiempo.textContent = "0:00 / 0:00";
-    indiceTexto.textContent = "";
-    indiceActual = 0;
-    dialogo.showModal();
-    document.getElementById("cerrar").focus();
-    temporizador = setInterval(actualizar, 500);
-    cargarApi(crearJugador);
+  function regresarAprincipal() {
+    vistaCanal.classList.remove("activo");
+    vistaPrincipal.classList.remove("oculto");
+    if (listo && jugador.stopVideo) {
+      jugador.stopVideo();
+    }
+    if (temporizador) {
+      clearInterval(temporizador);
+      temporizador = null;
+    }
   }
 
-  function cerrarReproductor() { dialogo.close(); }
+  document.getElementById("btn-volver").addEventListener("click", regresarAprincipal);
+  document.getElementById("logo-inicio").addEventListener("click", regresarAprincipal);
 
-  dialogo.addEventListener("close", function () {
-    clearInterval(temporizador);
-    canalActual = null;
-    listaVideos = [];
-    if (listo) jugador.stopVideo();
-    if (document.fullscreenElement) document.exitFullscreen();
-    if (ultimaTarjeta) ultimaTarjeta.focus();
-  });
-  dialogo.addEventListener("click", function (e) { if (e.target === dialogo) cerrarReproductor(); });
-  document.getElementById("cerrar").addEventListener("click", cerrarReproductor);
-  volverBtn.addEventListener("click", mostrarSelector);
-
-  /* ---------- Botones del reproductor ---------- */
-  bAnterior.addEventListener("click", anteriorConTope);
-  bSiguiente.addEventListener("click", siguienteConTope);
+  // Controles del reproductor
+  bAnterior.addEventListener("click", anteriorVideo);
+  bSiguiente.addEventListener("click", siguienteVideo);
   bPlay.addEventListener("click", function () {
     if (!listo) return;
     if (jugador.getPlayerState() === 1) jugador.pauseVideo(); else jugador.playVideo();
@@ -368,40 +341,20 @@
   bSonido.addEventListener("click", function () {
     if (!listo) return;
     if (jugador.isMuted()) jugador.unMute(); else jugador.mute();
-    actualizar();
   });
-  rango.addEventListener("input", function () { arrastrando = true; actualizar(); });
+  rango.addEventListener("input", function () { arrastrando = true; });
   rango.addEventListener("change", function () {
     if (listo) jugador.seekTo(jugador.getDuration() * rango.value / 1000, true);
     arrastrando = false;
   });
+
   var bPantalla = document.getElementById("b-pantalla");
-  if (!(reproductor.requestFullscreen || reproductor.webkitRequestFullscreen)) bPantalla.hidden = true;
   bPantalla.addEventListener("click", function () {
     if (document.fullscreenElement) { document.exitFullscreen(); return; }
-    (reproductor.requestFullscreen || reproductor.webkitRequestFullscreen).call(reproductor);
+    (wrapperVideo.requestFullscreen || wrapperVideo.webkitRequestFullscreen).call(wrapperVideo);
   });
 
-  /* ---------- Cuadrícula de canales ---------- */
-  function idDeVideo(url) {
-    try {
-      var u = new URL(url);
-      if (u.hostname.indexOf("youtu.be") !== -1) return u.pathname.slice(1);
-      if (u.searchParams.get("v")) return u.searchParams.get("v");
-      var m = u.pathname.match(/\/(shorts|embed)\/([\w-]+)/);
-      if (m) return m[2];
-    } catch (e) {}
-    return null;
-  }
-
-  function nombreDesdeUrl(url) {
-    try {
-      var partes = new URL(url).pathname.split("/").filter(Boolean);
-      var ultimo = partes[partes.length - 1] || "Canal";
-      return decodeURIComponent(ultimo.replace(/^@/, ""));
-    } catch (e) { return "Canal"; }
-  }
-
+  // Generación de tarjetas con imágenes automáticas basadas en el ID del canal
   function inicial(nombre, i) {
     var d = document.createElement("div");
     d.className = "inicial";
@@ -412,35 +365,29 @@
 
   function crearTarjeta(item, i) {
     var url = item.url || item.enlace || "";
-    if (url.indexOf("http") !== 0) return null;
-    var nombre = item.nombre || item.name || nombreDesdeUrl(url);
+    if (!url) return null;
+    var nombre = item.nombre || item.name || "Canal";
     var idCanal = (item.id || "").trim();
     var imagen = item.imagen || item.image || "";
-    if (!imagen) {
-      var id = idDeVideo(url);
-      if (id) imagen = "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg";
-    }
 
-    var a = document.createElement("a");
+    var a = document.createElement("div");
     a.className = "tarjeta";
-    a.href = url;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    // Con id de canal se abre el selector de videos aquí mismo (máximo MAX_VIDEOS); sin id se abre YouTube en otra pestaña.
-    if (/^UC[\w-]{22}$/.test(idCanal) && dialogo.showModal) {
-      a.addEventListener("click", function (e) {
-        e.preventDefault();
-        abrirReproductor(nombre, idCanal, a);
-      });
-    }
 
     var media = document.createElement("div");
     media.className = "media";
+
+    // Si no pones imagen en el JSON, la obtenemos automáticamente de YouTube usando el ID del canal
+    if (!imagen && /^UC[\w-]{22}$/.test(idCanal)) {
+      // Truco para obtener el banner/avatar automático de YouTube a partir del ID del canal
+      imagen = "https://yt3.googleusercontent.com/ytc/" + idCanal; 
+    }
+
     if (imagen) {
       var img = document.createElement("img");
       img.src = imagen;
       img.alt = "";
       img.loading = "lazy";
+      // Si falla la imagen automática, recurre a la inicial colorida
       img.onerror = function () { media.replaceChildren(inicial(nombre, i)); };
       media.appendChild(img);
     } else {
@@ -453,6 +400,17 @@
 
     a.appendChild(media);
     a.appendChild(titulo);
+
+    if (/^UC[\w-]{22}$/.test(idCanal)) {
+      a.addEventListener("click", function () {
+        iniciarCanal(idCanal, nombre);
+      });
+    } else {
+      a.addEventListener("click", function () {
+        window.open(url, "_blank");
+      });
+    }
+
     return a;
   }
 
@@ -469,13 +427,9 @@
         if (t) cuadricula.appendChild(t);
       });
       document.getElementById("mensaje").hidden = cuadricula.children.length > 0;
-      if (!cuadricula.children.length) {
-        document.getElementById("mensaje").textContent = "Todavía no hay canales en canales.json.";
-      }
     })
     .catch(function () {
-      document.getElementById("mensaje").textContent =
-        "No se pudo leer canales.json. Revisa que esté en la misma carpeta que index.html y que el formato sea correcto.";
+      document.getElementById("mensaje").textContent = "No se pudo leer canales.json.";
     });
 </script>
 </body>
