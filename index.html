@@ -19,7 +19,7 @@
   header { position: sticky; top: 0; z-index: 10; background: var(--tarjeta); padding: 14px 24px; box-shadow: 0 1px 0 rgba(29, 43, 58, .12); display: flex; align-items: center; justify-content: space-between; }
   header h1 { margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--acento); letter-spacing: -.01em; cursor: pointer; }
   
-  /* Contenedor del buscador local para niños */
+  /* Contenedor del buscador local */
   .contenedor-busqueda {
     max-width: 1000px; margin: 20px auto 0; padding: 0 20px; display: none;
   }
@@ -80,7 +80,6 @@
   .controles input[type=range] { flex: 1; min-width: 60px; accent-color: var(--acento); }
   .tiempo { min-width: 92px; text-align: center; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 
-  /* Selector inferior de todos los videos del canal */
   .seccion-videos-canal h3 { margin: 0 0 12px 0; font-size: 1.1rem; }
   .selector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
   .selector-grid button {
@@ -111,27 +110,25 @@
 <header>
   <h1 id="logo-inicio">FreshMindVideo</h1>
   <div style="display: flex; gap: 10px; align-items: center;">
-    <!-- 🌟 NUEVO BOTÓN PARA LOS NIÑOS -->
-    <button type="button" id="btn-toggle-buscador-ninos" style="background: #3b82f6; color: #fff; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer;">⭐ Buscar Canal</button>
+    <button type="button" id="btn-toggle-buscador" style="background: #3b82f6; color: #fff; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer;">🔍 Buscar</button>
   </div>
 </header>
 
-<!-- 🌟 NUEVO CONTENEDOR DE BÚSQUEDA LOCAL -->
-<div class="contenedor-busqueda" id="contenedor-busqueda-ninos">
-  <input type="text" id="input-buscar-ninos" placeholder="Escribe el nombre del canal que quieres buscar...">
+<div class="contenedor-busqueda" id="contenedor-busqueda">
+  <input type="text" id="input-buscar" placeholder="Busca un canal o video individual...">
 </div>
 
 <main>
-  <!-- VISTA PRINCIPAL: Cuadrícula de Canales -->
+  <!-- VISTA PRINCIPAL -->
   <div id="vista-principal">
     <div id="cuadricula" class="cuadricula"></div>
-    <p id="mensaje" class="mensaje">Cargando canales…</p>
+    <p id="mensaje" class="mensaje">Cargando contenido…</p>
   </div>
 
-  <!-- VISTA DE CANAL: Reproductor orgánico y lista completa de videos -->
+  <!-- VISTA DE CANAL -->
   <div id="vista-canal">
     <div class="barra-navegacion">
-      <button class="volver" id="btn-volver" type="button">← Volver a canales</button>
+      <button class="volver" id="btn-volver" type="button">← Volver al inicio</button>
       <h2 class="titulo-canal-activo" id="titulo-canal-activo"></h2>
     </div>
 
@@ -199,7 +196,7 @@
   var listaVideos = []; 
   var indiceActual = 0;
   var temporizador = null, arrastrando = false, errores = 0, apiPendiente = null;
-  var listaCanalesGlobal = [];
+  var listaGlobal = [];
 
   function cargarApi(cb) {
     if (window.YT && YT.Player) { cb(); return; }
@@ -229,7 +226,6 @@
     listaVideos.forEach(function (id, i) {
       var b = document.createElement("button");
       b.type = "button";
-      b.style.position = "relative";
       var img = document.createElement("img");
       img.src = "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg";
       img.alt = "";
@@ -333,6 +329,46 @@
     }
   }
 
+  // Reproducir un video individual directamente en la vista principal o abrirlo
+  function reproducirVideoIndividual(idVideo, nombreVideo) {
+    tituloCanalActivo.textContent = nombreVideo;
+    vistaPrincipal.classList.add("oculto");
+    vistaCanal.classList.add("activo");
+    
+    listaVideos = [idVideo];
+    selectorGrid.innerHTML = "";
+    selectorMensaje.style.display = "none";
+    contadorTotal.textContent = "1";
+    tapa.hidden = false;
+
+    cargarApi(function() {
+      if (!jugador) {
+        var vars = { controls: 0, fs: 0, rel: 0, disablekb: 1, iv_load_policy: 3, playsinline: 1 };
+        if (location.protocol.indexOf("http") === 0) vars.origin = location.origin;
+        jugador = new YT.Player("marco", {
+          width: "100%", height: "100%", playerVars: vars,
+          events: {
+            onReady: function () {
+              listo = true;
+              jugador.cueVideoById(idVideo);
+            },
+            onStateChange: function (e) {
+              bPlay.innerHTML = (e.data === 1) ? ICONOS.pausa : ICONOS.play;
+              if (e.data === 1) tapa.hidden = true;
+              else if (e.data === 2) tapa.hidden = false;
+            }
+          }
+        });
+      } else {
+        jugador.cueVideoById(idVideo);
+      }
+    });
+
+    if (!temporizador) {
+      temporizador = setInterval(actualizarCronometro, 500);
+    }
+  }
+
   function actualizarCronometro() {
     if (!listo || !jugador.getDuration) return;
     var dur = jugador.getDuration() || 0, t = jugador.getCurrentTime() || 0;
@@ -391,8 +427,7 @@
 
   function crearTarjeta(item, i) {
     var url = item.url || item.enlace || "";
-    if (!url) return null;
-    var nombre = item.nombre || item.name || "Canal";
+    var nombre = item.nombre || item.name || "Contenido";
     var idCanal = (item.id || "").trim();
     var imagen = item.imagen || item.image || "";
 
@@ -402,7 +437,22 @@
     var media = document.createElement("div");
     media.className = "media";
 
-    if (!imagen && /^UC[\w-]{22}$/.test(idCanal)) {
+    // Detectar si es un video individual (por URL de YouTube o ID de video que no es canal UC)
+    var esVideoId = item.tipo === "video" || (!(/^UC[\w-]{22}$/.test(idCanal)) && (url.includes("watch?v=") || url.includes("youtu.be/") || item.videoId));
+    var videoIdExtraido = item.videoId || "";
+    if (esVideoId && !videoIdExtraido) {
+      if (url.includes("watch?v=")) {
+        videoIdExtraido = url.split("watch?v=")[1].split("&")[0];
+      } else if (url.includes("youtu.be/")) {
+        videoIdExtraido = url.split("youtu.be/")[1].split("?")[0];
+      } else if (idCanal && !idCanal.startsWith("UC")) {
+        videoIdExtraido = idCanal;
+      }
+    }
+
+    if (!imagen && esVideoId && videoIdExtraido) {
+      imagen = "https://i.ytimg.com/vi/" + videoIdExtraido + "/hqdefault.jpg";
+    } else if (!imagen && /^UC[\w-]{22}$/.test(idCanal)) {
       imagen = "https://yt3.googleusercontent.com/ytc/" + idCanal; 
     }
 
@@ -424,13 +474,18 @@
     a.appendChild(media);
     a.appendChild(titulo);
 
-    if (/^UC[\w-]{22}$/.test(idCanal)) {
+    // Asignar acción dependiendo si es Canal o Video Individual
+    if (esVideoId && videoIdExtraido) {
+      a.addEventListener("click", function () {
+        reproducirVideoIndividual(videoIdExtraido, nombre);
+      });
+    } else if (/^UC[\w-]{22}$/.test(idCanal)) {
       a.addEventListener("click", function () {
         iniciarCanal(idCanal, nombre);
       });
     } else {
       a.addEventListener("click", function () {
-        window.open(url, "_blank");
+        if (url) window.open(url, "_blank");
       });
     }
 
@@ -453,32 +508,32 @@
       return r.json();
     })
     .then(function (datos) {
-      listaCanalesGlobal = Array.isArray(datos) ? datos : (datos.canales || datos.channels || []);
-      renderizarCuadricula(listaCanalesGlobal);
+      listaGlobal = Array.isArray(datos) ? datos : (datos.canales || datos.channels || datos.videos || []);
+      renderizarCuadricula(listaGlobal);
     })
     .catch(function () {
       document.getElementById("mensaje").textContent = "No se pudo leer canales.json.";
     });
 
-  // Lógica del nuevo buscador local para los niños
-  var btnBuscadorNinos = document.getElementById("btn-toggle-buscador-ninos");
-  var contenedorBusquedaNinos = document.getElementById("contenedor-busqueda-ninos");
-  var inputBuscarNinos = document.getElementById("input-buscar-ninos");
+  // Lógica del Buscador
+  var btnBuscador = document.getElementById("btn-toggle-buscador");
+  var contenedorBusqueda = document.getElementById("contenedor-busqueda");
+  var inputBuscar = document.getElementById("input-buscar");
 
-  if (btnBuscadorNinos && contenedorBusquedaNinos) {
-    btnBuscadorNinos.addEventListener("click", function() {
-      contenedorBusquedaNinos.classList.toggle("activo");
-      if (contenedorBusquedaNinos.classList.contains("activo")) {
-        inputBuscarNinos.focus();
+  if (btnBuscador && contenedorBusqueda) {
+    btnBuscador.addEventListener("click", function() {
+      contenedorBusqueda.classList.toggle("activo");
+      if (contenedorBusqueda.classList.contains("activo")) {
+        inputBuscar.focus();
       } else {
-        inputBuscarNinos.value = "";
-        renderizarCuadricula(listaCanalesGlobal);
+        inputBuscar.value = "";
+        renderizarCuadricula(listaGlobal);
       }
     });
 
-    inputBuscarNinos.addEventListener("input", function() {
-      var texto = inputBuscarNinos.value.toLowerCase().trim();
-      var filtrados = listaCanalesGlobal.filter(function(item) {
+    inputBuscar.addEventListener("input", function() {
+      var texto = inputBuscar.value.toLowerCase().trim();
+      var filtrados = listaGlobal.filter(function(item) {
         var nombre = (item.nombre || item.name || "").toLowerCase();
         return nombre.includes(texto);
       });
