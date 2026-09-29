@@ -2,7 +2,25 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com; connect-src 'self' https://www.googleapis.com https://api.github.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.googleapis.com https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'none'; media-src 'none'; worker-src 'none';">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script>
+/* Escudo: bloquea ventanas emergentes y cualquier iframe/script inyectado que no sea de YouTube o de tu sitio */
+(function () {
+  var OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|i\.ytimg\.com|yt3\.ggpht\.com)\//;
+  var SRC_OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|s\.ytimg\.com)\//;
+  var abrir = window.open;
+  window.open = function (u) { return OK.test(String(u || "")) ? abrir.apply(window, arguments) : null; };
+  new MutationObserver(function (ms) {
+    ms.forEach(function (m) {
+      m.addedNodes.forEach(function (n) {
+        if (n.nodeType !== 1 || !/^(IFRAME|SCRIPT|EMBED|OBJECT)$/.test(n.tagName) || !n.src) return;
+        if (n.src.indexOf(location.origin) !== 0 && !SRC_OK.test(n.src)) n.remove();
+      });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FreshMindVideo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,7 +35,7 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--fondo); color: var(--texto); font-family: "Nunito", "Segoe UI", Arial, sans-serif; }
-  header { position: sticky; top: 0; z-index: 10; background: var(--tarjeta); padding: 14px 24px; box-shadow: 0 1px 0 rgba(29, 43, 58, .12); display: flex; align-items: center; justify-content: space-between; }
+  header { position: sticky; top: 0; z-index: 10; background: var(--tarjeta); padding: 14px 24px; box-shadow: 0 1px 0 rgba(29, 43, 58, .12); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
   header h1 { margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--acento); letter-spacing: -.01em; cursor: pointer; }
   main { max-width: 1000px; margin: 0 auto; padding: 28px 20px 48px; }
   .cuadricula { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
@@ -90,28 +108,42 @@
 
   @media (max-width: 760px) { .cuadricula { grid-template-columns: repeat(2, 1fr); gap: 14px; } }
   .controles button.activo { background: var(--acento); }
-  #volumen { flex: 0 0 80px; min-width: 0; }
-  .salir-pantalla { display: none; position: absolute; top: 12px; right: 12px; z-index: 8; min-width: 44px; min-height: 44px; border: 0; border-radius: 999px; background: rgba(0,0,0,.65); color: #fff; cursor: pointer; align-items: center; justify-content: center; }
-  .salir-pantalla svg { width: 24px; height: 24px; fill: currentColor; }
   .en-pantalla { position: fixed; inset: 0; z-index: 200; margin: 0; border-radius: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: #000; }
   .en-pantalla .video-marco-wrapper { flex: 1; aspect-ratio: auto; min-height: 0; }
   .en-pantalla .controles { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; background: linear-gradient(transparent, rgba(0,0,0,.8)); padding-top: 28px; transition: opacity .25s; }
-  .en-pantalla .salir-pantalla { display: flex; transition: opacity .25s; }
-  .en-pantalla.inactivo .controles, .en-pantalla.inactivo .salir-pantalla { opacity: 0; pointer-events: none; }
+  .en-pantalla.inactivo .controles { opacity: 0; pointer-events: none; }
   .en-pantalla.inactivo { cursor: none; }
   @media (max-width: 600px) {
     .controles { flex-wrap: wrap; }
     #rango { order: -1; flex: 1 1 calc(100% - 100px); }
     .tiempo { order: -1; }
-    #volumen { flex-basis: 60px; }
   }
   @media (max-width: 360px) { .cuadricula { grid-template-columns: 1fr; } }
+  header nav { display: flex; gap: 8px; }
+  header nav button { border: 0; background: none; font: inherit; font-weight: 800; padding: 8px 14px; border-radius: 8px; cursor: pointer; color: var(--texto); }
+  header nav button.activo { background: var(--acento); color: #fff; }
+  .vol { position: relative; display: flex; }
+  .vol-panel { display: none; position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); background: #1d2b3a; padding: 12px 16px; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 9; }
+  .vol-panel.abierto { display: block; }
+  .vol-panel input { width: 130px; display: block; margin: 0; }
+  .selector-grid .item { position: relative; display: flex; }
+  .selector-grid .item > button { width: 100%; }
+  .quitar-video { position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.75); color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2; }
+  /* Pantalla completa: barra al doble de tamaño */
+  .en-pantalla .controles { flex-wrap: wrap; gap: 10px; padding: 40px 28px 22px; }
+  .en-pantalla .controles button { min-width: 80px; min-height: 80px; }
+  .en-pantalla .controles svg { width: 44px; height: 44px; }
+  .en-pantalla .tiempo { font-size: 1.7rem; min-width: 190px; }
+  .en-pantalla #rango { order: -1; flex: 1 1 100%; height: 40px; }
+  .en-pantalla .vol-panel { padding: 22px 28px; }
+  .en-pantalla .vol-panel input { width: 260px; height: 40px; }
 </style>
 </head>
 <body>
 
 <header>
   <h1 id="logo-inicio">FreshMindVideo</h1>
+  <nav><button type="button" id="tab-canales" class="activo">Canales</button><button type="button" id="tab-videos">⭐ Mis videos</button></nav>
 </header>
 
 <main>
@@ -135,15 +167,13 @@
           <svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>
         </button>
       </div>
-      <button type="button" id="b-salir" class="salir-pantalla" aria-label="Salir de pantalla completa"></button>
       <div class="controles" id="controles">
         <button type="button" id="b-anterior" aria-label="Video anterior"></button>
         <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
         <button type="button" id="b-siguiente" aria-label="Video siguiente"></button>
         <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
         <span class="tiempo" id="tiempo">0:00 / 0:00</span>
-        <button type="button" id="b-sonido" aria-label="Activar o quitar sonido"></button>
-        <input type="range" id="volumen" min="0" max="100" value="100" aria-label="Volumen">
+        <div class="vol"><div class="vol-panel" id="vol-panel"><input type="range" id="volumen" min="0" max="100" value="100" aria-label="Volumen"></div><button type="button" id="b-sonido" aria-label="Volumen"></button></div>
         <button type="button" id="b-subs" aria-label="Subtítulos" aria-pressed="false"></button>
         <button type="button" id="b-pantalla" aria-label="Pantalla completa"></button>
       </div>
@@ -193,7 +223,6 @@
   bPlay.innerHTML = ICONOS.play;
   bSonido.innerHTML = ICONOS.sonido;
   document.getElementById("b-subs").innerHTML = ICONOS.subs;
-  document.getElementById("b-salir").innerHTML = ICONOS.salir;
 
   var jugador = null, listo = false, canalActual = null;
   var listaVideos = [];   // IDs de los videos del canal
@@ -241,23 +270,45 @@
 
   /* ---------- Selector de videos (miniatura + título) ---------- */
   function agregarBoton(i) {
+    var w = document.createElement("div");
+    w.className = "item";
     var b = document.createElement("button");
     b.type = "button";
     var img = document.createElement("img");
     img.src = "https://i.ytimg.com/vi/" + listaVideos[i] + "/mqdefault.jpg";
-    img.alt = "";
-    img.loading = "lazy";
-    var num = document.createElement("span");
-    num.className = "num";
-    num.textContent = (i + 1);
-    var t = document.createElement("span");
-    t.className = "titulo";
-    t.textContent = titulos[i] || ("Video " + (i + 1));
-    b.appendChild(img);
-    b.appendChild(num);
-    b.appendChild(t);
+    img.alt = ""; img.loading = "lazy";
+    var num = document.createElement("span"); num.className = "num"; num.textContent = (i + 1);
+    var t = document.createElement("span"); t.className = "titulo"; t.textContent = titulos[i] || ("Video " + (i + 1));
+    b.appendChild(img); b.appendChild(num); b.appendChild(t);
     b.addEventListener("click", function () { irA(i, true); });
-    selectorGrid.appendChild(b);
+    w.appendChild(b);
+    if (window.FMV_esPadre && FMV_esPadre()) {           // punto 4: quitar video individual
+      var q = document.createElement("span");
+      q.className = "quitar-video"; q.textContent = "×"; q.title = "Quitar video";
+      q.addEventListener("click", function (e) { e.stopPropagation(); quitarVideo(i); });
+      w.appendChild(q);
+    }
+    selectorGrid.appendChild(w);
+  }
+
+  function quitarVideo(i) {
+    if (!confirm("¿Quitar este video?")) return;
+    var id = listaVideos[i];
+    if (canalActual === "MIS") FMV_quitarPropio(id); else FMV_bloquear(id);
+    var eraActual = (id === videoActualId);
+    listaVideos.splice(i, 1); titulos.splice(i, 1);
+    contadorTotal.textContent = listaVideos.length;
+    construirSelector(0);
+    if (eraActual) {
+      if (listaVideos.length) irA(Math.min(i, listaVideos.length - 1), false);
+      else if (listo) { jugador.stopVideo(); tapa.hidden = false; }
+    }
+  }
+
+  function sinBloqueados() {
+    var b = window.FMV_bloqueados ? FMV_bloqueados() : [], ni = [], nt = [];
+    listaVideos.forEach(function (id, i) { if (b.indexOf(id) < 0) { ni.push(id); nt.push(titulos[i]); } });
+    listaVideos = ni; titulos = nt;
   }
 
   function construirSelector(desde) {
@@ -275,6 +326,7 @@
     videoActualId = listaVideos[i];
     tapa.hidden = true;
     jugador.loadVideoById(listaVideos[i]);
+    aplicarOrientacion();
     if (subir) window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -313,6 +365,7 @@
     if (cache) {
       listaVideos = cache.ids.slice();
       titulos = (cache.titulos || []).slice();
+      sinBloqueados();
       construirSelector(0);
       prepararPrimero();
       return;
@@ -320,6 +373,7 @@
     if (!clave) { usarListaDelReproductor(); return; }
 
     var ids = [], nombres = [];
+    var bloq = window.FMV_bloqueados ? FMV_bloqueados() : [];
     function pagina(token) {
       fetch("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=" +
             encodeURIComponent(canal) + "&key=" + encodeURIComponent(clave) +
@@ -333,6 +387,7 @@
             var s = it.snippet;
             if (!s || !s.resourceId || !s.resourceId.videoId) return;
             if (s.title === "Private video" || s.title === "Deleted video") return;
+            if (bloq.indexOf(s.resourceId.videoId) >= 0) return;
             ids.push(s.resourceId.videoId);
             nombres.push(s.title);
           });
@@ -368,6 +423,7 @@
     if (lista.length) {
       listaVideos = lista.slice();
       titulos = [];
+      sinBloqueados();
       construirSelector(0);
       prepararPrimero();
     } else if (intento < 10) {
@@ -380,10 +436,35 @@
 
   function iniciarCanal(idCanal, nombreCanal, videoId) {
     canalActual = "UU" + idCanal.slice(2);
+    abrirReproductor(nombreCanal, videoId, cargarLista);
+  }
+
+  /* Pestaña "Mis videos": mismo reproductor (con la misma tapa anti-clics) */
+  function iniciarMisVideos() {
+    canalActual = "MIS";
+    location.hash = "videos";
+    abrirReproductor("⭐ Mis videos", null, function () {
+      var vs = window.FMV_misVideos ? FMV_misVideos() : [];
+      listaVideos = vs.map(function (v) { return v.id; });
+      titulos = vs.map(function (v) { return v.titulo || ""; });
+      if (!listaVideos.length) {
+        selectorMensaje.style.display = "block";
+        selectorMensaje.textContent = "Aún no hay videos individuales. Agrégalos con 🔍 Buscar (zona de padres).";
+        if (listo) jugador.stopVideo();
+        return;
+      }
+      construirSelector(0);
+      prepararPrimero();
+    });
+  }
+
+  function abrirReproductor(nombreCanal, videoId, cargarFn) {
     videoInicial = videoId || null;
     videoActualId = null;
     yaPreparado = false;
     tituloCanalActivo.textContent = nombreCanal;
+    document.getElementById("tab-videos").classList.toggle("activo", canalActual === "MIS");
+    document.getElementById("tab-canales").classList.toggle("activo", canalActual !== "MIS");
     vistaPrincipal.classList.add("oculto");
     vistaCanal.classList.add("activo");
 
@@ -392,7 +473,7 @@
     esperandoLista = false;
     selectorGrid.innerHTML = "";
     selectorMensaje.style.display = "block";
-    selectorMensaje.textContent = "Cargando videos del canal...";
+    selectorMensaje.textContent = "Cargando videos...";
     contadorTotal.textContent = "0";
     tapa.hidden = false;
 
@@ -401,7 +482,9 @@
       var vars = { controls: 0, fs: 0, rel: 0, disablekb: 1, iv_load_policy: 3, playsinline: 1 };
       if (location.protocol.indexOf("http") === 0) vars.origin = location.origin;
       jugador = new YT.Player("marco", {
-        width: "100%", height: "100%", playerVars: vars,
+        width: "100%", height: "100%",
+        host: "https://www.youtube-nocookie.com",
+        playerVars: vars,
         events: {
           onReady: function () {
             listo = true;
@@ -427,7 +510,7 @@
       });
     });
 
-    cargarLista();
+    cargarFn();
     if (videoInicial) prepararPrimero(); // viene del buscador: dejarlo listo de inmediato
 
     if (!temporizador) {
@@ -440,11 +523,14 @@
     var dur = jugador.getDuration() || 0, t = jugador.getCurrentTime() || 0;
     if (!arrastrando && dur > 0) rango.value = Math.round(t / dur * 1000);
     tiempo.textContent = formato(arrastrando ? rango.value / 1000 * dur : t) + " / " + formato(dur);
-    bSonido.innerHTML = jugador.isMuted() ? ICONOS.mudo : ICONOS.sonido;
+    pintarSonido();
     if (!moviendoVol) volumen.value = jugador.isMuted() ? 0 : jugador.getVolume();
   }
 
   function regresarAprincipal() {
+    document.getElementById("tab-canales").classList.add("activo");
+    document.getElementById("tab-videos").classList.remove("activo");
+    history.replaceState(null, "", location.pathname + location.search);
     vistaCanal.classList.remove("activo");
     vistaPrincipal.classList.remove("oculto");
     if (listo && jugador.stopVideo) {
@@ -458,6 +544,11 @@
 
   document.getElementById("btn-volver").addEventListener("click", regresarAprincipal);
   document.getElementById("logo-inicio").addEventListener("click", regresarAprincipal);
+  document.getElementById("tab-canales").addEventListener("click", regresarAprincipal);
+  document.getElementById("tab-videos").addEventListener("click", iniciarMisVideos);
+  window.FMV_alListo = function () { window.FMV_alListo = null; if (location.hash === "#videos") iniciarMisVideos(); };
+  window.FMV_repintarSelector = function () { if (vistaCanal.classList.contains("activo") && listaVideos.length) construirSelector(0); };
+  window.FMV_tabVideos = function (n) { document.getElementById("tab-videos").textContent = "⭐ Mis videos" + (n ? " (" + n + ")" : ""); };
 
   // Controles del reproductor
   bAnterior.addEventListener("click", anteriorVideo);
@@ -469,10 +560,20 @@
   tapa.addEventListener("click", function () {
     if (listo) jugador.playVideo();
   });
-  bSonido.addEventListener("click", function () {
+  var volPanel = document.getElementById("vol-panel"), tVol = null;
+  function cerrarVol() { volPanel.classList.remove("abierto"); }
+  function pintarSonido() {
     if (!listo) return;
-    if (jugador.isMuted()) { jugador.unMute(); if (!jugador.getVolume()) jugador.setVolume(50); } else jugador.mute();
+    bSonido.innerHTML = (jugador.isMuted() || !jugador.getVolume()) ? ICONOS.mudo : ICONOS.sonido;
+  }
+  bSonido.addEventListener("click", function (e) {
+    e.stopPropagation();
+    volPanel.classList.toggle("abierto");
+    clearTimeout(tVol);
+    if (volPanel.classList.contains("abierto")) tVol = setTimeout(cerrarVol, 4000);
   });
+  volPanel.addEventListener("click", function (e) { e.stopPropagation(); });
+  document.addEventListener("click", cerrarVol);
   rango.addEventListener("input", function () { arrastrando = true; });
   rango.addEventListener("change", function () {
     if (listo) jugador.seekTo(jugador.getDuration() * rango.value / 1000, true);
@@ -483,11 +584,13 @@
   var volumen = document.getElementById("volumen"), moviendoVol = false;
   volumen.addEventListener("input", function () {
     if (!listo) return;
-    moviendoVol = true;
-    jugador.setVolume(+volumen.value);
-    if (+volumen.value > 0 && jugador.isMuted()) jugador.unMute();
+    moviendoVol = true; clearTimeout(tVol);
+    var v = +volumen.value;
+    jugador.setVolume(v);
+    if (v === 0) jugador.mute(); else if (jugador.isMuted()) jugador.unMute();
+    pintarSonido();
   });
-  volumen.addEventListener("change", function () { moviendoVol = false; });
+  volumen.addEventListener("change", function () { moviendoVol = false; tVol = setTimeout(cerrarVol, 3000); });
 
   /* ---------- Subtítulos (función interna de YouTube, solo si el video los tiene) ---------- */
   var bSubs = document.getElementById("b-subs"), subsOn = false, videoConSubs = null;
@@ -515,7 +618,7 @@
 
   /* ---------- Pantalla completa con nuestros propios controles ---------- */
   var contenedor = document.getElementById("contenedor-reproductor");
-  var bPantalla = document.getElementById("b-pantalla"), bSalir = document.getElementById("b-salir"), tOculta = null;
+  var bPantalla = document.getElementById("b-pantalla"), tOculta = null;
   function nativa() { return document.fullscreenElement || document.webkitFullscreenElement; }
   function enPantalla() { return contenedor.classList.contains("en-pantalla"); }
   function ocultarYa() { if (listo && jugador.getPlayerState() === 1) contenedor.classList.add("inactivo"); }
@@ -530,15 +633,48 @@
     bPantalla.innerHTML = si ? ICONOS.salir : ICONOS.pantalla;
     document.body.style.overflow = si ? "hidden" : "";
     clearTimeout(tOculta);
-    if (si) programarOcultar();
+    if (si) { programarOcultar(); aplicarOrientacion(); }
     else { try { screen.orientation.unlock(); } catch (e) {} }
+  }
+  var orientacion = {};
+  function detectarOrientacion(id, cb) {
+    if (orientacion[id]) { cb(orientacion[id]); return; }
+    var im = new Image();
+    im.crossOrigin = "anonymous";
+    im.onload = function () {
+      try {
+        var c = document.createElement("canvas"); c.width = 64; c.height = 36;
+        var g = c.getContext("2d"); g.drawImage(im, 0, 0, 64, 36);
+        var d = g.getImageData(0, 0, 64, 36).data;
+        var brillo = function (x0, x1) {
+          var s = 0, n = 0;
+          for (var y = 0; y < 36; y++) for (var x = x0; x < x1; x++) { var k = (y * 64 + x) * 4; s += d[k] + d[k + 1] + d[k + 2]; n += 3; }
+          return s / n;
+        };
+        var lados = (brillo(0, 10) + brillo(54, 64)) / 2, centro = brillo(20, 44);
+        cb(orientacion[id] = (lados < 10 && centro > lados + 20) ? "v" : "h");
+      } catch (e) { cb(null); }
+    };
+    im.onerror = function () { cb(null); };
+    im.src = "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg";
+  }
+  function aplicarOrientacion() {
+    if (!enPantalla() || !videoActualId || !screen.orientation) return;
+    var id = videoActualId;
+    detectarOrientacion(id, function (o) {
+      if (!enPantalla() || id !== videoActualId) return;
+      try {
+        if (o === "v") screen.orientation.lock("portrait").catch(function () {});
+        else if (o === "h") screen.orientation.lock("landscape").catch(function () {});
+        else screen.orientation.unlock();          // si no se pudo saber, no forzar nada
+      } catch (e) {}
+    });
   }
   function entrarPantalla() {
     var rf = contenedor.requestFullscreen || contenedor.webkitRequestFullscreen;
     if (!rf) { activarPantalla(true); return; } // iPhone: pantalla completa simulada
     var p = rf.call(contenedor);
     if (p && p.catch) p.catch(function () { activarPantalla(true); });
-    try { screen.orientation.lock("landscape").catch(function () {}); } catch (e) {}
   }
   function salirPantalla() {
     if (nativa()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
@@ -549,7 +685,6 @@
   document.addEventListener("webkitfullscreenchange", cambioNativo);
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && enPantalla() && !nativa()) salirPantalla(); });
   bPantalla.addEventListener("click", function () { if (enPantalla()) salirPantalla(); else entrarPantalla(); });
-  bSalir.addEventListener("click", salirPantalla);
   contenedor.addEventListener("pointermove", mostrarControles);
   document.getElementById("controles").addEventListener("pointerdown", mostrarControles);
   wrapperVideo.addEventListener("click", function () {
