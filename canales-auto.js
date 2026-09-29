@@ -145,7 +145,7 @@
     var f = document.createElement("div");
     f.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;overflow:auto;padding:16px";
     var c = document.createElement("div");
-    c.style.cssText = "background:#fff;border-radius:12px;padding:18px;width:100%;max-width:" + (ancho || 480) + "px;margin:4vh auto;color:#1d2b3a";
+    c.style.cssText = "background:#fff;border-radius:22px;padding:20px;width:100%;max-width:" + (ancho || 480) + "px;margin:4vh auto;color:#1d2b3a";
     c.innerHTML = html;
     f.appendChild(c);
     document.body.appendChild(f);
@@ -322,30 +322,31 @@
     });
   }
 
-  var caja = document.createElement("div");
-  caja.style.cssText = "display:flex;gap:8px;flex-wrap:wrap";
-  var bPrincipal = document.createElement("button"), bSalir = document.createElement("button"), bRest = document.createElement("button"), bTodos = document.createElement("button");
-  [bPrincipal, bSalir, bRest, bTodos].forEach(function (x) { x.type = "button"; x.style.cssText = ESTILO_BT; });
-  bPrincipal.textContent = "🔍 Buscar";
-  bTodos.textContent = "Actualizar para todos"; bTodos.style.background = "#2f6fdd";
-  bSalir.textContent = "Salir de padres"; bSalir.style.background = "#5b6b7a";
-  bRest.textContent = "↩ Restaurar"; bRest.style.background = "#e08a00";
-  bRest.addEventListener("click", function () {
+  /* ---------- Panel de padres (se abre desde el botón 🔒 de la barra inferior) ---------- */
+  function actualizarBotones() { document.body.classList.toggle("padre", esPadre()); }
+  function hayOcultos() { return leer(LS_OCULTOS, []).length || leer(LS_VOCULTOS, []).length || leer(LS_BLOQ, []).length; }
+  function restaurar() {
     if (confirm("¿Volver a mostrar los canales y videos que quitaste?")) {
       guardar(LS_OCULTOS, []); guardar(LS_VOCULTOS, []); guardar(LS_BLOQ, []); bloqBase = []; try { localStorage.removeItem("fmv_listas"); } catch (e) {}
       iniciar().then(actualizarBotones);
     }
-  });
-  bPrincipal.addEventListener("click", function () { if (esPadre()) abrirBuscador(); else pedirPin(abrirBuscador); });
-  bTodos.addEventListener("click", abrirActualizar);
-  bSalir.addEventListener("click", function () { setPadre(false); actualizarBotones(); pintar(); });
-  caja.appendChild(bPrincipal); caja.appendChild(bTodos); caja.appendChild(bRest); caja.appendChild(bSalir);
-  document.querySelector("header").appendChild(caja);
-  function actualizarBotones() {
-    bSalir.style.display = esPadre() ? "" : "none";
-    bTodos.style.display = esPadre() ? "" : "none";
-    bRest.style.display = (esPadre() && (leer(LS_OCULTOS, []).length || leer(LS_VOCULTOS, []).length || leer(LS_BLOQ, []).length)) ? "" : "none";
   }
+  function salirDePadres() { setPadre(false); actualizarBotones(); pintar(); }
+  function abrirPanelPadres() {
+    var m = modal('<h3 style="margin:0 0 4px">🔒 Zona de padres</h3><p style="margin:0 0 14px;font-size:14px;opacity:.75">Aquí agregas y quitas contenido para tus hijos.</p><div data-l style="display:flex;flex-direction:column;gap:10px"></div>', 420);
+    var l = m.caja.querySelector("[data-l]");
+    function fila(texto, color, fn) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = texto;
+      b.style.cssText = ESTILO_BT + ";width:100%;padding:15px 18px;font-size:16px;text-align:left" + (color ? ";background:" + color : "");
+      b.addEventListener("click", function () { m.cerrar(); fn(); });
+      l.appendChild(b);
+    }
+    fila("🔍 Buscar en YouTube y agregar", "", abrirBuscador);
+    fila("🌐 Actualizar para todos", "#2f6fdd", abrirActualizar);
+    if (hayOcultos()) fila("↩ Restaurar lo que quité", "#e08a00", restaurar);
+    fila("🚪 Salir de padres", "#5b6b7a", salirDePadres);
+  }
+  window.FMV_abrirPadres = function () { if (esPadre()) abrirPanelPadres(); else pedirPin(abrirPanelPadres); };
   actualizarBotones();
 
   var n = 0, w = setInterval(function () {

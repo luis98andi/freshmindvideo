@@ -18,15 +18,15 @@
   var css = document.createElement("style");
   css.textContent =
     "#buscador{margin:0 0 22px}" +
-    "#buscador input{width:100%;padding:14px 20px;font-size:16px;border:2px solid var(--acento);border-radius:999px;font-family:inherit;outline:0;background:var(--tarjeta);color:var(--texto)}" +
-    "#buscador .estado{text-align:center;font-weight:600;margin:10px 0 0;min-height:1.2em;font-size:.9rem}" +
-    ".fmv-res{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-top:16px}" +
-    ".fmv-res button{border:0;padding:0;background:var(--tarjeta);color:var(--texto);border-radius:10px;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(29,43,58,.14);transition:transform .15s ease,box-shadow .15s ease}" +
+    "#buscador input{width:100%;padding:16px 22px;font-size:17px;border:0;border-radius:999px;font-family:inherit;outline:0;background:#fff;color:var(--texto);box-shadow:0 3px 10px rgba(20,60,100,.2);-webkit-appearance:none;appearance:none}" +
+    "#buscador .estado{text-align:center;font-weight:700;margin:12px 0 0;min-height:1.2em;font-size:.95rem}" +
+    ".fmv-res{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:16px;margin-top:16px}" +
+    ".fmv-res button{border:0;padding:0;background:var(--tarjeta);color:var(--texto);border-radius:20px;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit;display:flex;flex-direction:column;box-shadow:0 3px 10px rgba(20,60,100,.2);transition:transform .15s ease,box-shadow .15s ease}" +
     ".fmv-res button:hover{transform:translateY(-3px);box-shadow:0 6px 14px rgba(29,43,58,.18)}" +
     ".fmv-res img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000}" +
-    ".fmv-res .t{padding:8px 10px 2px;font-size:.9rem;font-weight:700;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}" +
-    ".fmv-res .c{padding:0 10px 10px;font-size:.75rem;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
-    ".fmv-mas{display:block;margin:18px auto 0;padding:10px 22px;border:0;background:var(--acento);color:#fff;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:15px}";
+    ".fmv-res .t{padding:12px 16px 2px;font-size:1rem;font-weight:800;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}" +
+    ".fmv-res .c{padding:0 16px 14px;font-size:.78rem;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
+    ".fmv-mas{display:block;margin:18px auto 0;padding:10px 22px;border:0;background:var(--acento);color:#fff;border-radius:999px;cursor:pointer;font-weight:800;font-family:inherit;font-size:15px}";
   document.head.appendChild(css);
 
   var caja = document.createElement("div");
@@ -35,6 +35,7 @@
   var entrada = caja.querySelector("input"), estado = caja.querySelector(".estado");
   var zona = document.createElement("div");
   zona.hidden = true;
+  zona.id = "fmv-zona";
   vista.insertBefore(caja, vista.firstChild);
   vista.insertBefore(zona, cuadricula);
 
@@ -192,7 +193,7 @@
   function avisar() {
     var partes = [];
     if (!textoActual) {
-      estado.textContent = ocupado ? "Preparando el buscador… " + hechos + "/" + total + " canales" : "";
+      estado.textContent = ocupado ? "Preparando el buscador… " + hechos + "/" + total + " canales" : "Escribe lo que quieres ver 🔍";
       return;
     }
     if (resultados.length) partes.push(resultados.length + " videos encontrados");
