@@ -261,13 +261,11 @@
       resultados = [];
       zona.hidden = true;
       zona.textContent = "";
-      cuadricula.style.display = "";
       avisar();
       return;
     }
     sincronizar();
     calcular(textoActual);
-    cuadricula.style.display = "none";
     zona.hidden = false;
     pintarResultados();
     avisar();

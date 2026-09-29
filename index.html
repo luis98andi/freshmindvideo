@@ -139,13 +139,30 @@
   .selector-grid .item > button { width: 100%; }
   .quitar-video { position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.75); color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2; }
   /* Pantalla completa: barra al doble de tamaño */
-  .en-pantalla .controles { flex-wrap: wrap; gap: 10px; padding: 40px 28px 22px; }
-  .en-pantalla .controles button { min-width: 80px; min-height: 80px; }
-  .en-pantalla .controles svg { width: 44px; height: 44px; }
-  .en-pantalla .tiempo { font-size: 1.7rem; min-width: 190px; }
-  .en-pantalla #rango { order: -1; flex: 1 1 100%; height: 40px; }
-  .en-pantalla .vol-panel { padding: 22px 28px; }
-  .en-pantalla .vol-panel input { width: 260px; height: 40px; }
+  .en-pantalla .controles { flex-wrap: wrap; justify-content: center; gap: 6px; padding: 26px 12px 12px; }
+  .en-pantalla .controles button { min-width: 46px; min-height: 46px; }
+  .en-pantalla .controles svg { width: 26px; height: 26px; }
+  .en-pantalla .tiempo { order: 0; font-size: .9rem; min-width: 96px; }
+  .en-pantalla #rango { order: -1; flex: 1 1 100%; height: 28px; }
+  .en-pantalla .vol-panel { padding: 14px 18px; }
+  .en-pantalla .vol-panel input { width: 170px; height: 28px; }
+  /* Celular en vertical: todo en una sola fila */
+  @media (max-width: 480px) {
+    .en-pantalla .controles { gap: 2px; padding: 22px 8px 10px; }
+    .en-pantalla .controles button { min-width: 40px; min-height: 44px; }
+    .en-pantalla .controles svg { width: 24px; height: 24px; }
+    .en-pantalla .tiempo { font-size: .82rem; min-width: 80px; }
+  }
+  /* Barra grande solo en pantallas grandes (computadora / tablet horizontal) */
+  @media (min-width: 901px) and (min-height: 501px) {
+    .en-pantalla .controles { gap: 10px; padding: 40px 28px 22px; }
+    .en-pantalla .controles button { min-width: 80px; min-height: 80px; }
+    .en-pantalla .controles svg { width: 44px; height: 44px; }
+    .en-pantalla .tiempo { font-size: 1.7rem; min-width: 190px; }
+    .en-pantalla #rango { height: 40px; }
+    .en-pantalla .vol-panel { padding: 22px 28px; }
+    .en-pantalla .vol-panel input { width: 260px; height: 40px; }
+  }
   .seccion-videos-canal h3 { font-size: 1.15rem; }
   #selector-mensaje { font-weight: 700; }
 
@@ -286,6 +303,7 @@
   var videoInicial = null;    // video que se debe dejar listo (viene del buscador)
   var videoActualId = null, yaPreparado = false;
   var LS_LISTAS = "fmv_listas";
+  var posInicio = 0;      // scroll de la pantalla principal, para volver justo donde estabas
 
   function cargarApi(cb) {
     if (window.YT && YT.Player) { cb(); return; }
@@ -513,6 +531,7 @@
   }
 
   function abrirReproductor(nombreCanal, videoId, cargarFn) {
+    if (!vistaCanal.classList.contains("activo")) posInicio = window.scrollY;
     videoInicial = videoId || null;
     videoActualId = null;
     yaPreparado = false;
@@ -521,6 +540,7 @@
     document.body.classList.add("viendo");
     vistaPrincipal.classList.add("oculto");
     vistaCanal.classList.add("activo");
+    window.scrollTo(0, 0);   // el reproductor siempre debe quedar a la vista
 
     listaVideos = [];
     titulos = [];
@@ -587,6 +607,7 @@
     history.replaceState(null, "", location.pathname + location.search);
     vistaCanal.classList.remove("activo");
     vistaPrincipal.classList.remove("oculto");
+    window.scrollTo(0, posInicio);
     if (listo && jugador.stopVideo) {
       jugador.stopVideo();
     }
