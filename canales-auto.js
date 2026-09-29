@@ -20,6 +20,18 @@
   function foto(it) { var t = it.snippet.thumbnails || {}; return (t.medium || t.default || t.high || {}).url || ""; }
   function dec(t) { var d = document.createElement("textarea"); d.innerHTML = t || ""; return d.value; }
 
+  var LS_BLOQ = "fmv_bloqueados", bloqBase = [];
+  function videoDe(u) { var m = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/.exec(u || ""); return m ? m[1] : ""; }
+  window.FMV_esPadre = esPadre;
+  window.FMV_misVideos = function () { return misVideos(); };
+  window.FMV_bloqueados = function () { return bloqBase.concat(leer(LS_BLOQ, [])).filter(function (x, i, a) { return a.indexOf(x) === i; }); };
+  window.FMV_bloquear = function (id) { var b = leer(LS_BLOQ, []); if (b.indexOf(id) < 0) { b.push(id); guardar(LS_BLOQ, b); } };
+  window.FMV_quitarPropio = function (id) {
+    guardar(LS_VID, leer(LS_VID, []).filter(function (o) { return o.id !== id; }));
+    var ocv = leer(LS_VOCULTOS, []); if (ocv.indexOf(id) < 0) { ocv.push(id); guardar(LS_VOCULTOS, ocv); }
+    pintar(); actualizarBotones();
+  };
+
   /* Videos = los de canales.json + los de este dispositivo, sin repetir y sin los quitados */
   function misVideos() {
     var oc = leer(LS_VOCULTOS, []), vistos = {}, salida = [];
@@ -81,8 +93,8 @@
   function pintar() {
     window.FMV_CANALES = todos; // lo usa el buscador (buscador.js)
     grid.innerHTML = "";
-    var vs = misVideos();
-    if (vs.length) grid.appendChild(tarjetaMisVideos(vs));
+    if (window.FMV_tabVideos) FMV_tabVideos(misVideos().length);
+    if (window.FMV_repintarSelector) FMV_repintarSelector();
     todos.forEach(function (c, i) {
       var t = crearTarjeta(c, i);
       if (!t) return;
@@ -111,6 +123,7 @@
       .then(function (r) { return r.json(); })
       .then(function (d) {
         videosBase = (d && !Array.isArray(d) && Array.isArray(d.videos)) ? d.videos : [];
+        bloqBase = (d && !Array.isArray(d) && Array.isArray(d.bloqueados)) ? d.bloqueados : [];
         return Array.isArray(d) ? d : (d.canales || d.channels || []);
       })
       .catch(function () { return []; })
@@ -122,7 +135,7 @@
           .map(function (c) { c.extra = true; return c; });
         var ocu = leer(LS_OCULTOS, []);
         todos = base.concat(extra).filter(function (c) { return ocu.indexOf(c.url) < 0; });
-        return resolver(todos).then(pintar);
+        return resolver(todos).then(pintar).then(function () { if (window.FMV_alListo) window.FMV_alListo(); });
       });
   }
 
@@ -154,55 +167,9 @@
 
   function yaEsta(id) { return todos.some(function (c) { return c.id === id; }); }
 
-  function tarjetaMisVideos(vs) {
-    var card = document.createElement("div"); card.className = "tarjeta";
-    var media = document.createElement("div"); media.className = "media";
-    var im = document.createElement("img"); im.src = vs[0].img; im.alt = ""; media.appendChild(im);
-    var nom = document.createElement("p"); nom.className = "nombre"; nom.textContent = "⭐ Mis videos (" + vs.length + ")";
-    card.appendChild(media); card.appendChild(nom);
-    card.addEventListener("click", abrirVideos);
-    return card;
-  }
-
-  function abrirVideos() {
-    var vs = misVideos();
-    var m = modal('<h3 style="margin:0 0 10px">⭐ Mis videos</h3><div style="aspect-ratio:16/9;background:#000;border-radius:10px;overflow:hidden"><iframe style="width:100%;height:100%;border:0" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:12px"></div>', 760);
-    var fr = m.caja.querySelector("iframe"), lista = m.caja.querySelector("div:last-child");
-    function poner(id, auto) { fr.src = "https://www.youtube.com/embed/" + id + "?rel=0&playsinline=1&modestbranding=1" + (auto ? "&autoplay=1" : ""); }
-    function dibujar() {
-      lista.textContent = "";
-      vs = misVideos();
-      vs.forEach(function (v) {
-        var w = document.createElement("div"); w.style.cssText = "position:relative;cursor:pointer";
-        var im = document.createElement("img"); im.src = v.img; im.alt = v.titulo; im.title = v.titulo;
-        im.style.cssText = "width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;display:block;background:#000";
-        w.appendChild(im);
-        var tt = document.createElement("div"); tt.textContent = v.titulo || "";
-        tt.style.cssText = "font-size:13px;font-weight:700;line-height:1.3;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden";
-        w.appendChild(tt);
-        w.addEventListener("click", function () { poner(v.id, true); });
-        if (esPadre()) {
-          var x = document.createElement("button"); x.type = "button"; x.textContent = "×"; x.title = "Quitar video";
-          x.style.cssText = "position:absolute;top:4px;right:4px;width:30px;height:30px;border:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:18px;cursor:pointer";
-          x.addEventListener("click", function (e) {
-            e.stopPropagation();
-            guardar(LS_VID, leer(LS_VID, []).filter(function (o) { return o.id !== v.id; }));
-            var ocv = leer(LS_VOCULTOS, []);
-            if (ocv.indexOf(v.id) < 0) { ocv.push(v.id); guardar(LS_VOCULTOS, ocv); }
-            dibujar(); pintar(); actualizarBotones();
-          });
-          w.appendChild(x);
-        }
-        lista.appendChild(w);
-      });
-    }
-    dibujar();
-    if (vs.length) poner(vs[0].id, false);
-  }
-
   var panel = document.createElement("div");
   panel.style.cssText = "margin:0";
-  panel.innerHTML = '<div style="display:flex;gap:8px"><input type="search" placeholder="Buscar en YouTube… (ej: dibujos osos)" style="flex:1;min-width:0;padding:14px 20px;font-size:16px;border:2px solid #12a37f;border-radius:999px;font-family:inherit;outline:0;background:#fff"><button type="button" style="' + ESTILO_BT + ';border-radius:999px;padding:0 22px">Buscar</button></div><p style="text-align:center;font-weight:600;margin:14px 0 0"></p><div data-r style="margin-top:8px"></div>';
+  panel.innerHTML = '<div style="display:flex;gap:8px"><input type="search" placeholder="Buscar o pegar enlace de YouTube…" style="flex:1;min-width:0;padding:14px 20px;font-size:16px;border:2px solid #12a37f;border-radius:999px;font-family:inherit;outline:0;background:#fff"><button type="button" style="' + ESTILO_BT + ';border-radius:999px;padding:0 22px">Buscar</button></div><p style="text-align:center;font-weight:600;margin:14px 0 0"></p><div data-r style="margin-top:8px"></div>';
   var pq = panel.querySelector("input"), pb = panel.querySelector("button"), pm = panel.querySelector("p"), pr = panel.querySelector("[data-r]");
 
   function botonAgregar(ya, alAgregar) {
@@ -249,7 +216,7 @@
     if (videos.length) {
       var g2 = seccion("Videos");
       videos.forEach(function (it) {
-        var vid = it.id.videoId, titulo = dec(it.snippet.title), img = foto(it);
+        var vid = typeof it.id === "string" ? it.id : it.id.videoId, titulo = dec(it.snippet.title), img = foto(it);
         var ya = misVideos().some(function (o) { return o.id === vid; });
         g2.appendChild(tarjeta(img, titulo, botonAgregar(ya, function () {
           var vs = leer(LS_VID, []); vs.push({ id: vid, titulo: titulo, img: img }); guardar(LS_VID, vs);
@@ -265,8 +232,13 @@
     var t = pq.value.trim();
     if (!t) return;
     pm.textContent = "Buscando…"; pr.textContent = "";
-    var id = idDe(t), h = handleDe(t), q = encodeURIComponent(t), p;
-    if (id) p = api("channels", "part=snippet&id=" + id).then(function (c) { return [c, []]; });
+    var vid = videoDe(t), id = idDe(t), h = handleDe(t), q = encodeURIComponent(t), p;
+    if (vid) p = api("videos", "part=snippet,status&id=" + vid).then(function (v) {
+      var ok = v.filter(function (x) { return !x.status || x.status.embeddable !== false; });
+      if (v.length && !ok.length) throw new Error("Ese video no permite reproducirse fuera de YouTube.");
+      return [[], ok];
+    });
+    else if (id) p = api("channels", "part=snippet&id=" + id).then(function (c) { return [c, []]; });
     else if (h) p = api("channels", "part=snippet&forHandle=" + encodeURIComponent("@" + h)).then(function (c) { return [c, []]; });
     else p = Promise.all([
       api("search", "part=snippet&type=channel&maxResults=6&safeSearch=strict&relevanceLanguage=es&q=" + q),
@@ -293,7 +265,8 @@
     var videos = misVideos().map(function (v) {
       return "    " + JSON.stringify({ id: v.id, titulo: v.titulo, img: v.img });
     });
-    return '{\n  "canales": [\n' + canales.join(",\n") + '\n  ],\n  "videos": [\n' + videos.join(",\n") + '\n  ]\n}\n';
+    var bloq = window.FMV_bloqueados().map(function (id) { return JSON.stringify(id); }).join(", ");
+    return '{\n  "canales": [\n' + canales.join(",\n") + '\n  ],\n  "videos": [\n' + videos.join(",\n") + '\n  ],\n  "bloqueados": [' + bloq + ']\n}\n';
   }
 
   /* Publica canales.json directo en GitHub con un clic (token guardado solo en este dispositivo) */
@@ -359,7 +332,7 @@
   bRest.textContent = "↩ Restaurar"; bRest.style.background = "#e08a00";
   bRest.addEventListener("click", function () {
     if (confirm("¿Volver a mostrar los canales y videos que quitaste?")) {
-      guardar(LS_OCULTOS, []); guardar(LS_VOCULTOS, []);
+      guardar(LS_OCULTOS, []); guardar(LS_VOCULTOS, []); guardar(LS_BLOQ, []); bloqBase = []; try { localStorage.removeItem("fmv_listas"); } catch (e) {}
       iniciar().then(actualizarBotones);
     }
   });
@@ -371,7 +344,7 @@
   function actualizarBotones() {
     bSalir.style.display = esPadre() ? "" : "none";
     bTodos.style.display = esPadre() ? "" : "none";
-    bRest.style.display = (esPadre() && (leer(LS_OCULTOS, []).length || leer(LS_VOCULTOS, []).length)) ? "" : "none";
+    bRest.style.display = (esPadre() && (leer(LS_OCULTOS, []).length || leer(LS_VOCULTOS, []).length || leer(LS_BLOQ, []).length)) ? "" : "none";
   }
   actualizarBotones();
 
