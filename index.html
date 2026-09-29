@@ -91,12 +91,16 @@
     header { padding: 10px 12px; flex-wrap: wrap; gap: 8px; }
     header h1 { font-size: 1.3rem; }
   }
+  .contenedor-busqueda.activo { display: block !important; }
 </style>
 </head>
 <body>
 
 <header>
   <h1 id="logo-inicio">FreshMindVideo</h1>
+  <div style="display: flex; gap: 10px; align-items: center;">
+    <!-- 🌟 NUEVO BOTÓN PARA LOS NIÑOS -->
+    <button type="button" id="btn-toggle-buscador-ninos" style="background: #3b82f6; color: #fff; border: 0; padding: 8px 16px; border-radius: 8px; font-weight: 700; cursor: pointer;">⭐ Buscar Canal</button>
 </header>
 
 <main>
@@ -437,6 +441,31 @@
     .catch(function () {
       document.getElementById("mensaje").textContent = "No se pudo leer canales.json.";
     });
+  // Lógica del nuevo buscador local para los niños
+var btnBuscadorNinos = document.getElementById("btn-toggle-buscador-ninos");
+var contenedorBusquedaNinos = document.getElementById("contenedor-busqueda-ninos");
+var inputBuscarNinos = document.getElementById("input-buscar-ninos");
+
+if (btnBuscadorNinos && contenedorBusquedaNinos) {
+  btnBuscadorNinos.addEventListener("click", function() {
+    contenedorBusquedaNinos.classList.toggle("activo");
+    if (contenedorBusquedaNinos.classList.contains("activo")) {
+      inputBuscarNinos.focus();
+    } else {
+      inputBuscarNinos.value = "";
+      renderizarCanales(listaCanalesGlobal);
+    }
+  });
+
+  inputBuscarNinos.addEventListener("input", function() {
+    var texto = inputBuscarNinos.value.toLowerCase().trim();
+    var filtrados = listaCanalesGlobal.filter(function(item) {
+      var nombre = (item.nombre || item.name || "").toLowerCase();
+      return nombre.includes(texto);
+    });
+    renderizarCanales(filtrados);
+  });
+}
 </script>
      <script src="canales-auto.js"></script>
 </body>
