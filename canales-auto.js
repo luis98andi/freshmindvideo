@@ -296,25 +296,56 @@
     return '{\n  "canales": [\n' + canales.join(",\n") + '\n  ],\n  "videos": [\n' + videos.join(",\n") + '\n  ]\n}\n';
   }
 
+  /* Publica canales.json directo en GitHub con un clic (token guardado solo en este dispositivo) */
+  var LS_GH = "fmv_github";
+  function b64(t) { var b = new TextEncoder().encode(t), s = ""; b.forEach(function (x) { s += String.fromCharCode(x); }); return btoa(s); }
+  function publicar(cfg, texto) {
+    var url = "https://api.github.com/repos/" + cfg.repo + "/contents/" + cfg.ruta.split("/").map(encodeURIComponent).join("/");
+    var cab = { "Authorization": "Bearer " + cfg.token, "Accept": "application/vnd.github+json", "Content-Type": "application/json" };
+    function intento() {
+      return fetch(url + "?ref=" + encodeURIComponent(cfg.rama), { headers: cab, cache: "no-store" })
+        .then(function (r) { if (r.status === 404) return {}; if (!r.ok) throw r.status; return r.json(); })
+        .then(function (a) {
+          var cuerpo = { message: "Actualizar canales y videos", content: b64(texto), branch: cfg.rama };
+          if (a.sha) cuerpo.sha = a.sha;
+          return fetch(url, { method: "PUT", headers: cab, body: JSON.stringify(cuerpo) });
+        })
+        .then(function (r) { if (!r.ok) throw r.status; });
+    }
+    return intento().catch(function (s) { if (s === 409 || s === 422) return intento(); throw s; });
+  }
+  function errorGh(s) {
+    if (s === 401) return "El token no es válido o venció.";
+    if (s === 403 || s === 404) return "El token no tiene permiso en ese repositorio, o el repositorio, la rama o el archivo están mal escritos.";
+    return typeof s === "number" ? "GitHub respondió con error " + s + "." : "No hay conexión con GitHub.";
+  }
+
   function abrirActualizar() {
-    var texto = armarJson();
+    var cfg = leer(LS_GH, null);
     var m = modal(
       '<h3 style="margin:0 0 8px">Actualizar para todos</h3>' +
-      '<p style="margin:0 0 10px;line-height:1.45">1) Toca <b>Copiar todo</b>.<br>2) Abre el archivo <b>canales.json</b> y reemplaza TODO su contenido con lo copiado.<br>3) Guarda y sube el archivo. Así los canales y videos se verán en todos los dispositivos.</p>' +
-      '<textarea readonly style="width:100%;height:240px;box-sizing:border-box;font-family:monospace;font-size:12px;padding:10px;border:1px solid #c9d3da;border-radius:8px"></textarea>' +
-      '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" data-c style="' + ESTILO_BT + '">Copiar todo</button><button type="button" data-x style="' + ESTILO_BT + ';background:#5b6b7a">Cerrar</button></div>',
-      760
+      '<details' + (cfg ? '' : ' open') + '><summary style="cursor:pointer;font-weight:700">Datos de GitHub</summary>' +
+      '<input data-a placeholder="usuario/repositorio" style="' + ESTILO_IN + '">' +
+      '<input data-b placeholder="Rama (main)" style="' + ESTILO_IN + '">' +
+      '<input data-c placeholder="Archivo (canales.json)" style="' + ESTILO_IN + '">' +
+      '<input data-t type="password" placeholder="' + (cfg ? 'Token guardado (vacío = conservarlo)' : 'Token de GitHub') + '" style="' + ESTILO_IN + '">' +
+      '<p style="font-size:13px;margin:0;line-height:1.4">Crea un token fine-grained en GitHub, solo para este repositorio, con permiso <b>Contents: Read and write</b>. Se guarda solo en este dispositivo.</p></details>' +
+      '<p data-s style="margin:10px 0 0;font-weight:600;line-height:1.4"></p>' +
+      '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button type="button" data-p style="' + ESTILO_BT + '">Publicar ahora</button><button type="button" data-x style="' + ESTILO_BT + ';background:#5b6b7a">Cerrar</button></div>',
+      520
     );
-    var ta = m.caja.querySelector("textarea"), bc = m.caja.querySelector("[data-c]"), bx = m.caja.querySelector("[data-x]");
-    ta.value = texto;
-    bx.addEventListener("click", m.cerrar);
-    bc.addEventListener("click", function () {
-      ta.focus(); ta.select();
-      function copiado() { bc.textContent = "✓ Copiado"; }
-      function alterno() { try { if (document.execCommand("copy")) copiado(); } catch (e) {} }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(texto).then(copiado).catch(alterno);
-      } else { alterno(); }
+    var q = function (s) { return m.caja.querySelector(s); };
+    var ia = q("[data-a]"), ib = q("[data-b]"), ic = q("[data-c]"), it = q("[data-t]"), st = q("[data-s]"), bp = q("[data-p]");
+    ia.value = cfg ? cfg.repo : ""; ib.value = cfg ? cfg.rama : "main"; ic.value = cfg ? cfg.ruta : "canales.json";
+    q("[data-x]").addEventListener("click", m.cerrar);
+    bp.addEventListener("click", function () {
+      var nuevo = { repo: ia.value.trim(), rama: ib.value.trim() || "main", ruta: ic.value.trim() || "canales.json", token: it.value.trim() || (cfg && cfg.token) || "" };
+      if (!/^[\w.-]+\/[\w.-]+$/.test(nuevo.repo) || !nuevo.token) { st.textContent = "Completa usuario/repositorio y el token."; return; }
+      bp.disabled = true; st.textContent = "Publicando…";
+      publicar(nuevo, armarJson()).then(function () {
+        guardar(LS_GH, nuevo); cfg = nuevo;
+        st.textContent = "✓ Publicado. En uno o dos minutos se verá en todos los dispositivos.";
+      }).catch(function (e) { st.textContent = errorGh(e); }).then(function () { bp.disabled = false; });
     });
   }
 

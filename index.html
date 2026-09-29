@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com; connect-src 'self' https://www.googleapis.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com; connect-src 'self' https://www.googleapis.com https://api.github.com;">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FreshMindVideo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -89,7 +89,22 @@
   .selector-grid button:hover { outline: 2px solid var(--acento); }
 
   @media (max-width: 760px) { .cuadricula { grid-template-columns: repeat(2, 1fr); gap: 14px; } }
-  @media (max-width: 480px) { .tiempo { display: none; } }
+  .controles button.activo { background: var(--acento); }
+  #volumen { flex: 0 0 80px; min-width: 0; }
+  .salir-pantalla { display: none; position: absolute; top: 12px; right: 12px; z-index: 8; min-width: 44px; min-height: 44px; border: 0; border-radius: 999px; background: rgba(0,0,0,.65); color: #fff; cursor: pointer; align-items: center; justify-content: center; }
+  .salir-pantalla svg { width: 24px; height: 24px; fill: currentColor; }
+  .en-pantalla { position: fixed; inset: 0; z-index: 200; margin: 0; border-radius: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: #000; }
+  .en-pantalla .video-marco-wrapper { flex: 1; aspect-ratio: auto; min-height: 0; }
+  .en-pantalla .controles { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; background: linear-gradient(transparent, rgba(0,0,0,.8)); padding-top: 28px; transition: opacity .25s; }
+  .en-pantalla .salir-pantalla { display: flex; transition: opacity .25s; }
+  .en-pantalla.inactivo .controles, .en-pantalla.inactivo .salir-pantalla { opacity: 0; pointer-events: none; }
+  .en-pantalla.inactivo { cursor: none; }
+  @media (max-width: 600px) {
+    .controles { flex-wrap: wrap; }
+    #rango { order: -1; flex: 1 1 calc(100% - 100px); }
+    .tiempo { order: -1; }
+    #volumen { flex-basis: 60px; }
+  }
   @media (max-width: 360px) { .cuadricula { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -113,13 +128,14 @@
       <h2 class="titulo-canal-activo" id="titulo-canal-activo"></h2>
     </div>
 
-    <div class="contenedor-reproductor-principal">
+    <div class="contenedor-reproductor-principal" id="contenedor-reproductor">
       <div class="video-marco-wrapper">
         <div id="marco"></div>
         <button type="button" id="tapa" class="tapa" aria-label="Reproducir">
           <svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>
         </button>
       </div>
+      <button type="button" id="b-salir" class="salir-pantalla" aria-label="Salir de pantalla completa"></button>
       <div class="controles" id="controles">
         <button type="button" id="b-anterior" aria-label="Video anterior"></button>
         <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
@@ -127,6 +143,8 @@
         <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
         <span class="tiempo" id="tiempo">0:00 / 0:00</span>
         <button type="button" id="b-sonido" aria-label="Activar o quitar sonido"></button>
+        <input type="range" id="volumen" min="0" max="100" value="100" aria-label="Volumen">
+        <button type="button" id="b-subs" aria-label="Subtítulos" aria-pressed="false"></button>
         <button type="button" id="b-pantalla" aria-label="Pantalla completa"></button>
       </div>
     </div>
@@ -148,7 +166,9 @@
     pausa: '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
     sonido: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9zM16.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>',
     mudo: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15 9l6 6M21 9l-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
-    pantalla: '<svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zM20 4v6h-2V6h-4V4zM4 20v-6h2v4h4v2zM20 20h-6v-2h4v-4h2z"/></svg>'
+    pantalla: '<svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zM20 4v6h-2V6h-4V4zM4 20v-6h2v4h4v2zM20 20h-6v-2h4v-4h2z"/></svg>',
+    salir: '<svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>',
+    subs: '<svg viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1zm7 0h-1.5v-.5h-2v3h2V13H18v1c0 .55-.45 1-1 1h-3c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1z"/></svg>'
   };
 
   var vistaPrincipal = document.getElementById("vista-principal");
@@ -172,6 +192,8 @@
   document.getElementById("b-pantalla").innerHTML = ICONOS.pantalla;
   bPlay.innerHTML = ICONOS.play;
   bSonido.innerHTML = ICONOS.sonido;
+  document.getElementById("b-subs").innerHTML = ICONOS.subs;
+  document.getElementById("b-salir").innerHTML = ICONOS.salir;
 
   var jugador = null, listo = false, canalActual = null;
   var listaVideos = [];   // IDs de los videos del canal
@@ -279,7 +301,7 @@
     yaPreparado = true;
     videoActualId = id;
     indiceActual = 0;
-    jugador.cueVideoById(id);
+    jugador.loadVideoById(id); // se reproduce solo (si el navegador lo bloquea, queda el botón de play)
     sincronizarIndice();
   }
 
@@ -387,7 +409,7 @@
           },
           onStateChange: function (e) {
             bPlay.innerHTML = (e.data === 1) ? ICONOS.pausa : ICONOS.play;
-            if (e.data === 1) { tapa.hidden = true; errores = 0; }
+            if (e.data === 1) { tapa.hidden = true; errores = 0; if (subsOn && videoConSubs !== videoActualId) { videoConSubs = videoActualId; aplicarSubs(); } }
             else if (e.data === 2) { tapa.hidden = false; }
             if (e.data === 5 && esperandoLista) {
               esperandoLista = false;
@@ -419,6 +441,7 @@
     if (!arrastrando && dur > 0) rango.value = Math.round(t / dur * 1000);
     tiempo.textContent = formato(arrastrando ? rango.value / 1000 * dur : t) + " / " + formato(dur);
     bSonido.innerHTML = jugador.isMuted() ? ICONOS.mudo : ICONOS.sonido;
+    if (!moviendoVol) volumen.value = jugador.isMuted() ? 0 : jugador.getVolume();
   }
 
   function regresarAprincipal() {
@@ -448,7 +471,7 @@
   });
   bSonido.addEventListener("click", function () {
     if (!listo) return;
-    if (jugador.isMuted()) jugador.unMute(); else jugador.mute();
+    if (jugador.isMuted()) { jugador.unMute(); if (!jugador.getVolume()) jugador.setVolume(50); } else jugador.mute();
   });
   rango.addEventListener("input", function () { arrastrando = true; });
   rango.addEventListener("change", function () {
@@ -456,10 +479,83 @@
     arrastrando = false;
   });
 
-  var bPantalla = document.getElementById("b-pantalla");
-  bPantalla.addEventListener("click", function () {
-    if (document.fullscreenElement) { document.exitFullscreen(); return; }
-    (wrapperVideo.requestFullscreen || wrapperVideo.webkitRequestFullscreen).call(wrapperVideo);
+  /* ---------- Volumen (en iPhone/iPad el volumen se maneja con los botones del equipo) ---------- */
+  var volumen = document.getElementById("volumen"), moviendoVol = false;
+  volumen.addEventListener("input", function () {
+    if (!listo) return;
+    moviendoVol = true;
+    jugador.setVolume(+volumen.value);
+    if (+volumen.value > 0 && jugador.isMuted()) jugador.unMute();
+  });
+  volumen.addEventListener("change", function () { moviendoVol = false; });
+
+  /* ---------- Subtítulos (función interna de YouTube, solo si el video los tiene) ---------- */
+  var bSubs = document.getElementById("b-subs"), subsOn = false, videoConSubs = null;
+  try { subsOn = localStorage.getItem("fmv_subs") === "1"; } catch (e) {}
+  function pintarSubs() { bSubs.classList.toggle("activo", subsOn); bSubs.setAttribute("aria-pressed", subsOn); }
+  function aplicarSubs() {
+    if (!listo) return;
+    try {
+      if (!subsOn) { jugador.unloadModule("captions"); return; }
+      jugador.loadModule("captions");
+      setTimeout(function () {
+        var p = jugador.getOption("captions", "tracklist") || [];
+        var es = p.filter(function (x) { return /^es/.test(x.languageCode); })[0] || p[0];
+        if (es) jugador.setOption("captions", "track", { languageCode: es.languageCode });
+      }, 700);
+    } catch (e) {}
+  }
+  pintarSubs();
+  bSubs.addEventListener("click", function () {
+    subsOn = !subsOn;
+    try { localStorage.setItem("fmv_subs", subsOn ? "1" : "0"); } catch (e) {}
+    videoConSubs = videoActualId;
+    pintarSubs(); aplicarSubs();
+  });
+
+  /* ---------- Pantalla completa con nuestros propios controles ---------- */
+  var contenedor = document.getElementById("contenedor-reproductor");
+  var bPantalla = document.getElementById("b-pantalla"), bSalir = document.getElementById("b-salir"), tOculta = null;
+  function nativa() { return document.fullscreenElement || document.webkitFullscreenElement; }
+  function enPantalla() { return contenedor.classList.contains("en-pantalla"); }
+  function ocultarYa() { if (listo && jugador.getPlayerState() === 1) contenedor.classList.add("inactivo"); }
+  function programarOcultar() {
+    clearTimeout(tOculta);
+    if (enPantalla()) tOculta = setTimeout(ocultarYa, 3000);
+  }
+  function mostrarControles() { contenedor.classList.remove("inactivo"); programarOcultar(); }
+  function activarPantalla(si) {
+    contenedor.classList.toggle("en-pantalla", si);
+    contenedor.classList.remove("inactivo");
+    bPantalla.innerHTML = si ? ICONOS.salir : ICONOS.pantalla;
+    document.body.style.overflow = si ? "hidden" : "";
+    clearTimeout(tOculta);
+    if (si) programarOcultar();
+    else { try { screen.orientation.unlock(); } catch (e) {} }
+  }
+  function entrarPantalla() {
+    var rf = contenedor.requestFullscreen || contenedor.webkitRequestFullscreen;
+    if (!rf) { activarPantalla(true); return; } // iPhone: pantalla completa simulada
+    var p = rf.call(contenedor);
+    if (p && p.catch) p.catch(function () { activarPantalla(true); });
+    try { screen.orientation.lock("landscape").catch(function () {}); } catch (e) {}
+  }
+  function salirPantalla() {
+    if (nativa()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else activarPantalla(false);
+  }
+  function cambioNativo() { activarPantalla(!!nativa()); }
+  document.addEventListener("fullscreenchange", cambioNativo);
+  document.addEventListener("webkitfullscreenchange", cambioNativo);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && enPantalla() && !nativa()) salirPantalla(); });
+  bPantalla.addEventListener("click", function () { if (enPantalla()) salirPantalla(); else entrarPantalla(); });
+  bSalir.addEventListener("click", salirPantalla);
+  contenedor.addEventListener("pointermove", mostrarControles);
+  document.getElementById("controles").addEventListener("pointerdown", mostrarControles);
+  wrapperVideo.addEventListener("click", function () {
+    if (!enPantalla()) return;
+    if (contenedor.classList.contains("inactivo")) mostrarControles();
+    else { clearTimeout(tOculta); ocultarYa(); }
   });
 
   // Generación de tarjetas con imágenes automáticas basadas en el ID del canal
