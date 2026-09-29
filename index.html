@@ -72,7 +72,7 @@
   .seccion-videos-canal h3 { margin: 0 0 12px 0; font-size: 1.1rem; }
   .selector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
   .selector-grid button {
-    position: relative; border: 0; padding: 0; background: #000; border-radius: 8px; overflow: hidden;
+    position: border; border: 0; padding: 0; background: #000; border-radius: 8px; overflow: hidden;
     cursor: pointer; aspect-ratio: 16 / 9; display: block; text-align: left;
   }
   .selector-grid button img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -82,30 +82,10 @@
   }
   .selector-grid button:hover { outline: 2px solid var(--acento); }
 
-  /* Estilos para el aviso de AdBlock */
-  #adblock-modal {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9999;
-    display: none; align-items: center; justify-content: center; padding: 20px;
-    animation: fadeIn 0.2s ease-in-out;
-  }
-  #adblock-modal.activo { display: flex; }
-  .adblock-card {
-    background: #fff; padding: 30px; border-radius: 12px; max-width: 450px; width: 100%;
-    text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); color: var(--texto);
-  }
-  .adblock-card h2 { margin-top: 0; color: var(--acento); font-size: 1.5rem; }
-  .adblock-card p { font-size: 0.95rem; line-height: 1.5; margin-bottom: 20px; }
-  .adblock-card button {
-    background: var(--acento); color: #fff; border: 0; padding: 10px 20px; font-weight: 700;
-    border-radius: 8px; cursor: pointer; font-size: 1rem; width: 100%;
-  }
-  .adblock-card button:hover { opacity: 0.9; }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
   @media (max-width: 760px) { .cuadricula { grid-template-columns: repeat(2, 1fr); gap: 14px; } }
   @media (max-width: 480px) { .tiempo { display: none; } }
   @media (max-width: 360px) { .cuadricula { grid-template-columns: 1fr; } }
-  html, body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; }
+    html, body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; }
   body { overflow-x: hidden; }
   input { font-size: 16px; }
   @media (max-width: 600px) {
@@ -115,15 +95,6 @@
 </style>
 </head>
 <body>
-
-<!-- MODAL / AVISO DE ADBLOCK -->
-<div id="adblock-modal">
-  <div class="adblock-card">
-    <h2>¡Bloqueador de anuncios detectado!</h2>
-    <p>Hemos notado que estás usando un AdBlock. FreshMindVideo se mantiene gracias a los recursos permitidos. Por favor, desactiva tu bloqueador o añade este sitio a tus excepciones para disfrutar del contenido sin interrupciones.</p>
-    <button type="button" onclick="location.reload();">Ya lo he desactivado</button>
-  </div>
-</div>
 
 <header>
   <h1 id="logo-inicio">FreshMindVideo</h1>
@@ -170,53 +141,6 @@
 </main>
 
 <script>
-  /* --- SISTEMA MULTICAPA DE DETECCIÓN DE ADBLOCK --- */
-  function verificarAdBlock() {
-    let adBlockDetectado = false;
-
-    // Método 1: Elementos Cebo con clases de anuncios típicas (bloqueados por uBlock, AdBlock Plus, etc.)
-    const clasesCebo = ['adsbox', 'ad-banner', 'pub_300x250', 'ad-placement', 'sponsored-ads', 'banner-ads'];
-    const cebos = clasesCebo.map(clase => {
-      const div = document.createElement('div');
-      div.className = clase;
-      div.style.width = '1px';
-      div.style.height = '1px';
-      div.style.position = 'absolute';
-      div.style.left = '-9999px';
-      div.style.top = '-9999px';
-      document.body.appendChild(div);
-      return div;
-    });
-
-    setTimeout(() => {
-      cebos.forEach(div => {
-        if (div.offsetParent === null || div.offsetHeight === 0 || div.offsetWidth === 0 || window.getComputedStyle(div).display === 'none') {
-          adBlockDetectado = true;
-        }
-        div.remove();
-      });
-
-      // Método 2: Comprobación de carga de script señuelo común bloqueado por listas de publicidad
-      const scriptCebo = document.createElement('script');
-      scriptCebo.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
-      scriptCebo.onerror = () => { adBlockDetectado = true; mostrarAvisoAdBlock(); };
-      scriptCebo.onload = () => scriptCebo.remove();
-      document.head.appendChild(scriptCebo);
-
-      if (adBlockDetectado) {
-        mostrarAvisoAdBlock();
-      }
-    }, 400);
-  }
-
-  function mostrarAvisoAdBlock() {
-    document.getElementById('adblock-modal').classList.add('activo');
-  }
-
-  // Ejecutar verificación al cargar la página
-  window.addEventListener('DOMContentLoaded', verificarAdBlock);
-
-  /* --- CÓDIGO ORIGINAL DE LA APLICACIÓN --- */
   var COLORES = ["#ffd166", "#7bdff2", "#b2f7b8", "#ffb3c1", "#cdb4ff", "#ffc98b"];
   var ICONOS = {
     anterior: '<svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
@@ -321,10 +245,11 @@
     jugador.playVideoAt(indiceActual);
   }
 
+  // Carga recursiva para obtener TODOS los videos de la lista de reproducción sin límite de 10
   function pedirTodosLosVideos(intento) {
     var lista = jugador.getPlaylist() || [];
     if (lista.length) {
-      listaVideos = lista;
+      listaVideos = lista; // Sin cortes, agarra absolutamente todos
       construirSelectorCompleto();
     } else if ((intento || 0) < 15) {
       setTimeout(function () { pedirTodosLosVideos((intento || 0) + 1); }, 500);
@@ -410,6 +335,7 @@
   document.getElementById("btn-volver").addEventListener("click", regresarAprincipal);
   document.getElementById("logo-inicio").addEventListener("click", regresarAprincipal);
 
+  // Controles del reproductor
   bAnterior.addEventListener("click", anteriorVideo);
   bSiguiente.addEventListener("click", siguienteVideo);
   bPlay.addEventListener("click", function () {
@@ -435,6 +361,7 @@
     (wrapperVideo.requestFullscreen || wrapperVideo.webkitRequestFullscreen).call(wrapperVideo);
   });
 
+  // Generación de tarjetas con imágenes automáticas basadas en el ID del canal
   function inicial(nombre, i) {
     var d = document.createElement("div");
     d.className = "inicial";
@@ -456,7 +383,9 @@
     var media = document.createElement("div");
     media.className = "media";
 
+    // Si no pones imagen en el JSON, la obtenemos automáticamente de YouTube usando el ID del canal
     if (!imagen && /^UC[\w-]{22}$/.test(idCanal)) {
+      // Truco para obtener el banner/avatar automático de YouTube a partir del ID del canal
       imagen = "https://yt3.googleusercontent.com/ytc/" + idCanal; 
     }
 
@@ -465,6 +394,7 @@
       img.src = imagen;
       img.alt = "";
       img.loading = "lazy";
+      // Si falla la imagen automática, recurre a la inicial colorida
       img.onerror = function () { media.replaceChildren(inicial(nombre, i)); };
       media.appendChild(img);
     } else {
@@ -509,6 +439,6 @@
       document.getElementById("mensaje").textContent = "No se pudo leer canales.json.";
     });
 </script>
-<script src="canales-auto.js"></script>
+     <script src="canales-auto.js"></script>
 </body>
 </html>
