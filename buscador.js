@@ -176,7 +176,9 @@
     canalesActuales().forEach(function (c) {
       var r = indice[c.id];
       if (!r) return;
+      var bloq = window.FMV_bloqueados ? FMV_bloqueados() : [];
       for (var i = 0; i < r.norm.length; i++) {
+        if (bloq.indexOf(r.ids[i]) >= 0) continue;
         var ok = true;
         for (var k = 0; k < palabras.length; k++) {
           if (r.norm[i].indexOf(palabras[k]) < 0) { ok = false; break; }
