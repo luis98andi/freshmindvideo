@@ -1,6 +1,6 @@
 /* FreshMindVideo - Zona de padres: buscar y agregar canales de YouTube */
 (function () {
-  var API_KEY = "AIzaSyA7R_xoLnmY__-8cuNoP40rHhWyLyLBlbk";
+  var API_KEY = "PEGA_AQUI_TU_CLAVE";
   var PIN_PADRES = "1234"; // cámbialo por el PIN que quieras
   var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache";
   var BASE = "https://www.googleapis.com/youtube/v3/";
@@ -114,70 +114,68 @@
 
   function yaEsta(id) { return todos.some(function (c) { return c.id === id; }); }
 
-  function buscar() {
-    if (sinClave) { alert("Falta la clave de YouTube en canales-auto.js"); return; }
-    var m = modal('<h3 style="margin:0 0 6px">Buscar canal en YouTube</h3><input placeholder="Nombre del canal (o pega su enlace)" style="' + ESTILO_IN + '"><button style="' + ESTILO_BT + '">Buscar</button><div style="margin-top:12px"></div>');
-    var q = m.caja.querySelector("input"), b = m.caja.querySelector("button"), r = m.caja.querySelector("div");
-    function mostrar(lista) {
-      r.textContent = "";
-      if (!lista.length) { r.textContent = "No encontré canales con ese nombre."; return; }
-      lista.forEach(function (it) {
-        var id = typeof it.id === "string" ? it.id : it.id.channelId;
-        var nombre = it.snippet.title || it.snippet.channelTitle;
-        var fila = document.createElement("div");
-        fila.style.cssText = "display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid #e3e9ed";
-        var im = document.createElement("img");
-        im.src = foto(it); im.alt = "";
-        im.style.cssText = "width:48px;height:48px;border-radius:50%;object-fit:cover;background:#dfe6ea;flex:none";
-        var tx = document.createElement("div");
-        tx.style.cssText = "flex:1;min-width:0;font-weight:700;overflow:hidden;text-overflow:ellipsis";
-        tx.textContent = nombre;
-        var ab = document.createElement("button");
-        ab.style.cssText = ESTILO_BT + ";flex:none";
-        if (yaEsta(id)) { ab.textContent = "Ya está"; ab.disabled = true; ab.style.opacity = ".5"; }
-        else {
-          ab.textContent = "Agregar";
-          ab.addEventListener("click", function () {
-            var nuevo = { nombre: nombre, id: id, url: "https://www.youtube.com/channel/" + id, imagen: foto(it) };
-            var ex = leer(LS_EXTRA, []); ex.push(nuevo); guardar(LS_EXTRA, ex);
-            nuevo.extra = true; todos.push(nuevo); pintar();
-            ab.textContent = "✓ Agregado"; ab.disabled = true; ab.style.opacity = ".6";
-          });
-        }
-        fila.appendChild(im); fila.appendChild(tx); fila.appendChild(ab);
-        r.appendChild(fila);
-      });
-    }
-    function ir() {
-      var t = q.value.trim();
-      if (!t) return;
-      r.textContent = "Buscando…";
-      var id = idDe(t), h = handleDe(t), p;
-      if (id) p = api("channels", "part=snippet&id=" + id);
-      else if (h) p = api("channels", "part=snippet&forHandle=" + encodeURIComponent("@" + h));
-      else p = api("search", "part=snippet&type=channel&maxResults=10&safeSearch=strict&q=" + encodeURIComponent(t));
-      p.then(mostrar).catch(function () { r.textContent = "No se pudo buscar. Intenta de nuevo."; });
-    }
-    b.addEventListener("click", ir);
-    q.addEventListener("keydown", function (e) { if (e.key === "Enter") ir(); });
-    q.focus();
+  /* ---------- Buscador en la página (estilo YouTube Kids) ---------- */
+  var panel = document.createElement("div");
+  panel.style.cssText = "margin-bottom:26px;display:none";
+  panel.innerHTML = '<div style="display:flex;gap:8px"><input type="search" placeholder="Buscar canales en YouTube…" style="flex:1;min-width:0;padding:14px 20px;font-size:16px;border:2px solid #12a37f;border-radius:999px;font-family:inherit;outline:0;background:#fff"><button type="button" style="' + ESTILO_BT + ';border-radius:999px;padding:0 22px">Buscar</button></div><p style="text-align:center;font-weight:600;margin:14px 0 0"></p><div class="cuadricula" style="margin-top:16px"></div>';
+  var pq = panel.querySelector("input"), pb = panel.querySelector("button"), pm = panel.querySelector("p"), pr = panel.querySelector(".cuadricula");
+  document.getElementById("vista-principal").insertBefore(panel, document.getElementById("vista-principal").firstChild);
+
+  function mostrar(lista) {
+    pr.textContent = "";
+    pm.textContent = lista.length ? "Toca «Agregar» en los canales que quieras" : "No encontré canales con ese nombre.";
+    lista.forEach(function (it) {
+      var id = typeof it.id === "string" ? it.id : it.id.channelId;
+      var nombre = it.snippet.title || it.snippet.channelTitle;
+      var card = document.createElement("div");
+      card.className = "tarjeta"; card.style.cursor = "default";
+      var media = document.createElement("div"); media.className = "media";
+      var im = document.createElement("img"); im.src = foto(it); im.alt = ""; media.appendChild(im);
+      var nom = document.createElement("p"); nom.className = "nombre"; nom.textContent = nombre;
+      var ab = document.createElement("button");
+      ab.type = "button";
+      ab.style.cssText = ESTILO_BT + ";width:calc(100% - 28px);margin:0 14px 14px";
+      if (yaEsta(id)) { ab.textContent = "Ya está"; ab.disabled = true; ab.style.opacity = ".5"; }
+      else {
+        ab.textContent = "+ Agregar";
+        ab.addEventListener("click", function () {
+          var nuevo = { nombre: nombre, id: id, url: "https://www.youtube.com/channel/" + id, imagen: foto(it) };
+          var ex = leer(LS_EXTRA, []); ex.push(nuevo); guardar(LS_EXTRA, ex);
+          nuevo.extra = true; todos.push(nuevo); pintar();
+          ab.textContent = "✓ Agregado"; ab.disabled = true; ab.style.opacity = ".6";
+        });
+      }
+      card.appendChild(media); card.appendChild(nom); card.appendChild(ab);
+      pr.appendChild(card);
+    });
   }
 
-  /* ---------- Botones del encabezado ---------- */
-  var header = document.querySelector("header");
-  var caja = document.createElement("div");
-  caja.style.cssText = "display:flex;gap:8px";
+  function ir() {
+    if (sinClave) { pm.textContent = "Falta la clave de YouTube en canales-auto.js"; return; }
+    var t = pq.value.trim();
+    if (!t) return;
+    pm.textContent = "Buscando…"; pr.textContent = "";
+    var id = idDe(t), h = handleDe(t), p;
+    if (id) p = api("channels", "part=snippet&id=" + id);
+    else if (h) p = api("channels", "part=snippet&forHandle=" + encodeURIComponent("@" + h));
+    else p = api("search", "part=snippet&type=channel&maxResults=12&safeSearch=strict&q=" + encodeURIComponent(t));
+    p.then(mostrar).catch(function () { pm.textContent = "No se pudo buscar. Intenta de nuevo."; });
+  }
+  pb.addEventListener("click", ir);
+  pq.addEventListener("keydown", function (e) { if (e.key === "Enter") ir(); });
+
+  /* ---------- Botón del encabezado ---------- */
   var bPrincipal = document.createElement("button");
-  var bSalir = document.createElement("button");
-  [bPrincipal, bSalir].forEach(function (x) { x.type = "button"; x.style.cssText = ESTILO_BT; });
-  bSalir.textContent = "Salir";
-  bSalir.style.background = "#5b6b7a";
-  bPrincipal.addEventListener("click", function () { if (esPadre()) buscar(); else pedirPin(); });
-  bSalir.addEventListener("click", function () { setPadre(false); actualizarBotones(); pintar(); });
-  caja.appendChild(bPrincipal); caja.appendChild(bSalir); header.appendChild(caja);
+  bPrincipal.type = "button";
+  bPrincipal.style.cssText = ESTILO_BT;
+  bPrincipal.addEventListener("click", function () {
+    if (esPadre()) { setPadre(false); actualizarBotones(); pintar(); } else pedirPin();
+  });
+  document.querySelector("header").appendChild(bPrincipal);
   function actualizarBotones() {
-    bPrincipal.textContent = esPadre() ? "+ Agregar canal" : "🔒 Padres";
-    bSalir.style.display = esPadre() ? "" : "none";
+    bPrincipal.textContent = esPadre() ? "Salir de padres" : "🔒 Padres";
+    bPrincipal.style.background = esPadre() ? "#5b6b7a" : "#12a37f";
+    panel.style.display = esPadre() ? "" : "none";
   }
   actualizarBotones();
 
