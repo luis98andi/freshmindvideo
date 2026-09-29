@@ -17,9 +17,24 @@
   function idDe(u) { var m = /youtube\.com\/channel\/(UC[\w-]{22})/.exec(u || ""); return m ? m[1] : ""; }
   function foto(it) { var t = it.snippet.thumbnails || {}; return (t.medium || t.default || t.high || {}).url || ""; }
   function dec(t) { var d = document.createElement("textarea"); d.innerHTML = t || ""; return d.value; }
+  
   function api(ruta, p) {
-    return fetch(BASE + ruta + "?key=" + API_KEY + "&" + p).then(function (r) { return r.json(); })
-      .then(function (d) { if (d.error) throw new Error(d.error.message); return d.items || []; });
+    return fetch(BASE + ruta + "?key=" + API_KEY + "&" + p)
+      .then(function (r) {
+        return r.json().then(function (d) {
+          if (!r.ok || d.error) {
+            var mensajeError = (d.error && d.error.message) ? d.error.message : "Error HTTP " + r.status;
+            throw new Error(mensajeError);
+          }
+          return d.items || [];
+        });
+      })
+      .catch(function (err) {
+        if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
+          throw new Error("Sin conexión o clave bloqueada/restringida.");
+        }
+        throw err;
+      });
   }
 
   /* Corrige IDs malos y pone la foto oficial (caché 7 días) */
@@ -90,7 +105,6 @@
       });
   }
 
-  /* ---------- Ventanas (funcionan bien en celular) ---------- */
   var ESTILO_IN = "width:100%;box-sizing:border-box;padding:12px;font-size:16px;border:1px solid #c9d3da;border-radius:8px;margin:8px 0;font-family:inherit";
   var ESTILO_BT = "padding:10px 16px;border:0;background:#12a37f;color:#fff;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:15px";
   function modal(html, ancho) {
@@ -119,7 +133,6 @@
 
   function yaEsta(id) { return todos.some(function (c) { return c.id === id; }); }
 
-  /* ---------- Mis videos (lista de videos sueltos) ---------- */
   function tarjetaMisVideos(vs) {
     var card = document.createElement("div"); card.className = "tarjeta";
     var media = document.createElement("div"); media.className = "media";
@@ -161,7 +174,6 @@
     if (vs.length) poner(vs[0].id, false);
   }
 
-  /* ---------- Buscador en la página (estilo YouTube Kids) ---------- */
   var panel = document.createElement("div");
   panel.style.cssText = "margin:0";
   panel.innerHTML = '<div style="display:flex;gap:8px"><input type="search" placeholder="Buscar en YouTube… (ej: dibujos osos)" style="flex:1;min-width:0;padding:14px 20px;font-size:16px;border:2px solid #12a37f;border-radius:999px;font-family:inherit;outline:0;background:#fff"><button type="button" style="' + ESTILO_BT + ';border-radius:999px;padding:0 22px">Buscar</button></div><p style="text-align:center;font-weight:600;margin:14px 0 0"></p><div data-r style="margin-top:8px"></div>';
@@ -237,7 +249,6 @@
   pb.addEventListener("click", ir);
   pq.addEventListener("keydown", function (e) { if (e.key === "Enter") ir(); });
 
-  /* ---------- Botones del encabezado ---------- */
   function abrirBuscador() {
     var m = modal('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">Buscar en YouTube</h3><button type="button" style="' + ESTILO_BT + ';background:#5b6b7a">Cerrar</button></div><div data-h></div>', 900);
     m.caja.querySelector("button").addEventListener("click", m.cerrar);
@@ -262,7 +273,6 @@
   }
   actualizarBotones();
 
-  /* Espera a que la página termine su carga normal y luego la reemplaza */
   var n = 0, w = setInterval(function () {
     if (grid.children.length || /No se pudo/.test(msg.textContent) || ++n > 50) { clearInterval(w); iniciar(); }
   }, 100);
