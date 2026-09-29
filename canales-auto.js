@@ -1,6 +1,6 @@
 /* FreshMindVideo - Zona de padres: buscar y agregar canales de YouTube */
 (function () {
-  var API_KEY = "AIzaSyA7R_xoLnmY__-8cuNoP40rHhWyLyLBlbk";
+  var API_KEY = "PEGA_AQUI_TU_CLAVE";
   var PIN_PADRES = "1234"; // cámbialo por el PIN que quieras
   var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache", LS_VID = "fmv_videos";
   var BASE = "https://www.googleapis.com/youtube/v3/";
@@ -103,11 +103,11 @@
     return { caja: c, cerrar: function () { f.remove(); } };
   }
 
-  function pedirPin() {
+  function pedirPin(alEntrar) {
     var m = modal('<h3 style="margin:0 0 6px">Zona de padres</h3><input type="password" inputmode="numeric" placeholder="PIN" style="' + ESTILO_IN + '"><button style="' + ESTILO_BT + '">Entrar</button>');
     var inp = m.caja.querySelector("input"), b = m.caja.querySelector("button");
     function ok() {
-      if (inp.value === PIN_PADRES) { setPadre(true); m.cerrar(); actualizarBotones(); pintar(); }
+      if (inp.value === PIN_PADRES) { setPadre(true); m.cerrar(); actualizarBotones(); pintar(); if (alEntrar) alEntrar(); }
       else { alert("PIN incorrecto"); inp.value = ""; }
     }
     b.addEventListener("click", ok);
@@ -161,10 +161,9 @@
 
   /* ---------- Buscador en la página (estilo YouTube Kids) ---------- */
   var panel = document.createElement("div");
-  panel.style.cssText = "margin-bottom:26px;display:none";
+  panel.style.cssText = "margin:0";
   panel.innerHTML = '<div style="display:flex;gap:8px"><input type="search" placeholder="Buscar en YouTube… (ej: dibujos osos)" style="flex:1;min-width:0;padding:14px 20px;font-size:16px;border:2px solid #12a37f;border-radius:999px;font-family:inherit;outline:0;background:#fff"><button type="button" style="' + ESTILO_BT + ';border-radius:999px;padding:0 22px">Buscar</button></div><p style="text-align:center;font-weight:600;margin:14px 0 0"></p><div data-r style="margin-top:8px"></div>';
   var pq = panel.querySelector("input"), pb = panel.querySelector("button"), pm = panel.querySelector("p"), pr = panel.querySelector("[data-r]");
-  document.getElementById("vista-principal").insertBefore(panel, document.getElementById("vista-principal").firstChild);
 
   function botonAgregar(ya, alAgregar) {
     var ab = document.createElement("button"); ab.type = "button";
@@ -231,24 +230,29 @@
       api("search", "part=snippet&type=channel&maxResults=6&safeSearch=strict&relevanceLanguage=es&q=" + q),
       api("search", "part=snippet&type=video&maxResults=12&safeSearch=strict&videoEmbeddable=true&relevanceLanguage=es&q=" + q)
     ]);
-    p.then(function (r) { mostrar(r[0], r[1]); }).catch(function () { pm.textContent = "No se pudo buscar. Intenta de nuevo."; });
+    p.then(function (r) { mostrar(r[0], r[1]); }).catch(function (e) { pm.textContent = "No se pudo buscar: " + (e && e.message ? e.message : "error desconocido"); });
   }
   pb.addEventListener("click", ir);
   pq.addEventListener("keydown", function (e) { if (e.key === "Enter") ir(); });
 
-  /* ---------- Botón del encabezado ---------- */
-  var bPrincipal = document.createElement("button");
-  bPrincipal.type = "button";
-  bPrincipal.style.cssText = ESTILO_BT;
-  bPrincipal.addEventListener("click", function () {
-    if (esPadre()) { setPadre(false); actualizarBotones(); pintar(); } else pedirPin();
-  });
-  document.querySelector("header").appendChild(bPrincipal);
-  function actualizarBotones() {
-    bPrincipal.textContent = esPadre() ? "Salir de padres" : "🔒 Padres";
-    bPrincipal.style.background = esPadre() ? "#5b6b7a" : "#12a37f";
-    panel.style.display = esPadre() ? "" : "none";
+  /* ---------- Botones del encabezado ---------- */
+  function abrirBuscador() {
+    var m = modal('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">Buscar en YouTube</h3><button type="button" style="' + ESTILO_BT + ';background:#5b6b7a">Cerrar</button></div><div data-h></div>', 900);
+    m.caja.querySelector("button").addEventListener("click", m.cerrar);
+    m.caja.querySelector("[data-h]").appendChild(panel);
+    pq.focus();
   }
+  var caja = document.createElement("div");
+  caja.style.cssText = "display:flex;gap:8px";
+  var bPrincipal = document.createElement("button"), bSalir = document.createElement("button");
+  [bPrincipal, bSalir].forEach(function (x) { x.type = "button"; x.style.cssText = ESTILO_BT; });
+  bPrincipal.textContent = "🔍 Buscar";
+  bSalir.textContent = "Salir de padres"; bSalir.style.background = "#5b6b7a";
+  bPrincipal.addEventListener("click", function () { if (esPadre()) abrirBuscador(); else pedirPin(abrirBuscador); });
+  bSalir.addEventListener("click", function () { setPadre(false); actualizarBotones(); pintar(); });
+  caja.appendChild(bPrincipal); caja.appendChild(bSalir);
+  document.querySelector("header").appendChild(caja);
+  function actualizarBotones() { bSalir.style.display = esPadre() ? "" : "none"; }
   actualizarBotones();
 
   /* Espera a que la página termine su carga normal y luego la reemplaza */
