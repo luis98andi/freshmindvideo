@@ -1,357 +1,443 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FreshMindVideo</title>
-  <style>
-    /* Estilos generales y optimización para móviles (Vertical) */
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f4f6f8;
-      color: #1d2b3a;
-    }
-    header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 16px;
-      background: #fff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      gap: 10px;
-    }
-    h1 {
-      font-size: 1.3rem;
-      margin: 0;
-      color: #12a37f;
-    }
-    /* Barra de búsqueda central */
-    .barra-busqueda-centro {
-      width: 100%;
-      max-width: 600px;
-      margin: 16px auto;
-      padding: 0 16px;
-      box-sizing: border-box;
-    }
-    .barra-busqueda-centro input {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 12px 18px;
-      font-size: 16px;
-      border: 2px solid #12a37f;
-      border-radius: 999px;
-      outline: none;
-      background: #fff;
-    }
-    /* Cuadrícula adaptable vertical para celulares y PCs */
-    .cuadricula {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-      gap: 12px;
-      padding: 16px;
-      box-sizing: border-box;
-    }
-    @media (min-width: 600px) {
-      .cuadricula {
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 16px;
-        padding: 24px;
-      }
-    }
-    /* Tarjetas */
-    .tarjeta {
-      background: #fff;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      transition: transform 0.2s;
-    }
-    .tarjeta:hover {
-      transform: translateY(-3px);
-    }
-    .tarjeta .media img {
-      width: 100%;
-      aspect-ratio: 16/9;
-      object-fit: cover;
-      display: block;
-      background: #000;
-    }
-    .tarjeta .nombre {
-      padding: 10px;
-      font-size: 14px;
-      font-weight: 600;
-      margin: 0;
-      color: #1d2b3a;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    #mensaje {
-      text-align: center;
-      padding: 40px;
-      font-size: 16px;
-      color: #5b6b7a;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.youtube.com https://i.ytimg.com https://yt3.googleusercontent.com https://yt3.ggpht.com https://unavatar.io https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' https://i.ytimg.com https://yt3.googleusercontent.com https://yt3.ggpht.com https://unavatar.io data: https:; script-src 'self' 'unsafe-inline' https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;"><title>FreshMindVideo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fondo: #f3f6f8;
+    --tarjeta: #ffffff;
+    --texto: #1d2b3a;
+    --acento: #12a37f;
+    --proporcion: 16 / 9;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--texto); font-family: "Nunito", "Segoe UI", Arial, sans-serif; }
+  header { position: sticky; top: 0; z-index: 10; background: var(--tarjeta); padding: 14px 24px; box-shadow: 0 1px 0 rgba(29, 43, 58, .12); display: flex; align-items: center; justify-content: space-between; }
+  header h1 { margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--acento); letter-spacing: -.01em; cursor: pointer; }
+  main { max-width: 1000px; margin: 0 auto; padding: 28px 20px 48px; }
+  .cuadricula { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .tarjeta {
+    display: block; background: var(--tarjeta); border-radius: 10px; overflow: hidden;
+    color: inherit; text-decoration: none; box-shadow: 0 1px 4px rgba(29, 43, 58, .14);
+    transition: transform .15s ease, box-shadow .15s ease; cursor: pointer;
+  }
+  .tarjeta:hover { transform: translateY(-3px); box-shadow: 0 6px 14px rgba(29, 43, 58, .18); }
+  .tarjeta:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+  .media { aspect-ratio: var(--proporcion); background: #dfe6ea; position: relative; }
+  .media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .inicial { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 3.2rem; font-weight: 800; color: rgba(29, 43, 58, .75); }
+  .nombre { margin: 0; padding: 12px 14px 14px; font-size: 1rem; font-weight: 700; line-height: 1.3; }
+  .mensaje { text-align: center; padding: 40px 16px; font-weight: 600; }
+
+  /* Vista de Canal / Reproductor Orgánico */
+  #vista-canal { display: none; }
+  #vista-canal.activo { display: block; }
+  #vista-principal.oculto { display: none; }
+
+  .barra-navegacion { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+  .volver {
+    padding: 8px 16px; border: 0; background: var(--acento); color: #fff; border-radius: 8px;
+    cursor: pointer; font-weight: 700; font-family: inherit; display: flex; align-items: center; gap: 6px;
+  }
+  .volver:hover { opacity: 0.9; }
+  .titulo-canal-activo { font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--texto); }
+
+  .contenedor-reproductor-principal { background: #0f1720; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-bottom: 24px; color: #fff; }
+  .video-marco-wrapper { position: relative; aspect-ratio: 16 / 9; width: 100%; background: #000; }
+  .video-marco-wrapper iframe { width: 100%; height: 100%; border: 0; display: block; pointer-events: none; }
+  
+  .tapa {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0; margin: 0; padding: 0;
+    background: #000; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5;
+  }
+  .tapa[hidden] { display: none; }
+  .tapa svg { width: 68px; height: 68px; fill: #fff; opacity: .92; }
+  .tapa:hover svg { opacity: 1; }
+
+  .controles { display: flex; align-items: center; gap: 4px; padding: 8px 14px; background: #1d2b3a; }
+  .controles button {
+    min-width: 40px; min-height: 40px; border: 0; background: none; color: #fff; border-radius: 8px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+  }
+  .controles button:hover { background: rgba(255, 255, 255, .12); }
+  .controles svg { width: 22px; height: 22px; fill: currentColor; }
+  .controles input[type=range] { flex: 1; min-width: 60px; accent-color: var(--acento); }
+  .tiempo { min-width: 92px; text-align: center; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+
+  /* Selector inferior de todos los videos del canal */
+  .seccion-videos-canal h3 { margin: 0 0 12px 0; font-size: 1.1rem; }
+  .selector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
+  .selector-grid button {
+    position: border; border: 0; padding: 0; background: #000; border-radius: 8px; overflow: hidden;
+    cursor: pointer; aspect-ratio: 16 / 9; display: block; text-align: left;
+  }
+  .selector-grid button img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .selector-grid .num {
+    position: absolute; bottom: 4px; right: 4px; background: rgba(0, 0, 0, .75); color: #fff;
+    font-size: .7rem; font-weight: 700; padding: 1px 6px; border-radius: 4px;
+  }
+  .selector-grid button:hover { outline: 2px solid var(--acento); }
+
+  @media (max-width: 760px) { .cuadricula { grid-template-columns: repeat(2, 1fr); gap: 14px; } }
+  @media (max-width: 480px) { .tiempo { display: none; } }
+  @media (max-width: 360px) { .cuadricula { grid-template-columns: 1fr; } }
+    html, body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; }
+  body { overflow-x: hidden; }
+  input { font-size: 16px; }
+  @media (max-width: 600px) {
+    header { padding: 10px 12px; flex-wrap: wrap; gap: 8px; }
+    header h1 { font-size: 1.3rem; }
+  }
+</style>
 </head>
 <body>
 
-  <header>
-    <h1>FreshMindVideo</h1>
-    <!-- Los botones de la zona de padres se inyectarán aquí mediante script -->
-  </header>
+<header>
+  <h1 id="logo-inicio">FreshMindVideo</h1>
+</header>
 
-  <!-- Barra de búsqueda central para filtrar entre los miles de videos -->
-  <div class="barra-busqueda-centro">
-    <input type="search" id="inputBusquedaCentral" placeholder="Buscar video por título…">
+<main>
+  <!-- VISTA PRINCIPAL: Cuadrícula de Canales -->
+  <div id="vista-principal">
+    <div id="cuadricula" class="cuadricula"></div>
+    <p id="mensaje" class="mensaje">Cargando canales…</p>
   </div>
 
-  <main>
-    <div id="mensaje">Cargando canales...</div>
-    <div class="cuadricula" id="cuadricula"></div>
-  </main>
+  <!-- VISTA DE CANAL: Reproductor orgánico y lista completa de videos -->
+  <div id="vista-canal">
+    <div class="barra-navegacion">
+      <button class="volver" id="btn-volver" type="button">← Volver a canales</button>
+      <h2 class="titulo-canal-activo" id="titulo-canal-activo"></h2>
+    </div>
 
-  <script>
-    /* FreshMindVideo - Script unificado */
-    (function () {
-      var API_KEY = "AIzaSyA7R_xoLnmY__-8cuNoP40rHhWyLyLBlbk";
-      var PIN_PADRES = "1234"; 
-      var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache", LS_VID = "fmv_videos", LS_OCULTOS = "fmv_ocultos";
-      var BASE = "https://www.googleapis.com/youtube/v3/";
-      var ID_OK = /^UC[\w-]{22}$/;
-      var grid = document.getElementById("cuadricula"), msg = document.getElementById("mensaje");
-      var inputCentro = document.getElementById("inputBusquedaCentral");
-      var sinClave = !API_KEY || API_KEY.indexOf("PEGA") === 0;
-      var todos = [];
+    <div class="contenedor-reproductor-principal">
+      <div class="video-marco-wrapper">
+        <div id="marco"></div>
+        <button type="button" id="tapa" class="tapa" aria-label="Reproducir">
+          <svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>
+        </button>
+      </div>
+      <div class="controles" id="controles">
+        <button type="button" id="b-anterior" aria-label="Video anterior"></button>
+        <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
+        <button type="button" id="b-siguiente" aria-label="Video siguiente"></button>
+        <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
+        <span class="tiempo" id="tiempo">0:00 / 0:00</span>
+        <button type="button" id="b-sonido" aria-label="Activar o quitar sonido"></button>
+        <button type="button" id="b-pantalla" aria-label="Pantalla completa"></button>
+      </div>
+    </div>
 
-      function leer(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } }
-      function guardar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
-      function esPadre() { try { return sessionStorage.getItem("fmv_padres") === "1"; } catch (e) { return false; } }
-      function setPadre(v) { try { sessionStorage.setItem("fmv_padres", v ? "1" : "0"); } catch (e) {} }
-      function handleDe(u) { var m = /youtube\.com\/@([^\/?#]+)/.exec(u || ""); return m ? decodeURIComponent(m[1]) : ""; }
-      function idDe(u) { var m = /youtube\.com\/channel\/(UC[\w-]{22})/.exec(u || ""); return m ? m[1] : ""; }
-      function foto(it) { var t = it.snippet.thumbnails || {}; return (t.medium || t.default || t.high || {}).url || ""; }
-      function dec(t) { var d = document.createElement("textarea"); d.innerHTML = t || ""; return d.value; }
-      
-      function api(ruta, p) {
-        return fetch(BASE + ruta + "?key=" + API_KEY + "&" + p)
-          .then(function (r) {
-            return r.json().then(function (d) {
-              if (!r.ok || d.error) {
-                var mensajeError = (d.error && d.error.message) ? d.error.message : "Error HTTP " + r.status;
-                throw new Error(mensajeError);
+    <div class="seccion-videos-canal">
+      <h3>Todos los videos del canal (<span id="contador-total">0</span>)</h3>
+      <p id="selector-mensaje">Cargando lista completa de videos…</p>
+      <div class="selector-grid" id="selector-grid"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+  var COLORES = ["#ffd166", "#7bdff2", "#b2f7b8", "#ffb3c1", "#cdb4ff", "#ffc98b"];
+  var ICONOS = {
+    anterior: '<svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
+    siguiente: '<svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
+    play: '<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>',
+    pausa: '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+    sonido: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9zM16.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>',
+    mudo: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15 9l6 6M21 9l-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
+    pantalla: '<svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zM20 4v6h-2V6h-4V4zM4 20v-6h2v4h4v2zM20 20h-6v-2h4v-4h2z"/></svg>'
+  };
+
+  var vistaPrincipal = document.getElementById("vista-principal");
+  var vistaCanal = document.getElementById("vista-canal");
+  var tituloCanalActivo = document.getElementById("titulo-canal-activo");
+  var selectorGrid = document.getElementById("selector-grid");
+  var selectorMensaje = document.getElementById("selector-mensaje");
+  var contadorTotal = document.getElementById("contador-total");
+
+  var bPlay = document.getElementById("b-play");
+  var bSonido = document.getElementById("b-sonido");
+  var bAnterior = document.getElementById("b-anterior");
+  var bSiguiente = document.getElementById("b-siguiente");
+  var rango = document.getElementById("rango");
+  var tiempo = document.getElementById("tiempo");
+  var tapa = document.getElementById("tapa");
+  var wrapperVideo = document.querySelector(".video-marco-wrapper");
+
+  bAnterior.innerHTML = ICONOS.anterior;
+  bSiguiente.innerHTML = ICONOS.siguiente;
+  document.getElementById("b-pantalla").innerHTML = ICONOS.pantalla;
+  bPlay.innerHTML = ICONOS.play;
+  bSonido.innerHTML = ICONOS.sonido;
+
+  var jugador = null, listo = false, canalActual = null;
+  var listaVideos = []; 
+  var indiceActual = 0;
+  var temporizador = null, arrastrando = false, errores = 0, apiPendiente = null;
+
+  function cargarApi(cb) {
+    if (window.YT && YT.Player) { cb(); return; }
+    apiPendiente = cb;
+    if (!document.getElementById("yt-api")) {
+      var s = document.createElement("script");
+      s.id = "yt-api";
+      s.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(s);
+    }
+  }
+  window.onYouTubeIframeAPIReady = function () {
+    if (apiPendiente) { var f = apiPendiente; apiPendiente = null; f(); }
+  };
+
+  function formato(seg) {
+    seg = Math.max(0, Math.floor(seg || 0));
+    var m = Math.floor(seg / 60), s = seg % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function construirSelectorCompleto() {
+    selectorMensaje.style.display = "none";
+    selectorGrid.innerHTML = "";
+    contadorTotal.textContent = listaVideos.length;
+    
+    listaVideos.forEach(function (id, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.style.position = "relative";
+      var img = document.createElement("img");
+      img.src = "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg";
+      img.alt = "";
+      img.loading = "lazy";
+      var num = document.createElement("span");
+      num.className = "num";
+      num.textContent = (i + 1);
+      b.appendChild(img);
+      b.appendChild(num);
+      b.addEventListener("click", function () {
+        reproducirIndice(i);
+      });
+      selectorGrid.appendChild(b);
+    });
+  }
+
+  function reproducirIndice(i) {
+    indiceActual = i;
+    tapa.hidden = true;
+    if (listo && jugador.playVideoAt) {
+      jugador.playVideoAt(i);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function siguienteVideo() {
+    if (!listo || !listaVideos.length) return;
+    indiceActual = (indiceActual + 1) % listaVideos.length;
+    jugador.playVideoAt(indiceActual);
+  }
+
+  function anteriorVideo() {
+    if (!listo || !listaVideos.length) return;
+    indiceActual = (indiceActual - 1 + listaVideos.length) % listaVideos.length;
+    jugador.playVideoAt(indiceActual);
+  }
+
+  // Carga recursiva para obtener TODOS los videos de la lista de reproducción sin límite de 10
+  function pedirTodosLosVideos(intento) {
+    var lista = jugador.getPlaylist() || [];
+    if (lista.length) {
+      listaVideos = lista; // Sin cortes, agarra absolutamente todos
+      construirSelectorCompleto();
+    } else if ((intento || 0) < 15) {
+      setTimeout(function () { pedirTodosLosVideos((intento || 0) + 1); }, 500);
+    } else {
+      selectorMensaje.style.display = "block";
+      selectorMensaje.textContent = "No se pudieron recuperar los videos de este canal.";
+    }
+  }
+
+  function iniciarCanal(idCanal, nombreCanal) {
+    canalActual = "UU" + idCanal.slice(2);
+    tituloCanalActivo.textContent = nombreCanal;
+    vistaPrincipal.classList.add("oculto");
+    vistaCanal.classList.add("activo");
+    
+    listaVideos = [];
+    selectorGrid.innerHTML = "";
+    selectorMensaje.style.display = "block";
+    selectorMensaje.textContent = "Cargando todos los videos del canal...";
+    contadorTotal.textContent = "0";
+    tapa.hidden = false;
+
+    cargarApi(function() {
+      if (!jugador) {
+        var vars = { controls: 0, fs: 0, rel: 0, disablekb: 1, iv_load_policy: 3, playsinline: 1 };
+        if (location.protocol.indexOf("http") === 0) vars.origin = location.origin;
+        jugador = new YT.Player("marco", {
+          width: "100%", height: "100%", playerVars: vars,
+          events: {
+            onReady: function () {
+              listo = true;
+              jugador.cuePlaylist({ listType: "playlist", list: canalActual, index: 0 });
+              pedirTodosLosVideos(0);
+            },
+            onStateChange: function (e) {
+              bPlay.innerHTML = (e.data === 1) ? ICONOS.pausa : ICONOS.play;
+              if (e.data === 1) { tapa.hidden = true; errores = 0; }
+              else if (e.data === 2) { tapa.hidden = false; }
+              if (e.data === 5 && !listaVideos.length) {
+                pedirTodosLosVideos(0);
               }
-              return d.items || [];
-            });
-          })
-          .catch(function (err) {
-            if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
-              throw new Error("Sin conexión o clave bloqueada/restringida.");
+              if (e.data === 0) {
+                siguienteVideo();
+              }
+            },
+            onError: function () {
+              errores++;
+              if (errores < 5) siguienteVideo();
             }
-            throw err;
-          });
-      }
-
-      function resolver(lista) {
-        var cache = leer(LS_CACHE, {}), ahora = Date.now(), pend = [];
-        lista.forEach(function (c) {
-          var h = cache[c.url];
-          if (h && ahora - h.t < 6048e5) { c.id = h.id; c.imagen = h.img; } else pend.push(c);
-        });
-        if (sinClave || !pend.length) return Promise.resolve();
-        var ids = pend.map(function (c) { return (c.id || "").trim(); }).filter(function (i) { return ID_OK.test(i); });
-        var lotes = [];
-        for (var i = 0; i < ids.length; i += 50) lotes.push(api("channels", "part=snippet&id=" + ids.slice(i, i + 50).join(",")));
-        return Promise.all(lotes).then(function (r) {
-          var mapa = {};
-          [].concat.apply([], r).forEach(function (it) { mapa[it.id] = it; });
-          return Promise.all(pend.map(function (c) {
-            var it = mapa[(c.id || "").trim()], h = handleDe(c.url);
-            if (it) return it;
-            return h ? api("channels", "part=snippet&forHandle=" + encodeURIComponent("@" + h)).then(function (x) { return x[0]; }) : null;
-          }));
-        }).then(function (res) {
-          pend.forEach(function (c, i) {
-            var it = res[i];
-            if (it) { c.id = it.id; c.imagen = foto(it); cache[c.url] = { id: c.id, img: c.imagen, t: ahora }; }
-          });
-          guardar(LS_CACHE, cache);
-        }).catch(function () {});
-      }
-
-      function pintar() {
-        grid.innerHTML = "";
-        var vs = leer(LS_VID, []);
-        if (vs.length) grid.appendChild(tarjetaMisVideos(vs));
-        todos.forEach(function (c, i) {
-          var t = document.createElement("div"); t.className = "tarjeta";
-          var media = document.createElement("div"); media.className = "media";
-          var im = document.createElement("img"); im.src = c.imagen || ""; im.alt = ""; media.appendChild(im);
-          var nom = document.createElement("p"); nom.className = "nombre"; nom.textContent = c.nombre;
-          t.appendChild(media); t.appendChild(nom);
-
-          if (esPadre()) {
-            var x = document.createElement("button");
-            x.textContent = "×"; x.title = "Quitar canal";
-            x.style.cssText = "position:absolute;top:6px;right:6px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:20px;cursor:pointer;z-index:2";
-            x.addEventListener("click", function (e) {
-              e.stopPropagation();
-              if (!confirm("¿Quitar " + c.nombre + "?")) return;
-              if (c.extra) guardar(LS_EXTRA, leer(LS_EXTRA, []).filter(function (o) { return o.id !== c.id; }));
-              else { var oc = leer(LS_OCULTOS, []); oc.push(c.url); guardar(LS_OCULTOS, oc); }
-              todos = todos.filter(function (o) { return o !== c; });
-              pintar(); actualizarBotones();
-            });
-            t.style.position = "relative";
-            t.appendChild(x);
           }
-          grid.appendChild(t);
         });
-        if (msg) msg.hidden = grid.children.length > 0;
+      } else {
+        jugador.cuePlaylist({ listType: "playlist", list: canalActual, index: 0 });
+        pedirTodosLosVideos(0);
       }
+    });
 
-      function iniciar() {
-        return fetch("canales.json", { cache: "no-cache" })
-          .then(function (r) { return r.json(); })
-          .then(function (d) { return Array.isArray(d) ? d : (d.canales || d.channels || []); })
-          .catch(function () { return []; })
-          .then(function (base) {
-            var extra = leer(LS_EXTRA, []).map(function (c) { c.extra = true; return c; });
-            var ocu = leer(LS_OCULTOS, []);
-            todos = base.concat(extra).filter(function (c) { return ocu.indexOf(c.url) < 0; });
-            return resolver(todos).then(pintar);
-          });
-      }
+    if (!temporizador) {
+      temporizador = setInterval(actualizarCronometro, 500);
+    }
+  }
 
-      var ESTILO_IN = "width:100%;box-sizing:border-box;padding:12px;font-size:16px;border:1px solid #c9d3da;border-radius:8px;margin:8px 0;font-family:inherit";
-      var ESTILO_BT = "padding:10px 16px;border:0;background:#12a37f;color:#fff;border-radius:8px;cursor:pointer;font-weight:700;font-family:inherit;font-size:15px";
-      
-      function modal(html, ancho) {
-        var f = document.createElement("div");
-        f.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;overflow:auto;padding:16px";
-        var c = document.createElement("div");
-        c.style.cssText = "background:#fff;border-radius:12px;padding:18px;width:100%;max-width:" + (ancho || 480) + "px;margin:4vh auto;color:#1d2b3a";
-        c.innerHTML = html;
-        f.appendChild(c);
-        document.body.appendChild(f);
-        f.addEventListener("click", function (e) { if (e.target === f) f.remove(); });
-        return { caja: c, cerrar: function () { f.remove(); } };
-      }
+  function actualizarCronometro() {
+    if (!listo || !jugador.getDuration) return;
+    var dur = jugador.getDuration() || 0, t = jugador.getCurrentTime() || 0;
+    if (!arrastrando && dur > 0) rango.value = Math.round(t / dur * 1000);
+    tiempo.textContent = formato(arrastrando ? rango.value / 1000 * dur : t) + " / " + formato(dur);
+    bSonido.innerHTML = jugador.isMuted() ? ICONOS.mudo : ICONOS.sonido;
+  }
 
-      function pedirPin(alEntrar) {
-        var m = modal('<h3 style="margin:0 0 6px">Zona de padres</h3><input type="password" inputmode="numeric" placeholder="PIN" style="' + ESTILO_IN + '"><button style="' + ESTILO_BT + '">Entrar</button>');
-        var inp = m.caja.querySelector("input"), b = m.caja.querySelector("button");
-        function ok() {
-          if (inp.value === PIN_PADRES) { setPadre(true); m.cerrar(); actualizarBotones(); pintar(); if (alEntrar) alEntrar(); }
-          else { alert("PIN incorrecto"); inp.value = ""; }
-        }
-        b.addEventListener("click", ok);
-        inp.addEventListener("keydown", function (e) { if (e.key === "Enter") ok(); });
-        inp.focus();
-      }
+  function regresarAprincipal() {
+    vistaCanal.classList.remove("activo");
+    vistaPrincipal.classList.remove("oculto");
+    if (listo && jugador.stopVideo) {
+      jugador.stopVideo();
+    }
+    if (temporizador) {
+      clearInterval(temporizador);
+      temporizador = null;
+    }
+  }
 
-      function tarjetaMisVideos(vs) {
-        var card = document.createElement("div"); card.className = "tarjeta";
-        var media = document.createElement("div"); media.className = "media";
-        var im = document.createElement("img"); im.src = vs[0].img; im.alt = ""; media.appendChild(im);
-        var nom = document.createElement("p"); nom.className = "nombre"; nom.textContent = "⭐ Mis videos (" + vs.length + ")";
-        card.appendChild(media); card.appendChild(nom);
-        return card;
-      }
+  document.getElementById("btn-volver").addEventListener("click", regresarAprincipal);
+  document.getElementById("logo-inicio").addEventListener("click", regresarAprincipal);
 
-      /* Filtrado instantáneo en la barra central */
-      if (inputCentro) {
-        inputCentro.addEventListener("input", function(e) {
-          var textoBusqueda = e.target.value.toLowerCase().trim();
-          var tarjetas = grid.querySelectorAll(".tarjeta");
-          tarjetas.forEach(function(tarjeta) {
-            var elNombre = tarjeta.querySelector(".nombre");
-            if (elNombre) {
-              var tTexto = elNombre.textContent.toLowerCase();
-              if (tTexto.includes(textoBusqueda)) {
-                tarjeta.style.display = "";
-              } else {
-                tarjeta.style.display = "none";
-              }
-            }
-          });
-        });
-      }
+  // Controles del reproductor
+  bAnterior.addEventListener("click", anteriorVideo);
+  bSiguiente.addEventListener("click", siguienteVideo);
+  bPlay.addEventListener("click", function () {
+    if (!listo) return;
+    if (jugador.getPlayerState() === 1) jugador.pauseVideo(); else jugador.playVideo();
+  });
+  tapa.addEventListener("click", function () {
+    if (listo) jugador.playVideo();
+  });
+  bSonido.addEventListener("click", function () {
+    if (!listo) return;
+    if (jugador.isMuted()) jugador.unMute(); else jugador.mute();
+  });
+  rango.addEventListener("input", function () { arrastrando = true; });
+  rango.addEventListener("change", function () {
+    if (listo) jugador.seekTo(jugador.getDuration() * rango.value / 1000, true);
+    arrastrando = false;
+  });
 
-      var cajaHeader = document.createElement("div");
-      cajaHeader.style.cssText = "display:flex;gap:8px";
-      var bPrincipal = document.createElement("button"), bSalir = document.createElement("button"), bRest = document.createElement("button");
-      [bPrincipal, bSalir, bRest].forEach(function (x) { x.type = "button"; x.style.cssText = ESTILO_BT; });
-      bPrincipal.textContent = "🔍 Buscar canal";
-      bSalir.textContent = "Salir de padres"; bSalir.style.background = "#5b6b7a";
-      bRest.textContent = "↩ Restaurar"; bRest.style.background = "#e08a00";
-      
-      bRest.addEventListener("click", function () { if (confirm("¿Volver a mostrar los canales que quitaste?")) { guardar(LS_OCULTOS, []); iniciar().then(actualizarBotones); } });
-      bPrincipal.addEventListener("click", function () { if (esPadre()) abrirBuscadorModal(); else pedirPin(abrirBuscadorModal); });
-      bSalir.addEventListener("click", function () { setPadre(false); actualizarBotones(); pintar(); });
-      
-      cajaHeader.appendChild(bPrincipal); cajaHeader.appendChild(bRest); cajaHeader.appendChild(bSalir);
-      var headerEl = document.querySelector("header");
-      if (headerEl) headerEl.appendChild(cajaHeader);
+  var bPantalla = document.getElementById("b-pantalla");
+  bPantalla.addEventListener("click", function () {
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    (wrapperVideo.requestFullscreen || wrapperVideo.webkitRequestFullscreen).call(wrapperVideo);
+  });
 
-      function actualizarBotones() {
-        bSalir.style.display = esPadre() ? "" : "none";
-        bRest.style.display = (esPadre() && leer(LS_OCULTOS, []).length) ? "" : "none";
-      }
-      actualizarBotones();
+  // Generación de tarjetas con imágenes automáticas basadas en el ID del canal
+  function inicial(nombre, i) {
+    var d = document.createElement("div");
+    d.className = "inicial";
+    d.style.background = COLORES[i % COLORES.length];
+    d.textContent = nombre.charAt(0).toUpperCase();
+    return d;
+  }
 
-      function abrirBuscadorModal() {
-        // Modal para agregar canales desde la API de YouTube
-        var m = modal('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">Buscar nuevos canales</h3><button type="button" style="' + ESTILO_BT + ';background:#5b6b7a">Cerrar</button></div>' +
-          '<div style="display:flex;gap:8px"><input type="search" placeholder="Ej: dibujos infantiles" style="flex:1;min-width:0;padding:12px;font-size:16px;border:2px solid #12a37f;border-radius:8px;outline:0"><button type="button" style="' + ESTILO_BT + '">Buscar</button></div>' +
-          '<p style="text-align:center;font-weight:600;margin:14px 0 0"></p><div data-r style="margin-top:8px"></div>', 700);
-        
-        m.caja.querySelector("button").addEventListener("click", m.cerrar);
-        var pq = m.caja.querySelector("input"), pb = m.caja.querySelectorAll("button")[1], pm = m.caja.querySelector("p"), pr = m.caja.querySelector("[data-r]");
+  function crearTarjeta(item, i) {
+    var url = item.url || item.enlace || "";
+    if (!url) return null;
+    var nombre = item.nombre || item.name || "Canal";
+    var idCanal = (item.id || "").trim();
+    var imagen = item.imagen || item.image || "";
 
-        function ir() {
-          if (sinClave) { pm.textContent = "Falta clave API"; return; }
-          var t = pq.value.trim(); if (!t) return;
-          pm.textContent = "Buscando..."; pr.textContent = "";
-          api("search", "part=snippet&type=channel&maxResults=6&safeSearch=strict&relevanceLanguage=es&q=" + encodeURIComponent(t))
-            .then(function(items) {
-              pm.textContent = items.length ? "Selecciona para agregar:" : "Sin resultados";
-              items.forEach(function(it) {
-                var id = it.id.channelId, nombre = dec(it.snippet.title), img = foto(it);
-                var row = document.createElement("div");
-                row.style.cssText = "display:flex;align-items:center;gap:10px;margin-bottom:8px;background:#f9f9f9;padding:8px;border-radius:8px";
-                row.innerHTML = '<img src="' + img + '" style="width:40px;height:40px;border-radius:50%;object-fit:cover"><span style="flex:1;font-weight:600;font-size:14px">' + nombre + '</span><button style="' + ESTILO_BT + ';padding:6px 12px;font-size:13px">+ Agregar</button>';
-                var ya = todos.some(function(c){ return c.id === id; });
-                var btnAdd = row.querySelector("button");
-                if (ya) { btnAdd.textContent = "Ya está"; btnAdd.disabled = true; btnAdd.style.opacity = ".5"; }
-                else {
-                  btnAdd.addEventListener("click", function() {
-                    var nuevo = { nombre: nombre, id: id, url: "https://www.youtube.com/channel/" + id, imagen: img };
-                    var ex = leer(LS_EXTRA, []); ex.push(nuevo); guardar(LS_EXTRA, ex);
-                    nuevo.extra = true; todos.push(nuevo); pintar();
-                    btnAdd.textContent = "✓ Agregado"; btnAdd.disabled = true;
-                  });
-                }
-                pr.appendChild(row);
-              });
-            }).catch(function(e){ pm.textContent = "Error al buscar"; });
-        }
-        pb.addEventListener("click", ir);
-        pq.addEventListener("keydown", function(e){ if (e.key === "Enter") ir(); });
-        pq.focus();
-      }
+    var a = document.createElement("div");
+    a.className = "tarjeta";
 
-      var n = 0, w = setInterval(function () {
-        if ((grid && grid.children.length) || (msg && /No se pudo/.test(msg.textContent)) || ++n > 50) { clearInterval(w); iniciar(); }
-      }, 100);
-    })();
-  </script>
+    var media = document.createElement("div");
+    media.className = "media";
+
+    // Si no pones imagen en el JSON, la obtenemos automáticamente de YouTube usando el ID del canal
+    if (!imagen && /^UC[\w-]{22}$/.test(idCanal)) {
+      // Truco para obtener el banner/avatar automático de YouTube a partir del ID del canal
+      imagen = "https://yt3.googleusercontent.com/ytc/" + idCanal; 
+    }
+
+    if (imagen) {
+      var img = document.createElement("img");
+      img.src = imagen;
+      img.alt = "";
+      img.loading = "lazy";
+      // Si falla la imagen automática, recurre a la inicial colorida
+      img.onerror = function () { media.replaceChildren(inicial(nombre, i)); };
+      media.appendChild(img);
+    } else {
+      media.appendChild(inicial(nombre, i));
+    }
+
+    var titulo = document.createElement("p");
+    titulo.className = "nombre";
+    titulo.textContent = nombre;
+
+    a.appendChild(media);
+    a.appendChild(titulo);
+
+    if (/^UC[\w-]{22}$/.test(idCanal)) {
+      a.addEventListener("click", function () {
+        iniciarCanal(idCanal, nombre);
+      });
+    } else {
+      a.addEventListener("click", function () {
+        window.open(url, "_blank");
+      });
+    }
+
+    return a;
+  }
+
+  fetch("canales.json", { cache: "no-cache" })
+    .then(function (r) {
+      if (!r.ok) throw new Error("No se encontró canales.json");
+      return r.json();
+    })
+    .then(function (datos) {
+      var lista = Array.isArray(datos) ? datos : (datos.canales || datos.channels || []);
+      var cuadricula = document.getElementById("cuadricula");
+      lista.forEach(function (item, i) {
+        var t = crearTarjeta(item, i);
+        if (t) cuadricula.appendChild(t);
+      });
+      document.getElementById("mensaje").hidden = cuadricula.children.length > 0;
+    })
+    .catch(function () {
+      document.getElementById("mensaje").textContent = "No se pudo leer canales.json.";
+    });
+</script>
+     <script src="canales-auto.js"></script>
 </body>
 </html>
