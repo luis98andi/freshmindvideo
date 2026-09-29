@@ -1,6 +1,6 @@
 /* FreshMindVideo - agregar canales solo con el enlace + fotos automáticas */
 (function () {
-  var API_KEY = "PEGA_AQUI_TU_CLAVE";
+  var API_KEY = "AIzaSyA7R_xoLnmY__-8cuNoP40rHhWyLyLBlbk";
   var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache";
   var API = "https://www.googleapis.com/youtube/v3/channels?part=snippet&key=" + API_KEY;
   var ID_OK = /^UC[\w-]{22}$/;
