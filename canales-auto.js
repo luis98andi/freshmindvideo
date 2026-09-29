@@ -1,6 +1,6 @@
 /* FreshMindVideo - Zona de padres: buscar y agregar canales de YouTube */
 (function () {
-  var API_KEY = "PEGA_AQUI_TU_CLAVE";
+  var API_KEY = "AIzaSyA7R_xoLnmY__-8cuNoP40rHhWyLyLBlbk";
   var PIN_PADRES = "1234"; // cámbialo por el PIN que quieras
   var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache", LS_VID = "fmv_videos";
   var BASE = "https://www.googleapis.com/youtube/v3/";
