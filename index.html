@@ -179,6 +179,8 @@
   var indiceActual = 0;
   var temporizador = null, arrastrando = false, errores = 0, apiPendiente = null;
   var esperandoLista = false; // solo se usa si falla la API de datos
+  var videoInicial = null;    // video que se debe dejar listo (viene del buscador)
+  var videoActualId = null, yaPreparado = false;
   var LS_LISTAS = "fmv_listas";
 
   function cargarApi(cb) {
@@ -241,12 +243,14 @@
     if (!desde) selectorGrid.innerHTML = "";
     contadorTotal.textContent = listaVideos.length;
     for (var i = desde || 0; i < listaVideos.length; i++) agregarBoton(i);
+    sincronizarIndice();
   }
 
   /* ---------- Reproducción con nuestra propia lista ---------- */
   function irA(i, subir) {
     if (!listo || !listaVideos.length) return;
     indiceActual = i;
+    videoActualId = listaVideos[i];
     tapa.hidden = true;
     jugador.loadVideoById(listaVideos[i]);
     if (subir) window.scrollTo({ top: 0, behavior: "smooth" });
@@ -262,10 +266,21 @@
     irA((indiceActual - 1 + listaVideos.length) % listaVideos.length, false);
   }
 
+  function sincronizarIndice() {
+    if (!videoActualId) return;
+    var k = listaVideos.indexOf(videoActualId);
+    if (k >= 0) indiceActual = k;
+  }
+
   function prepararPrimero() {
-    if (!listo || !listaVideos.length) return;
+    if (!listo || yaPreparado) return;
+    var id = videoInicial || listaVideos[0];
+    if (!id) return;
+    yaPreparado = true;
+    videoActualId = id;
     indiceActual = 0;
-    jugador.cueVideoById(listaVideos[0]);
+    jugador.cueVideoById(id);
+    sincronizarIndice();
   }
 
   /* ---------- Cargar la lista del canal (con títulos) ---------- */
@@ -341,8 +356,11 @@
     }
   }
 
-  function iniciarCanal(idCanal, nombreCanal) {
+  function iniciarCanal(idCanal, nombreCanal, videoId) {
     canalActual = "UU" + idCanal.slice(2);
+    videoInicial = videoId || null;
+    videoActualId = null;
+    yaPreparado = false;
     tituloCanalActivo.textContent = nombreCanal;
     vistaPrincipal.classList.add("oculto");
     vistaCanal.classList.add("activo");
@@ -388,6 +406,7 @@
     });
 
     cargarLista();
+    if (videoInicial) prepararPrimero(); // viene del buscador: dejarlo listo de inmediato
 
     if (!temporizador) {
       temporizador = setInterval(actualizarCronometro, 500);
@@ -522,5 +541,6 @@
     });
 </script>
      <script src="canales-auto.js"></script>
+     <script src="buscador.js"></script>
 </body>
 </html>

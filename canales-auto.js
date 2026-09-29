@@ -79,6 +79,7 @@
   }
 
   function pintar() {
+    window.FMV_CANALES = todos; // lo usa el buscador (buscador.js)
     grid.innerHTML = "";
     var vs = misVideos();
     if (vs.length) grid.appendChild(tarjetaMisVideos(vs));
