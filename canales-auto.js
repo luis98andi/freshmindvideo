@@ -2,7 +2,7 @@
 (function () {
   var API_KEY = "AIzaSyA7R_xoLnmY__-8cuNoP40rHhWyLyLBlbk";
   var PIN_PADRES = "1234"; // cámbialo por el PIN que quieras
-  var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache", LS_VID = "fmv_videos";
+  var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache", LS_VID = "fmv_videos", LS_OCULTOS = "fmv_ocultos";
   var BASE = "https://www.googleapis.com/youtube/v3/";
   var ID_OK = /^UC[\w-]{22}$/;
   var grid = document.getElementById("cuadricula"), msg = document.getElementById("mensaje");
@@ -57,16 +57,17 @@
     todos.forEach(function (c, i) {
       var t = crearTarjeta(c, i);
       if (!t) return;
-      if (c.extra && esPadre()) {
+      if (esPadre()) {
         var x = document.createElement("button");
         x.textContent = "×"; x.title = "Quitar canal";
         x.style.cssText = "position:absolute;top:6px;right:6px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:20px;cursor:pointer;z-index:2";
         x.addEventListener("click", function (e) {
           e.stopPropagation();
           if (!confirm("¿Quitar " + c.nombre + "?")) return;
-          guardar(LS_EXTRA, leer(LS_EXTRA, []).filter(function (o) { return o.id !== c.id; }));
+          if (c.extra) guardar(LS_EXTRA, leer(LS_EXTRA, []).filter(function (o) { return o.id !== c.id; }));
+          else { var oc = leer(LS_OCULTOS, []); oc.push(c.url); guardar(LS_OCULTOS, oc); }
           todos = todos.filter(function (o) { return o !== c; });
-          pintar();
+          pintar(); actualizarBotones();
         });
         t.style.position = "relative";
         t.appendChild(x);
@@ -83,7 +84,8 @@
       .catch(function () { return []; })
       .then(function (base) {
         var extra = leer(LS_EXTRA, []).map(function (c) { c.extra = true; return c; });
-        todos = base.concat(extra);
+        var ocu = leer(LS_OCULTOS, []);
+        todos = base.concat(extra).filter(function (c) { return ocu.indexOf(c.url) < 0; });
         return resolver(todos).then(pintar);
       });
   }
@@ -244,15 +246,20 @@
   }
   var caja = document.createElement("div");
   caja.style.cssText = "display:flex;gap:8px";
-  var bPrincipal = document.createElement("button"), bSalir = document.createElement("button");
-  [bPrincipal, bSalir].forEach(function (x) { x.type = "button"; x.style.cssText = ESTILO_BT; });
+  var bPrincipal = document.createElement("button"), bSalir = document.createElement("button"), bRest = document.createElement("button");
+  [bPrincipal, bSalir, bRest].forEach(function (x) { x.type = "button"; x.style.cssText = ESTILO_BT; });
   bPrincipal.textContent = "🔍 Buscar";
   bSalir.textContent = "Salir de padres"; bSalir.style.background = "#5b6b7a";
+  bRest.textContent = "↩ Restaurar"; bRest.style.background = "#e08a00";
+  bRest.addEventListener("click", function () { if (confirm("¿Volver a mostrar los canales que quitaste?")) { guardar(LS_OCULTOS, []); iniciar().then(actualizarBotones); } });
   bPrincipal.addEventListener("click", function () { if (esPadre()) abrirBuscador(); else pedirPin(abrirBuscador); });
   bSalir.addEventListener("click", function () { setPadre(false); actualizarBotones(); pintar(); });
-  caja.appendChild(bPrincipal); caja.appendChild(bSalir);
+  caja.appendChild(bPrincipal); caja.appendChild(bRest); caja.appendChild(bSalir);
   document.querySelector("header").appendChild(caja);
-  function actualizarBotones() { bSalir.style.display = esPadre() ? "" : "none"; }
+  function actualizarBotones() {
+    bSalir.style.display = esPadre() ? "" : "none";
+    bRest.style.display = (esPadre() && leer(LS_OCULTOS, []).length) ? "" : "none";
+  }
   actualizarBotones();
 
   /* Espera a que la página termine su carga normal y luego la reemplaza */
