@@ -1,6 +1,7 @@
 /* FreshMindVideo - Zona de padres: buscar y agregar canales de YouTube */
 (function () {
   var API_KEY = "AIzaSyA7R_xoLnmY__-8cuNoP40rHhWyLyLBlbk";
+  window.FMV_API_KEY = API_KEY; // la usa index.html para leer los títulos de los videos
   var PIN_PADRES = "1234"; // cámbialo por el PIN que quieras
   var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache", LS_VID = "fmv_videos", LS_OCULTOS = "fmv_ocultos", LS_VOCULTOS = "fmv_videos_ocultos";
   var BASE = "https://www.googleapis.com/youtube/v3/";
@@ -175,6 +176,9 @@
         var im = document.createElement("img"); im.src = v.img; im.alt = v.titulo; im.title = v.titulo;
         im.style.cssText = "width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;display:block;background:#000";
         w.appendChild(im);
+        var tt = document.createElement("div"); tt.textContent = v.titulo || "";
+        tt.style.cssText = "font-size:13px;font-weight:700;line-height:1.3;margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden";
+        w.appendChild(tt);
         w.addEventListener("click", function () { poner(v.id, true); });
         if (esPadre()) {
           var x = document.createElement("button"); x.type = "button"; x.textContent = "×"; x.title = "Quitar video";
