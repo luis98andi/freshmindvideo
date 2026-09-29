@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.googleapis.com https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'none'; media-src 'none'; worker-src 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.googleapis.com https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'none'; media-src 'none'; worker-src 'self'; manifest-src 'self';">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>
 /* Escudo: bloquea ventanas emergentes y cualquier iframe/script inyectado que no sea de YouTube o de tu sitio */
@@ -23,6 +23,11 @@
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FreshMind">
 <title>FreshMindVideo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap" rel="stylesheet">
@@ -835,6 +840,10 @@
       document.getElementById("mensaje").textContent = "No se pudo leer canales.json.";
     });
 </script>
+     <script>
+       /* App instalable: registra el service worker (solo funciona en https, como GitHub Pages) */
+       if ("serviceWorker" in navigator) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+     </script>
      <script src="canales-auto.js"></script>
      <script src="buscador.js"></script>
 </body>
