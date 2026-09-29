@@ -19,7 +19,6 @@
   header { position: sticky; top: 0; z-index: 10; background: var(--tarjeta); padding: 14px 24px; box-shadow: 0 1px 0 rgba(29, 43, 58, .12); display: flex; align-items: center; justify-content: space-between; }
   header h1 { margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--acento); letter-spacing: -.01em; cursor: pointer; }
   
-  /* Contenedor del buscador local */
   .contenedor-busqueda {
     max-width: 1000px; margin: 20px auto 0; padding: 0 20px; display: none;
   }
@@ -43,9 +42,10 @@
   .media img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .inicial { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 3.2rem; font-weight: 800; color: rgba(29, 43, 58, .75); }
   .nombre { margin: 0; padding: 12px 14px 14px; font-size: 1rem; font-weight: 700; line-height: 1.3; }
-  .mensaje { text-align: center; padding: 40px 16px; font-weight: 600; }
+  .mensaje { text-align: center; padding: 40px 16px; font-weight: 600; display: none; }
+  .mensaje.activo { display: block; }
 
-  /* Vista de Canal / Reproductor Orgánico */
+  /* Vista de Canal / Reproductor */
   #vista-canal { display: none; }
   #vista-canal.activo { display: block; }
   #vista-principal.oculto { display: none; }
@@ -81,17 +81,19 @@
   .tiempo { min-width: 92px; text-align: center; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 
   .seccion-videos-canal h3 { margin: 0 0 12px 0; font-size: 1.1rem; }
-  .selector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
-  .selector-grid button {
-    position: relative; border: 0; padding: 0; background: #000; border-radius: 8px; overflow: hidden;
-    cursor: pointer; aspect-ratio: 16 / 9; display: block; text-align: left;
+  .selector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; max-height: 450px; overflow-y: auto; padding-right: 4px; }
+  .selector-item {
+    background: var(--tarjeta); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    cursor: pointer; display: flex; flex-direction: column; border: 2px solid transparent; transition: border-color .15s;
   }
-  .selector-grid button img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .selector-grid .num {
+  .selector-item:hover { border-color: var(--acento); }
+  .selector-thumb { position: relative; aspect-ratio: 16 / 9; background: #000; }
+  .selector-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .selector-thumb .num {
     position: absolute; bottom: 4px; right: 4px; background: rgba(0, 0, 0, .75); color: #fff;
     font-size: .7rem; font-weight: 700; padding: 1px 6px; border-radius: 4px;
   }
-  .selector-grid button:hover { outline: 2px solid var(--acento); }
+  .selector-titulo { padding: 8px; font-size: 0.85rem; font-weight: 700; margin: 0; line-height: 1.2; color: var(--texto); }
 
   @media (max-width: 760px) { .cuadricula { grid-template-columns: repeat(2, 1fr); gap: 14px; } }
   @media (max-width: 480px) { .tiempo { display: none; } }
@@ -119,13 +121,11 @@
 </div>
 
 <main>
-  <!-- VISTA PRINCIPAL -->
   <div id="vista-principal">
     <div id="cuadricula" class="cuadricula"></div>
-    <p id="mensaje" class="mensaje">Cargando contenido…</p>
+    <p id="mensaje" class="mensaje">No se encontraron resultados.</p>
   </div>
 
-  <!-- VISTA DE CANAL -->
   <div id="vista-canal">
     <div class="barra-navegacion">
       <button class="volver" id="btn-volver" type="button">← Volver al inicio</button>
@@ -176,6 +176,7 @@
   var selectorGrid = document.getElementById("selector-grid");
   var selectorMensaje = document.getElementById("selector-mensaje");
   var contadorTotal = document.getElementById("contador-total");
+  var elementoMensaje = document.getElementById("mensaje");
 
   var bPlay = document.getElementById("b-play");
   var bSonido = document.getElementById("b-sonido");
@@ -224,21 +225,46 @@
     contadorTotal.textContent = listaVideos.length;
     
     listaVideos.forEach(function (id, i) {
-      var b = document.createElement("button");
-      b.type = "button";
+      var itemDiv = document.createElement("div");
+      itemDiv.className = "selector-item";
+
+      var thumbDiv = document.createElement("div");
+      thumbDiv.className = "selector-thumb";
+
       var img = document.createElement("img");
       img.src = "https://i.ytimg.com/vi/" + id + "/hqdefault.jpg";
       img.alt = "";
       img.loading = "lazy";
+
       var num = document.createElement("span");
       num.className = "num";
       num.textContent = (i + 1);
-      b.appendChild(img);
-      b.appendChild(num);
-      b.addEventListener("click", function () {
+
+      thumbDiv.appendChild(img);
+      thumbDiv.appendChild(num);
+
+      var pTitulo = document.createElement("p");
+      pTitulo.className = "selector-titulo";
+      pTitulo.textContent = "Video #" + (i + 1);
+
+      // Intentar obtener el título real mediante oEmbed público de YouTube de forma asíncrona
+      fetch("https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=" + id + "&format=json")
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data && data.title) {
+            pTitulo.textContent = data.title;
+          }
+        })
+        .catch(function() {});
+
+      itemDiv.appendChild(thumbDiv);
+      itemDiv.appendChild(pTitulo);
+
+      itemDiv.addEventListener("click", function () {
         reproducirIndice(i);
       });
-      selectorGrid.appendChild(b);
+
+      selectorGrid.appendChild(itemDiv);
     });
   }
 
@@ -329,7 +355,6 @@
     }
   }
 
-  // Reproducir un video individual directamente en la vista principal o abrirlo
   function reproducirVideoIndividual(idVideo, nombreVideo) {
     tituloCanalActivo.textContent = nombreVideo;
     vistaPrincipal.classList.add("oculto");
@@ -437,7 +462,6 @@
     var media = document.createElement("div");
     media.className = "media";
 
-    // Detectar si es un video individual (por URL de YouTube o ID de video que no es canal UC)
     var esVideoId = item.tipo === "video" || (!(/^UC[\w-]{22}$/.test(idCanal)) && (url.includes("watch?v=") || url.includes("youtu.be/") || item.videoId));
     var videoIdExtraido = item.videoId || "";
     if (esVideoId && !videoIdExtraido) {
@@ -474,7 +498,6 @@
     a.appendChild(media);
     a.appendChild(titulo);
 
-    // Asignar acción dependiendo si es Canal o Video Individual
     if (esVideoId && videoIdExtraido) {
       a.addEventListener("click", function () {
         reproducirVideoIndividual(videoIdExtraido, nombre);
@@ -499,7 +522,11 @@
       var t = crearTarjeta(item, i);
       if (t) cuadricula.appendChild(t);
     });
-    document.getElementById("mensaje").hidden = cuadricula.children.length > 0;
+    if (cuadricula.children.length === 0) {
+      elementoMensaje.classList.add("activo");
+    } else {
+      elementoMensaje.classList.remove("activo");
+    }
   }
 
   fetch("canales.json", { cache: "no-cache" })
@@ -512,10 +539,10 @@
       renderizarCuadricula(listaGlobal);
     })
     .catch(function () {
-      document.getElementById("mensaje").textContent = "No se pudo leer canales.json.";
+      elementoMensaje.textContent = "No se pudo leer canales.json.";
+      elementoMensaje.classList.add("activo");
     });
 
-  // Lógica del Buscador
   var btnBuscador = document.getElementById("btn-toggle-buscador");
   var contenedorBusqueda = document.getElementById("contenedor-busqueda");
   var inputBuscar = document.getElementById("input-buscar");
@@ -523,7 +550,7 @@
   if (btnBuscador && contenedorBusqueda) {
     btnBuscador.addEventListener("click", function() {
       contenedorBusqueda.classList.toggle("activo");
-      if (contenedorBusqueda.classList.contains("activo")) {
+      if (contenedorBusqueda.classList.get("activo")) {
         inputBuscar.focus();
       } else {
         inputBuscar.value = "";
