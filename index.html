@@ -2,7 +2,9 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.youtube.com https://i.ytimg.com https://yt3.googleusercontent.com https://yt3.ggpht.com https://unavatar.io https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' https://i.ytimg.com https://yt3.googleusercontent.com https://yt3.ggpht.com https://unavatar.io data: https:; script-src 'self' 'unsafe-inline' https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;"><title>FreshMindVideo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.youtube.com https://i.ytimg.com https://yt3.googleusercontent.com https://yt3.ggpht.com https://unavatar.io https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' https://i.ytimg.com https://yt3.googleusercontent.com https://yt3.ggpht.com https://unavatar.io data: https:; script-src 'self' 'unsafe-inline' https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;">
+<title>FreshMindVideo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap" rel="stylesheet">
 <style>
@@ -11,12 +13,40 @@
     --tarjeta: #ffffff;
     --texto: #1d2b3a;
     --acento: #12a37f;
+    --secundario: #3b82f6; /* Color para el nuevo botón de búsqueda infantil */
     --proporcion: 16 / 9;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--fondo); color: var(--texto); font-family: "Nunito", "Segoe UI", Arial, sans-serif; }
   header { position: sticky; top: 0; z-index: 10; background: var(--tarjeta); padding: 14px 24px; box-shadow: 0 1px 0 rgba(29, 43, 58, .12); display: flex; align-items: center; justify-content: space-between; }
   header h1 { margin: 0; font-size: 1.6rem; font-weight: 800; color: var(--acento); letter-spacing: -.01em; cursor: pointer; }
+  
+  .acciones-header { display: flex; align-items: center; gap: 10px; }
+
+  .btn-buscar-header {
+    background: var(--acento); color: #fff; border: 0; padding: 8px 16px; border-radius: 8px;
+    font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: inherit;
+  }
+  .btn-buscar-header:hover { opacity: 0.9; }
+
+  /* Estilo específico para el nuevo botón de búsqueda de niños */
+  .btn-buscador-ninos {
+    background: var(--secundario); color: #fff; border: 0; padding: 8px 16px; border-radius: 8px;
+    font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: inherit;
+  }
+  .btn-buscador-ninos:hover { opacity: 0.9; }
+
+  /* Barras de búsqueda desplegables */
+  .contenedor-busqueda {
+    max-width: 1000px; margin: 20px auto 0; padding: 0 20px; display: none;
+  }
+  .contenedor-busqueda.activo { display: block; }
+  .contenedor-busqueda input {
+    width: 100%; padding: 12px 16px; font-size: 1.1rem; border: 2px solid var(--secundario);
+    border-radius: 10px; outline: none; font-family: inherit; background: var(--tarjeta); color: var(--texto);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+
   main { max-width: 1000px; margin: 0 auto; padding: 28px 20px 48px; }
   .cuadricula { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
   .tarjeta {
@@ -71,7 +101,7 @@
   .seccion-videos-canal h3 { margin: 0 0 12px 0; font-size: 1.1rem; }
   .selector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 4px; }
   .selector-grid button {
-    position: border; border: 0; padding: 0; background: #000; border-radius: 8px; overflow: hidden;
+    position: relative; border: 0; padding: 0; background: #000; border-radius: 8px; overflow: hidden;
     cursor: pointer; aspect-ratio: 16 / 9; display: block; text-align: left;
   }
   .selector-grid button img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -84,7 +114,7 @@
   @media (max-width: 760px) { .cuadricula { grid-template-columns: repeat(2, 1fr); gap: 14px; } }
   @media (max-width: 480px) { .tiempo { display: none; } }
   @media (max-width: 360px) { .cuadricula { grid-template-columns: 1fr; } }
-    html, body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; }
+  html, body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; }
   body { overflow-x: hidden; }
   input { font-size: 16px; }
   @media (max-width: 600px) {
@@ -97,7 +127,18 @@
 
 <header>
   <h1 id="logo-inicio">FreshMindVideo</h1>
+  <div class="acciones-header">
+    <!-- NUEVO BOTÓN PARA NIÑOS (Buscador local de canales agregados) -->
+    <button type="button" class="btn-buscador-ninos" id="btn-toggle-buscador-ninos">⭐ Buscar Canal</button>
+    <!-- Tu botón original intacto con la API de YouTube v3 -->
+    <button type="button" class="btn-buscar-header" id="btn-toggle-buscador">🔍 Buscar</button>
+  </div>
 </header>
+
+<!-- Contenedor del nuevo buscador local para los niños -->
+<div class="contenedor-busqueda" id="contenedor-busqueda-ninos">
+  <input type="text" id="input-buscar-ninos" placeholder="Escribe el nombre del canal que quieres buscar...">
+</div>
 
 <main>
   <!-- VISTA PRINCIPAL: Cuadrícula de Canales -->
@@ -177,6 +218,7 @@
   var listaVideos = []; 
   var indiceActual = 0;
   var temporizador = null, arrastrando = false, errores = 0, apiPendiente = null;
+  var listaCanalesGlobal = [];
 
   function cargarApi(cb) {
     if (window.YT && YT.Player) { cb(); return; }
@@ -244,11 +286,10 @@
     jugador.playVideoAt(indiceActual);
   }
 
-  // Carga recursiva para obtener TODOS los videos de la lista de reproducción sin límite de 10
   function pedirTodosLosVideos(intento) {
     var lista = jugador.getPlaylist() || [];
     if (lista.length) {
-      listaVideos = lista; // Sin cortes, agarra absolutamente todos
+      listaVideos = lista;
       construirSelectorCompleto();
     } else if ((intento || 0) < 15) {
       setTimeout(function () { pedirTodosLosVideos((intento || 0) + 1); }, 500);
@@ -334,7 +375,6 @@
   document.getElementById("btn-volver").addEventListener("click", regresarAprincipal);
   document.getElementById("logo-inicio").addEventListener("click", regresarAprincipal);
 
-  // Controles del reproductor
   bAnterior.addEventListener("click", anteriorVideo);
   bSiguiente.addEventListener("click", siguienteVideo);
   bPlay.addEventListener("click", function () {
@@ -360,7 +400,6 @@
     (wrapperVideo.requestFullscreen || wrapperVideo.webkitRequestFullscreen).call(wrapperVideo);
   });
 
-  // Generación de tarjetas con imágenes automáticas basadas en el ID del canal
   function inicial(nombre, i) {
     var d = document.createElement("div");
     d.className = "inicial";
@@ -369,56 +408,84 @@
     return d;
   }
 
-  function crearTarjeta(item, i) {
-    var url = item.url || item.enlace || "";
-    if (!url) return null;
-    var nombre = item.nombre || item.name || "Canal";
-    var idCanal = (item.id || "").trim();
-    var imagen = item.imagen || item.image || "";
+  function renderizarCanales(lista) {
+    var cuadricula = document.getElementById("cuadricula");
+    cuadricula.innerHTML = "";
+    
+    lista.forEach(function (item, i) {
+      var url = item.url || item.enlace || "";
+      if (!url) return;
+      var nombre = item.nombre || item.name || "Canal";
+      var idCanal = (item.id || "").trim();
+      var imagen = item.imagen || item.image || "";
 
-    var a = document.createElement("div");
-    a.className = "tarjeta";
+      var a = document.createElement("div");
+      a.className = "tarjeta";
 
-    var media = document.createElement("div");
-    media.className = "media";
+      var media = document.createElement("div");
+      media.className = "media";
 
-    // Si no pones imagen en el JSON, la obtenemos automáticamente de YouTube usando el ID del canal
-    if (!imagen && /^UC[\w-]{22}$/.test(idCanal)) {
-      // Truco para obtener el banner/avatar automático de YouTube a partir del ID del canal
-      imagen = "https://yt3.googleusercontent.com/ytc/" + idCanal; 
-    }
+      if (!imagen && /^UC[\w-]{22}$/.test(idCanal)) {
+        imagen = "https://yt3.googleusercontent.com/ytc/" + idCanal; 
+      }
 
-    if (imagen) {
-      var img = document.createElement("img");
-      img.src = imagen;
-      img.alt = "";
-      img.loading = "lazy";
-      // Si falla la imagen automática, recurre a la inicial colorida
-      img.onerror = function () { media.replaceChildren(inicial(nombre, i)); };
-      media.appendChild(img);
-    } else {
-      media.appendChild(inicial(nombre, i));
-    }
+      if (imagen) {
+        var img = document.createElement("img");
+        img.src = imagen;
+        img.alt = "";
+        img.loading = "lazy";
+        img.onerror = function () { media.replaceChildren(inicial(nombre, i)); };
+        media.appendChild(img);
+      } else {
+        media.appendChild(inicial(nombre, i));
+      }
 
-    var titulo = document.createElement("p");
-    titulo.className = "nombre";
-    titulo.textContent = nombre;
+      var titulo = document.createElement("p");
+      titulo.className = "nombre";
+      titulo.textContent = nombre;
 
-    a.appendChild(media);
-    a.appendChild(titulo);
+      a.appendChild(media);
+      a.appendChild(titulo);
 
-    if (/^UC[\w-]{22}$/.test(idCanal)) {
-      a.addEventListener("click", function () {
-        iniciarCanal(idCanal, nombre);
-      });
-    } else {
-      a.addEventListener("click", function () {
-        window.open(url, "_blank");
-      });
-    }
+      if (/^UC[\w-]{22}$/.test(idCanal)) {
+        a.addEventListener("click", function () {
+          iniciarCanal(idCanal, nombre);
+        });
+      } else {
+        a.addEventListener("click", function () {
+          window.open(url, "_blank");
+        });
+      }
 
-    return a;
+      cuadricula.appendChild(a);
+    });
+
+    document.getElementById("mensaje").hidden = cuadricula.children.length > 0;
   }
+
+  // Lógica del buscador nuevo local (para los niños)
+  var btnBuscadorNinos = document.getElementById("btn-toggle-buscador-ninos");
+  var contenedorBusquedaNinos = document.getElementById("contenedor-busqueda-ninos");
+  var inputBuscarNinos = document.getElementById("input-buscar-ninos");
+
+  btnBuscadorNinos.addEventListener("click", function() {
+    contenedorBusquedaNinos.classList.toggle("activo");
+    if (contenedorBusquedaNinos.classList.contains("activo")) {
+      inputBuscarNinos.focus();
+    } else {
+      inputBuscarNinos.value = "";
+      renderizarCanales(listaCanalesGlobal);
+    }
+  });
+
+  inputBuscarNinos.addEventListener("input", function() {
+    var texto = inputBuscarNinos.value.toLowerCase().trim();
+    var filtrados = listaCanalesGlobal.filter(function(item) {
+      var nombre = (item.nombre || item.name || "").toLowerCase();
+      return nombre.includes(texto);
+    });
+    renderizarCanales(filtrados);
+  });
 
   fetch("canales.json", { cache: "no-cache" })
     .then(function (r) {
@@ -426,18 +493,13 @@
       return r.json();
     })
     .then(function (datos) {
-      var lista = Array.isArray(datos) ? datos : (datos.canales || datos.channels || []);
-      var cuadricula = document.getElementById("cuadricula");
-      lista.forEach(function (item, i) {
-        var t = crearTarjeta(item, i);
-        if (t) cuadricula.appendChild(t);
-      });
-      document.getElementById("mensaje").hidden = cuadricula.children.length > 0;
+      listaCanalesGlobal = Array.isArray(datos) ? datos : (datos.canales || datos.channels || []);
+      renderizarCanales(listaCanalesGlobal);
     })
     .catch(function () {
       document.getElementById("mensaje").textContent = "No se pudo leer canales.json.";
     });
 </script>
-     <script src="canales-auto.js"></script>
+<script src="canales-auto.js"></script>
 </body>
 </html>
