@@ -33,7 +33,7 @@
   };
 
   /* Videos = los de canales.json + los de este dispositivo, sin repetir y sin los quitados */
-  function misVideos() {
+  function misTodos() {
     var oc = leer(LS_VOCULTOS, []), vistos = {}, salida = [];
     videosBase.concat(leer(LS_VID, [])).forEach(function (v) {
       if (!v || !v.id || vistos[v.id] || oc.indexOf(v.id) >= 0) return;
@@ -42,6 +42,7 @@
     });
     return salida;
   }
+  function misVideos() { var p = window.FMV_perfil; return misTodos().filter(function (v) { return visibleV(v, p); }); }
   
   function api(ruta, p) {
     return fetch(BASE + ruta + "?key=" + API_KEY + "&" + p)
@@ -90,15 +91,80 @@
     }).catch(function () {});
   }
 
+  /* Canales por perfil: cada canal tiene una lista de perfiles; sin lista = lo ven todos */
+  var LS_PERF = "fmv_perfiles", PERFS = ["hija", "hijo"];
+  function perfilesDe(c) { return leer(LS_PERF, {})[c.id] || c.perfiles || PERFS; }
+  function visibleEn(c, p) { return !p || perfilesDe(c).indexOf(p) >= 0; }
+  function chipsPerfil(c, leerP, guardarP) {
+    leerP = leerP || function () { return perfilesDe(c); };
+    guardarP = guardarP || function (ps) { var m = leer(LS_PERF, {}); m[c.id] = ps; guardar(LS_PERF, m); pintar(); };
+    var ch = document.createElement("div");
+    ch.style.cssText = "position:absolute;left:6px;top:6px;display:flex;gap:6px;z-index:2";
+    PERFS.forEach(function (pid) {
+      var on = leerP().indexOf(pid) >= 0, b = document.createElement("button");
+      b.type = "button"; b.textContent = ((window.FMV_PERFILES || {})[pid] || {}).e || pid;
+      b.title = on ? "Quitar de este perfil" : "Mostrar en este perfil";
+      b.style.cssText = "width:34px;height:34px;border:0;border-radius:50%;font-size:18px;cursor:pointer;padding:0;background:" + (on ? "#12a37f" : "rgba(0,0,0,.6)") + ";opacity:" + (on ? 1 : .6);
+      b.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var ps = leerP().slice(), k = ps.indexOf(pid);
+        if (k >= 0) { if (ps.length === 1) return; ps.splice(k, 1); } else ps.push(pid);
+        guardarP(ps);
+      });
+      ch.appendChild(b);
+    });
+    return ch;
+  }
+  var LS_VPERF = "fmv_vperfiles";
+  function vperf(v) { return leer(LS_VPERF, {})[v.id] || v.perfiles || PERFS; }
+  function visibleV(v, p) { return !p || vperf(v).indexOf(p) >= 0; }
+  window.FMV_repintar = function () { pintar(); };
+  function pintarMis() {
+    var gm = document.getElementById("cuadricula-mis");
+    if (!gm) return;
+    gm.innerHTML = "";
+    var p = window.FMV_perfil, lista = esPadre() ? misTodos() : misVideos();
+    if (!lista.length) {
+      var e = document.createElement("p"); e.className = "mensaje"; e.style.gridColumn = "1/-1";
+      e.textContent = "Aún no hay videos aquí. Los padres pueden agregarlos desde 🔒 Padres → Buscar en YouTube.";
+      gm.appendChild(e); return;
+    }
+    lista.forEach(function (v) {
+      var ver = visibleV(v, p);
+      var t = tarjeta(v.img || ("https://i.ytimg.com/vi/" + encodeURIComponent(v.id) + "/mqdefault.jpg"), v.titulo || "Video", document.createDocumentFragment());
+      if (ver) { t.style.cursor = "pointer"; t.addEventListener("click", function () { if (window.FMV_abrirMis) FMV_abrirMis(v.id); }); }
+      if (esPadre()) {
+        if (!ver) t.style.opacity = ".4";
+        t.style.position = "relative";
+        var x = document.createElement("button"); x.textContent = "×"; x.title = "Quitar video";
+        x.style.cssText = "position:absolute;top:6px;right:6px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:20px;cursor:pointer;z-index:2";
+        x.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          if (!confirm("¿Quitar este video?")) return;
+          var ps = vperf(v).filter(function (q) { return q !== p; });
+          if (p && ver && ps.length) { var m = leer(LS_VPERF, {}); m[v.id] = ps; guardar(LS_VPERF, m); pintar(); }
+          else FMV_quitarPropio(v.id);
+        });
+        t.appendChild(x);
+        t.appendChild(chipsPerfil(v, function () { return vperf(v); }, function (ps) { var m = leer(LS_VPERF, {}); m[v.id] = ps; guardar(LS_VPERF, m); pintar(); }));
+      }
+      gm.appendChild(t);
+    });
+  }
+
   function pintar() {
-    window.FMV_CANALES = todos; // lo usa el buscador (buscador.js)
+    var perfil = window.FMV_perfil;
+    window.FMV_CANALES = todos.filter(function (c) { return visibleEn(c, perfil); }); // lo usa el buscador (buscador.js)
     grid.innerHTML = "";
     if (window.FMV_tabVideos) FMV_tabVideos(misVideos().length);
     if (window.FMV_repintarSelector) FMV_repintarSelector();
     todos.forEach(function (c, i) {
+      var ver = visibleEn(c, perfil);
+      if (!ver && !esPadre()) return;
       var t = crearTarjeta(c, i);
       if (!t) return;
       if (esPadre()) {
+        if (!ver) t.style.opacity = ".4";   // los padres ven todos; los que no son de este perfil salen atenuados
         var x = document.createElement("button");
         x.textContent = "×"; x.title = "Quitar canal";
         x.style.cssText = "position:absolute;top:6px;right:6px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:20px;cursor:pointer;z-index:2";
@@ -112,10 +178,12 @@
         });
         t.style.position = "relative";
         t.appendChild(x);
+        t.appendChild(chipsPerfil(c));
       }
       grid.appendChild(t);
     });
     msg.hidden = grid.children.length > 0;
+    pintarMis();
   }
 
   function iniciar() {
@@ -202,8 +270,10 @@
 
   var ultimo = [[], []];
   function agregarVideo(vid, titulo, img) {
-    var vs = leer(LS_VID, []); vs.push({ id: vid, titulo: titulo, img: img }); guardar(LS_VID, vs);
-    guardar(LS_VOCULTOS, leer(LS_VOCULTOS, []).filter(function (o) { return o !== vid; }));
+    var p = window.FMV_perfil, ex = misTodos().filter(function (v) { return v.id === vid; })[0];
+    if (ex) { if (p) { var ps = vperf(ex).slice(); if (ps.indexOf(p) < 0) ps.push(p); var m = leer(LS_VPERF, {}); m[vid] = ps; guardar(LS_VPERF, m); } }
+    else { var vs = leer(LS_VID, []), o = { id: vid, titulo: titulo, img: img }; if (p) o.perfiles = [p]; vs.push(o); guardar(LS_VID, vs); }
+    guardar(LS_VOCULTOS, leer(LS_VOCULTOS, []).filter(function (q) { return q !== vid; }));
     pintar(); actualizarBotones();
   }
   function verVideos(id, nombre) {
@@ -253,6 +323,7 @@
         var fr = document.createDocumentFragment();
         fr.appendChild(botonAgregar(yaEsta(id), function () {
           var nuevo = { nombre: nombre, id: id, url: "https://www.youtube.com/channel/" + id, imagen: img };
+          if (window.FMV_perfil) nuevo.perfiles = [window.FMV_perfil];   // entra solo al perfil activo
           var ex = leer(LS_EXTRA, []); ex.push(nuevo); guardar(LS_EXTRA, ex);
           nuevo.extra = true; todos.push(nuevo); pintar();
         }));
@@ -265,11 +336,7 @@
       videos.forEach(function (it) {
         var vid = typeof it.id === "string" ? it.id : it.id.videoId, titulo = dec(it.snippet.title), img = foto(it);
         var ya = misVideos().some(function (o) { return o.id === vid; });
-        g2.appendChild(tarjeta(img, titulo, botonAgregar(ya, function () {
-          var vs = leer(LS_VID, []); vs.push({ id: vid, titulo: titulo, img: img }); guardar(LS_VID, vs);
-          guardar(LS_VOCULTOS, leer(LS_VOCULTOS, []).filter(function (o) { return o !== vid; }));
-          pintar(); actualizarBotones();
-        })));
+        g2.appendChild(tarjeta(img, titulo, botonAgregar(ya, function () { agregarVideo(vid, titulo, img); })));
       });
     }
   }
@@ -307,10 +374,14 @@
   /* Arma el contenido completo de canales.json con lo que ves en este dispositivo */
   function armarJson() {
     var canales = todos.map(function (c) {
-      return "    " + JSON.stringify({ nombre: c.nombre, id: c.id, url: c.url, imagen: c.imagen || "" });
+      var o = { nombre: c.nombre, id: c.id, url: c.url, imagen: c.imagen || "" }, ps = perfilesDe(c);
+      if (ps.length < PERFS.length) o.perfiles = ps;
+      return "    " + JSON.stringify(o);
     });
-    var videos = misVideos().map(function (v) {
-      return "    " + JSON.stringify({ id: v.id, titulo: v.titulo, img: v.img });
+    var videos = misTodos().map(function (v) {
+      var o = { id: v.id, titulo: v.titulo, img: v.img }, ps = vperf(v);
+      if (ps.length < PERFS.length) o.perfiles = ps;
+      return "    " + JSON.stringify(o);
     });
     var bloq = window.FMV_bloqueados().map(function (id) { return JSON.stringify(id); }).join(", ");
     return '{\n  "canales": [\n' + canales.join(",\n") + '\n  ],\n  "videos": [\n' + videos.join(",\n") + '\n  ],\n  "bloqueados": [' + bloq + ']\n}\n';
