@@ -727,13 +727,48 @@
         quitar(); setTimeout(quitar, 800); setTimeout(quitar, 2500);   // YouTube a veces los enciende con retraso
         return;
       }
-      jugador.loadModule("captions");
-      setTimeout(function () {
-        var p = jugador.getOption("captions", "tracklist") || [];
-        var es = p.filter(function (x) { return /^es/.test(x.languageCode); })[0] || p[0];
-        if (es) jugador.setOption("captions", "track", { languageCode: es.languageCode });
-      }, 700);
+      activarSubs(videoActualId, 0);
     } catch (e) {}
+  }
+
+  /* Aviso corto sobre el video (por ejemplo, cuando un video no tiene subtítulos) */
+  var avisoSubs = null, tAviso = null;
+  function mensajeSubs(txt) {
+    if (!avisoSubs) {
+      avisoSubs = document.createElement("div");
+      avisoSubs.style.cssText = "position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:7;background:rgba(0,0,0,.8);color:#fff;padding:8px 16px;border-radius:999px;font-weight:800;font-size:.9rem;pointer-events:none;white-space:nowrap;max-width:90%;overflow:hidden;text-overflow:ellipsis";
+      wrapperVideo.appendChild(avisoSubs);
+    }
+    avisoSubs.textContent = txt;
+    avisoSubs.hidden = false;
+    clearTimeout(tAviso);
+    tAviso = setTimeout(function () { avisoSubs.hidden = true; }, 3500);
+  }
+
+  /* Encender subtítulos: como al empezar cada video se apagan, el módulo tarda en volver;
+     se pregunta cada medio segundo (hasta ~8 s) hasta que YouTube entregue la lista de idiomas */
+  function activarSubs(vid, intento) {
+    if (!subsOn || vid !== videoActualId || !listo) return;
+    var pistas = [];
+    try {
+      if (intento === 0 || intento === 6) jugador.loadModule("captions");
+      if (intento === 3 || intento === 9) jugador.setOption("captions", "reload", true);
+      pistas = jugador.getOption("captions", "tracklist") || [];
+    } catch (e) {}
+    if (pistas.length) {
+      var es = pistas.filter(function (x) { return /^es/.test(x.languageCode); })[0] || pistas[0];
+      try { jugador.setOption("captions", "track", { languageCode: es.languageCode }); } catch (e) {}
+      return;
+    }
+    if (intento === 7) {   // último recurso: recargar este mismo video en el mismo segundo, con el módulo limpio
+      try { jugador.loadVideoById({ videoId: vid, startSeconds: jugador.getCurrentTime() || 0 }); } catch (e) {}
+    }
+    if (intento >= 16) {
+      subsOn = false; pintarSubs();
+      mensajeSubs("Este video no tiene subtítulos");
+      return;
+    }
+    setTimeout(function () { activarSubs(vid, intento + 1); }, 500);
   }
   pintarSubs();
   bSubs.addEventListener("click", function () {
