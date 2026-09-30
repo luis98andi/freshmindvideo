@@ -116,6 +116,18 @@
 
   /* Selector inferior de todos los videos del canal */
   .seccion-videos-canal h3 { margin: 0 0 12px 0; font-size: 1.1rem; }
+  .fila-titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; }
+  .fila-titulo h3 { margin: 0; }
+  #pestanas { display: flex; gap: 8px; flex-wrap: wrap; }
+  #pestanas[hidden] { display: none; }
+  #pestanas button { border: 0; border-radius: 999px; padding: 8px 14px; font: inherit; font-weight: 800; font-size: .9rem; cursor: pointer; background: #fff; color: var(--texto); box-shadow: 0 2px 6px rgba(20,60,100,.2); }
+  #pestanas button.on { background: var(--acento); color: #fff; }
+  #quien { position: fixed; inset: 0; z-index: 200; background: linear-gradient(#dff1ff, #fff); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
+  #quien[hidden] { display: none; }
+  #quien h2 { margin: 0; font-size: 1.8rem; color: var(--texto); }
+  #quien div { display: flex; gap: 22px; }
+  #quien button { border: 0; border-radius: 28px; padding: 26px 34px; font: inherit; font-size: 1.3rem; font-weight: 800; cursor: pointer; background: #fff; color: var(--texto); box-shadow: 0 4px 14px rgba(20,60,100,.25); }
+  #quien button span { display: block; font-size: 4rem; }
   .selector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 16px; }
   .selector-grid button {
     position: relative; border: 0; padding: 0; background: var(--tarjeta); color: var(--texto);
@@ -282,12 +294,16 @@
     </div>
 
     <div class="seccion-videos-canal">
-      <h3>Todos los videos del canal (<span id="contador-total">0</span>)</h3>
+      <div class="fila-titulo">
+        <h3>Todos los videos del canal (<span id="contador-total">0</span>)</h3>
+        <div id="pestanas" hidden><button type="button" data-p="UULF">🎬 Videos</button><button type="button" data-p="UULV">🔴 En vivo</button><button type="button" data-p="UUSH">📱 Reels</button></div>
+      </div>
       <p id="selector-mensaje">Cargando lista completa de videos…</p>
       <div class="selector-grid" id="selector-grid"></div>
     </div>
   </div>
 </main>
+<div id="quien"><h2>¿Quién va a ver?</h2><div><button type="button" data-p="hija"><span>👧</span>Hija</button><button type="button" data-p="hijo"><span>👦</span>Hijo</button></div></div>
 
 <button type="button" id="ir-actual">◎ Ir al video actual</button>
 
@@ -353,6 +369,17 @@
   var videoInicial = null;    // video que se debe dejar listo (viene del buscador)
   var videoActualId = null, yaPreparado = false;
   var LS_LISTAS = "fmv_listas", LS_ULT = "fmv_ultimo";
+  window.FMV_PERFILES = { hija: { n: "Hija", e: "👧" }, hijo: { n: "Hijo", e: "👦" } };
+  window.FMV_perfil = "";
+  var quienEl = document.getElementById("quien");
+  quienEl.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("button[data-p]");
+    if (!b) return;
+    window.FMV_perfil = b.getAttribute("data-p");
+    LS_ULT = "fmv_ultimo_" + window.FMV_perfil;   // cada perfil recuerda su propio video y minuto
+    quienEl.hidden = true;
+  });
+  window.FMV_cambiarPerfil = function () { quienEl.hidden = false; };
   var vivos = {}, revisados = {}, itemActual = null, ticksGuardar = 0;
   var posInicio = 0;      // scroll de la pantalla principal, para volver justo donde estabas
 
@@ -379,6 +406,10 @@
         },
         onStateChange: function (e) {
           bPlay.innerHTML = (e.data === 1) ? ICONOS.pausa : ICONOS.play;
+          if (e.data === 1 && videoActualId && histId !== videoActualId) {
+            histId = videoActualId;
+            if (window.FMV_historial) FMV_historial(videoActualId, titulos[listaVideos.indexOf(videoActualId)] || "", tituloCanalActivo.textContent, canalUC || "MIS");
+          }
           if (e.data === 1) { tapa.hidden = true; errores = 0; if (videoConSubs !== videoActualId) { videoConSubs = videoActualId; aplicarSubs(); } }
           else if (e.data === 2) { tapa.hidden = false; }
           if (e.data === 5 && esperandoLista) {
@@ -659,8 +690,14 @@
           else guardarListaCache(canal, ids, nombres);
         })
         .catch(function () {
-          if (canal !== canalActual) return;
-          if (!ids.length) usarListaDelReproductor(); // plan B: solo miniaturas
+          if (canal !== canalActual || ids.length) return;
+          if (pestana === "UUSH" || pestana === "UULV") {
+            selectorMensaje.style.display = "block";
+            selectorMensaje.textContent = pestana === "UUSH" ? "Este canal no tiene reels." : "Este canal no tiene videos en vivo.";
+            return;
+          }
+          if (pestana === "UULF") { pestana = "UU"; canalActual = "UU" + canalUC.slice(2); pintarPestanas(); cargarLista(); return; }
+          usarListaDelReproductor(); // plan B: solo miniaturas
         });
     }
     pagina("");
@@ -694,14 +731,32 @@
     }
   }
 
+  var canalUC = null, canalNombre = "", pestana = "UULF", histId = null;
+  var pestanasEl = document.getElementById("pestanas");
+  function pintarPestanas() {
+    pestanasEl.hidden = !canalUC;
+    [].forEach.call(pestanasEl.children, function (b) { b.classList.toggle("on", b.getAttribute("data-p") === pestana); });
+  }
+  pestanasEl.addEventListener("click", function (e) {
+    var p = e.target.getAttribute && e.target.getAttribute("data-p");
+    if (!p || !canalUC || p === pestana) return;
+    pestana = p; canalActual = p + canalUC.slice(2);
+    pintarPestanas();
+    abrirReproductor(canalNombre, null, cargarLista);
+  });
   function iniciarCanal(idCanal, nombreCanal, videoId) {
-    canalActual = "UU" + idCanal.slice(2);
+    canalUC = idCanal; canalNombre = nombreCanal;
+    pestana = videoId ? "UU" : "UULF";   // si viene del buscador se usa la lista completa para encontrar ese video
+    canalActual = pestana + idCanal.slice(2);
+    pintarPestanas();
     abrirReproductor(nombreCanal, videoId, cargarLista);
   }
+  window.FMV_abrirCanal = iniciarCanal;
 
   /* Pestaña "Mis videos": mismo reproductor (con la misma tapa anti-clics) */
+  window.FMV_abrirMis = function () { iniciarMisVideos(); };
   function iniciarMisVideos() {
-    canalActual = "MIS";
+    canalActual = "MIS"; canalUC = null; pintarPestanas();
     document.body.classList.remove("modo-buscar");
     location.hash = "videos";
     abrirReproductor("⭐ Mis videos", null, function () {
@@ -924,7 +979,7 @@
 
   /* ---------- Pantalla completa con nuestros propios controles ---------- */
   var contenedor = document.getElementById("contenedor-reproductor");
-  var bPantalla = document.getElementById("b-pantalla"), tOculta = null, irAlSalir = false;
+  var bPantalla = document.getElementById("b-pantalla"), tOculta = null, irAlSalir = false, yAntes = 0;
   function nativa() { return document.fullscreenElement || document.webkitFullscreenElement; }
   function enPantalla() { return contenedor.classList.contains("en-pantalla"); }
   function ocultarYa() { if (listo && jugador.getPlayerState() === 1) contenedor.classList.add("inactivo"); }
@@ -934,6 +989,8 @@
   }
   function mostrarControles() { contenedor.classList.remove("inactivo"); programarOcultar(); }
   function activarPantalla(si) {
+    var estaba = enPantalla();
+    if (si && !estaba) yAntes = window.scrollY;
     contenedor.classList.toggle("en-pantalla", si);
     contenedor.classList.remove("inactivo");
     bPantalla.innerHTML = si ? ICONOS.salir : ICONOS.pantalla;
@@ -943,6 +1000,7 @@
     else {
       try { screen.orientation.unlock(); } catch (e) {}
       if (irAlSalir) { irAlSalir = false; setTimeout(irAlVideoActual, 250); }   // deja que el diseño se acomode y luego baja al video
+      else if (estaba) { var y = yAntes; requestAnimationFrame(function () { window.scrollTo(0, y); }); setTimeout(function () { window.scrollTo(0, y); }, 150); }
     }
   }
   var orientacion = lsLeer("fmv_orient");   // se recuerda: solo se guardan resultados seguros
