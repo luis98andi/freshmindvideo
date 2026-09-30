@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.googleapis.com https://api.github.com; object-src 'none'; base-uri 'self'; form-action 'none'; media-src 'none'; worker-src 'self'; manifest-src 'self';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.googleapis.com https://api.github.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'none'; media-src 'none'; worker-src 'self'; manifest-src 'self';">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>
 /* Escudo: bloquea ventanas emergentes y cualquier iframe/script inyectado que no sea de YouTube o de tu sitio */
@@ -186,6 +186,21 @@
   .seccion-videos-canal h3 { font-size: 1.15rem; }
   #selector-mensaje { font-weight: 700; }
 
+  /* Contador y EN VIVO sobre el video */
+  .marca-video { position: absolute; top: 10px; right: 10px; z-index: 6; display: flex; gap: 6px; pointer-events: none; font-weight: 800; font-size: .85rem; }
+  .marca-video[hidden] { display: none; }
+  .marca-video span { background: rgba(0,0,0,.65); color: #fff; padding: 3px 10px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+  .marca-video span[hidden] { display: none; }
+  .marca-video .vivo, .selector-grid .vivo { background: #e62117; color: #fff; }
+  .selector-grid .marcas { position: absolute; top: 4px; left: 4px; display: flex; gap: 4px; z-index: 1; }
+  .selector-grid .marcas .num { position: static; }
+  .selector-grid .vivo { font-size: .7rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; }
+  /* Video que se esta reproduciendo, marcado dentro de la lista (sin cambiar el orden) */
+  .selector-grid .item.actual > button { outline: 4px solid var(--acento); }
+  .selector-grid .item.actual .titulo::before { content: "▶ Reproduciendo · "; color: var(--acento); }
+  #ir-actual { display: none; position: fixed; right: 14px; bottom: 18px; z-index: 60; border: 0; border-radius: 999px; background: var(--acento); color: #fff; font: inherit; font-weight: 800; padding: 11px 16px; box-shadow: 0 4px 14px rgba(0,0,0,.3); cursor: pointer; }
+  body.viendo #ir-actual.hay { display: block; }
+
   /* ---------- Barra inferior (estilo YouTube Kids) ---------- */
   #barra-inferior { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; justify-content: center; gap: 6px; background: #fff; border-radius: 24px 24px 0 0; box-shadow: 0 -3px 14px rgba(20, 60, 100, .22); padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); }
   body.viendo #barra-inferior { display: none; }
@@ -251,6 +266,7 @@
         <button type="button" id="tapa" class="tapa" aria-label="Reproducir">
           <svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>
         </button>
+        <div class="marca-video" id="marca-video" hidden><span id="mv-num"></span><span class="vivo" id="mv-vivo" hidden>● EN VIVO</span></div>
       </div>
       <div class="controles" id="controles">
         <button type="button" id="b-anterior" aria-label="Video anterior"></button>
@@ -272,6 +288,8 @@
     </div>
   </div>
 </main>
+
+<button type="button" id="ir-actual">◎ Ir al video actual</button>
 
 <nav id="barra-inferior" aria-label="Navegación principal">
   <button type="button" id="nav-inicio" class="activo">
@@ -334,7 +352,8 @@
   var esperandoLista = false; // solo se usa si falla la API de datos
   var videoInicial = null;    // video que se debe dejar listo (viene del buscador)
   var videoActualId = null, yaPreparado = false;
-  var LS_LISTAS = "fmv_listas";
+  var LS_LISTAS = "fmv_listas", LS_ULT = "fmv_ultimo";
+  var vivos = {}, revisados = {}, itemActual = null, ticksGuardar = 0;
   var posInicio = 0;      // scroll de la pantalla principal, para volver justo donde estabas
 
   /* ---------- Crear / recrear el reproductor ----------
@@ -396,9 +415,10 @@
   }
 
   /* Si el reproductor quedó con subtítulos forzados, se recrea normal para que el video siguiente arranque sin ellos */
-  function cargarVideo(id) {
-    if (modoSubs) recrearJugador(false, function () { jugador.loadVideoById(id); });
-    else jugador.loadVideoById(id);
+  function cargarVideo(id, seg) {
+    var arg = seg > 5 ? { videoId: id, startSeconds: seg } : id;
+    if (modoSubs) recrearJugador(false, function () { jugador.loadVideoById(arg); });
+    else jugador.loadVideoById(arg);
   }
 
   function cargarApi(cb) {
@@ -439,6 +459,7 @@
   function agregarBoton(i) {
     var w = document.createElement("div");
     w.className = "item";
+    if (listaVideos[i] === videoActualId) { w.classList.add("actual"); itemActual = w; }
     var b = document.createElement("button");
     b.type = "button";
     var img = document.createElement("img");
@@ -446,7 +467,9 @@
     img.alt = ""; img.loading = "lazy";
     var num = document.createElement("span"); num.className = "num"; num.textContent = (i + 1);
     var t = document.createElement("span"); t.className = "titulo"; t.textContent = titulos[i] || ("Video " + (i + 1));
-    b.appendChild(img); b.appendChild(num); b.appendChild(t);
+    var mc = document.createElement("span"); mc.className = "marcas"; mc.appendChild(num);
+    if (vivos[listaVideos[i]]) { var lv = document.createElement("span"); lv.className = "vivo"; lv.textContent = "● EN VIVO"; mc.appendChild(lv); }
+    b.appendChild(img); b.appendChild(mc); b.appendChild(t);
     b.addEventListener("click", function () { irA(i, true); });
     w.appendChild(b);
     if (window.FMV_esPadre && FMV_esPadre()) {           // punto 4: quitar video individual
@@ -484,6 +507,7 @@
     contadorTotal.textContent = listaVideos.length;
     for (var i = desde || 0; i < listaVideos.length; i++) agregarBoton(i);
     sincronizarIndice();
+    revisarVivos();
   }
 
   /* ---------- Reproducción con nuestra propia lista ---------- */
@@ -493,7 +517,9 @@
     videoActualId = listaVideos[i];
     tapa.hidden = true;
     nuevoVideoSubs(); bloquearOtraVez();
+    marcarActual(); pintarMarca(); guardarUltimo(0);
     cargarVideo(listaVideos[i]);
+    detectarOrientacion(videoActualId, function () {});   // se deja lista antes de pedir pantalla completa
     aplicarOrientacion();
     if (subir) window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -512,17 +538,81 @@
     if (!videoActualId) return;
     var k = listaVideos.indexOf(videoActualId);
     if (k >= 0) indiceActual = k;
+    marcarActual(); pintarMarca();
+  }
+
+  /* ---------- Marcas: contador 52/500, EN VIVO y video actual ---------- */
+  var marcaVideo = document.getElementById("marca-video"), mvNum = document.getElementById("mv-num"), mvVivo = document.getElementById("mv-vivo");
+  var irActual = document.getElementById("ir-actual");
+  function pintarMarca() {
+    var n = listaVideos.length, vivo = !!(videoActualId && vivos[videoActualId]);
+    if (!vivo && listo && videoActualId) { try { vivo = !!(jugador.getVideoData() || {}).isLive; } catch (e) {} }
+    marcaVideo.hidden = !(n && videoActualId);
+    var txt = (indiceActual + 1) + "/" + n;
+    if (mvNum.textContent !== txt) mvNum.textContent = txt;
+    mvVivo.hidden = !vivo;
+  }
+  function marcarActual() {
+    var k = listaVideos.indexOf(videoActualId);
+    var el = k >= 0 ? selectorGrid.children[k] : null;
+    if (itemActual && itemActual !== el) itemActual.classList.remove("actual");
+    if (el) el.classList.add("actual");
+    itemActual = el;
+    irActual.classList.toggle("hay", !!el);
+  }
+  irActual.addEventListener("click", function () {
+    if (itemActual) itemActual.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+  function pintarVivos() {
+    var hijos = selectorGrid.children;
+    for (var i = 0; i < hijos.length && i < listaVideos.length; i++) {
+      var mc = hijos[i].querySelector(".marcas");
+      if (mc && vivos[listaVideos[i]] && !mc.querySelector(".vivo")) {
+        var v = document.createElement("span"); v.className = "vivo"; v.textContent = "● EN VIVO"; mc.appendChild(v);
+      }
+    }
+  }
+  /* Pregunta a YouTube (50 videos por consulta) cuáles están en directo ahora mismo */
+  function revisarVivos() {
+    var clave = window.FMV_API_KEY, canal = canalActual;
+    var pend = listaVideos.filter(function (id) { return !revisados[id]; });
+    pend.forEach(function (id) { revisados[id] = 1; });
+    if (!clave) return;
+    (function paso() {
+      if (!pend.length || canal !== canalActual) return;
+      var lote = pend.splice(0, 50);
+      fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet&fields=items(id,snippet/liveBroadcastContent)&id=" +
+            lote.join(",") + "&key=" + encodeURIComponent(clave))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          (d.items || []).forEach(function (it) { if (it.snippet && it.snippet.liveBroadcastContent === "live") vivos[it.id] = 1; });
+          pintarVivos(); paso();
+        })
+        .catch(function () { paso(); });
+    })();
+  }
+
+  /* ---------- Recordar en qué video (y minuto) se quedó cada canal ---------- */
+  function guardarUltimo(t) {
+    if (!canalActual || !videoActualId) return;
+    var m = lsLeer(LS_ULT);
+    m[canalActual] = { id: videoActualId, t: Math.floor(t || 0) };
+    lsGuardar(LS_ULT, m);
   }
 
   function prepararPrimero() {
     if (!listo || yaPreparado) return;
-    var id = videoInicial || listaVideos[0];
+    var ult = (!videoInicial && canalActual) ? lsLeer(LS_ULT)[canalActual] : null;
+    if (ult && window.FMV_bloqueados && FMV_bloqueados().indexOf(ult.id) >= 0) ult = null;
+    if (ult && canalActual === "MIS" && listaVideos.indexOf(ult.id) < 0) ult = null;
+    var id = videoInicial || (ult && ult.id) || listaVideos[0];
     if (!id) return;
     yaPreparado = true;
     videoActualId = id;
     indiceActual = 0;
     nuevoVideoSubs();
-    cargarVideo(id); // se reproduce solo (si el navegador lo bloquea, queda el botón de play)
+    cargarVideo(id, (ult && ult.id === id) ? ult.t : 0); // retoma donde se quedó; se reproduce solo (si el navegador lo bloquea, queda el botón de play)
+    detectarOrientacion(id, function () {});
     sincronizarIndice();
   }
 
@@ -664,11 +754,13 @@
 
   function actualizarCronometro() {
     if (wrapperVideo.classList.contains("libre") && !document.body.classList.contains("padre")) bloquearOtraVez();
+    pintarMarca();
     if (!listo || !jugador.getDuration) return;
     var dur = jugador.getDuration() || 0, t = jugador.getCurrentTime() || 0;
     if (!arrastrando && dur > 0) rango.value = Math.round(t / dur * 1000);
     tiempo.textContent = formato(arrastrando ? rango.value / 1000 * dur : t) + " / " + formato(dur);
     pintarSonido();
+    if (videoActualId && jugador.getPlayerState() === 1 && (++ticksGuardar % 10 === 0)) guardarUltimo(t);
     if (!moviendoVol) volumen.value = jugador.isMuted() ? 0 : jugador.getVolume();
   }
 
@@ -772,17 +864,44 @@
     quitar(); setTimeout(quitar, 800); setTimeout(quitar, 2500);   // YouTube a veces los enciende con retraso
   }
   pintarSubs();
-  bSubs.addEventListener("click", function () {
-    if (!listo || !videoActualId) return;
-    subsOn = !subsOn;
-    videoConSubs = videoActualId;
-    pintarSubs();
+  /* Plan B (el método anterior): recrear el reproductor con subtítulos forzados */
+  function subsPorRecreacion() {
     var id = videoActualId, t = 0;
     try { t = jugador.getCurrentTime() || 0; } catch (e) {}
     recrearJugador(subsOn, function () {
       jugador.loadVideoById({ videoId: id, startSeconds: t });
       if (!subsOn) aplicarSubs();
     });
+  }
+  /* Interruptor simple, como la tecla C de YouTube: activa/desactiva sin reiniciar el video */
+  function alternarSubs() {
+    if (!listo || !videoActualId) return;
+    subsOn = !subsOn; videoConSubs = videoActualId; pintarSubs();
+    var id = videoActualId;
+    if (modoSubs) { subsPorRecreacion(); return; }           // venían forzados por el método anterior: se apagan recreando
+    if (!subsOn) { try { jugador.setOption("captions", "track", {}); jugador.unloadModule("captions"); } catch (e) {} return; }
+    try { jugador.loadModule("captions"); } catch (e) {}
+    var intentos = 0;
+    (function probar() {
+      if (!subsOn || id !== videoActualId) return;
+      var pistas = [];
+      try { pistas = jugador.getOption("captions", "tracklist") || []; } catch (e) {}
+      if (pistas.length) {
+        var es = pistas.filter(function (p) { return /^es/.test(p.languageCode || ""); })[0] || pistas[0];
+        try { jugador.setOption("captions", "track", { languageCode: es.languageCode }); } catch (e) {}
+        return;
+      }
+      if (++intentos < 6) setTimeout(probar, 400);
+      else subsPorRecreacion();                                // si YouTube no respondió, se usa el método anterior
+    })();
+  }
+  bSubs.addEventListener("click", alternarSubs);
+  document.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey || (e.key !== "c" && e.key !== "C")) return;
+    var t = e.target;
+    if (t && ((t.tagName === "INPUT" && t.type !== "range") || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (!document.body.classList.contains("viendo")) return;
+    e.preventDefault(); alternarSubs();
   });
 
   /* ---------- Modo padres: quitar la barrera transparente un momento (para tocar avisos de YouTube) ---------- */
@@ -822,9 +941,15 @@
     if (si) { programarOcultar(); aplicarOrientacion(); }
     else { try { screen.orientation.unlock(); } catch (e) {} }
   }
-  var orientacion = {};
-  function detectarOrientacion(id, cb) {
-    if (orientacion[id]) { cb(orientacion[id]); return; }
+  var orientacion = lsLeer("fmv_orient");   // se recuerda: solo se guardan resultados seguros
+  function guardarOrient(id, o) {
+    orientacion[id] = o;
+    var k = Object.keys(orientacion);
+    if (k.length > 400) k.slice(0, 100).forEach(function (x) { delete orientacion[x]; });
+    lsGuardar("fmv_orient", orientacion);
+  }
+  /* Respaldo: analiza la miniatura (los videos verticales traen franjas negras a los lados) */
+  function orientPorMiniatura(id, cb) {
     var im = new Image();
     im.crossOrigin = "anonymous";
     im.onload = function () {
@@ -838,11 +963,28 @@
           return s / n;
         };
         var lados = (brillo(0, 10) + brillo(54, 64)) / 2, centro = brillo(20, 44);
-        cb(orientacion[id] = (lados < 10 && centro > lados + 20) ? "v" : "h");
+        cb((lados < 10 && centro > lados + 20) ? "v" : "h");
       } catch (e) { cb(null); }
     };
     im.onerror = function () { cb(null); };
     im.src = "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg";
+  }
+  /* 1) oEmbed de YouTube da el tamaño real del video (vertical: alto > ancho); 2) miniatura; 3) "#shorts" en el título */
+  function detectarOrientacion(id, cb) {
+    if (orientacion[id]) { cb(orientacion[id]); return; }
+    var fin_ = false;
+    function fin(o, seguro) { if (fin_) return; fin_ = true; if (o && seguro) guardarOrient(id, o); cb(o); }
+    function porTitulo() { var t = (titulos[listaVideos.indexOf(id)] || "").toLowerCase(); return /#shorts?\b/.test(t) ? "v" : null; }
+    function miniatura() { orientPorMiniatura(id, function (o) { fin(o || porTitulo(), false); }); }
+    var ctl = window.AbortController ? new AbortController() : null;
+    var tm = setTimeout(function () { if (ctl) ctl.abort(); }, 4000);
+    fetch("https://www.youtube.com/oembed?format=json&url=" + encodeURIComponent("https://www.youtube.com/watch?v=" + id), ctl ? { signal: ctl.signal } : {})
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        clearTimeout(tm);
+        if (d && d.width && d.height) fin(d.height > d.width ? "v" : "h", true); else miniatura();
+      })
+      .catch(function () { clearTimeout(tm); miniatura(); });
   }
   function aplicarOrientacion() {
     if (!enPantalla() || !videoActualId || !screen.orientation) return;
@@ -873,8 +1015,12 @@
   bPantalla.addEventListener("click", function () { if (enPantalla()) salirPantalla(); else entrarPantalla(); });
   contenedor.addEventListener("pointermove", mostrarControles);
   document.getElementById("controles").addEventListener("pointerdown", mostrarControles);
-  wrapperVideo.addEventListener("click", function () {
-    if (!enPantalla()) return;
+  wrapperVideo.addEventListener("click", function (e) {
+    if (!enPantalla()) {
+      if (e.target === tapa || tapa.contains(e.target) || wrapperVideo.classList.contains("libre") || !listo) return;
+      if (jugador.getPlayerState() === 1) jugador.pauseVideo(); else jugador.playVideo();
+      return;
+    }
     if (contenedor.classList.contains("inactivo")) mostrarControles();
     else { clearTimeout(tOculta); ocultarYa(); }
   });
