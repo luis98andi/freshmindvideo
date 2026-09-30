@@ -560,9 +560,10 @@
     itemActual = el;
     irActual.classList.toggle("hay", !!el);
   }
-  irActual.addEventListener("click", function () {
+  function irAlVideoActual() {
     if (itemActual) itemActual.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
+  }
+  irActual.addEventListener("click", irAlVideoActual);
   function pintarVivos() {
     var hijos = selectorGrid.children;
     for (var i = 0; i < hijos.length && i < listaVideos.length; i++) {
@@ -923,7 +924,7 @@
 
   /* ---------- Pantalla completa con nuestros propios controles ---------- */
   var contenedor = document.getElementById("contenedor-reproductor");
-  var bPantalla = document.getElementById("b-pantalla"), tOculta = null;
+  var bPantalla = document.getElementById("b-pantalla"), tOculta = null, irAlSalir = false;
   function nativa() { return document.fullscreenElement || document.webkitFullscreenElement; }
   function enPantalla() { return contenedor.classList.contains("en-pantalla"); }
   function ocultarYa() { if (listo && jugador.getPlayerState() === 1) contenedor.classList.add("inactivo"); }
@@ -939,7 +940,10 @@
     document.body.style.overflow = si ? "hidden" : "";
     clearTimeout(tOculta);
     if (si) { programarOcultar(); aplicarOrientacion(); }
-    else { try { screen.orientation.unlock(); } catch (e) {} }
+    else {
+      try { screen.orientation.unlock(); } catch (e) {}
+      if (irAlSalir) { irAlSalir = false; setTimeout(irAlVideoActual, 250); }   // deja que el diseño se acomode y luego baja al video
+    }
   }
   var orientacion = lsLeer("fmv_orient");   // se recuerda: solo se guardan resultados seguros
   function guardarOrient(id, o) {
@@ -1013,6 +1017,35 @@
   document.addEventListener("webkitfullscreenchange", cambioNativo);
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && enPantalla() && !nativa()) salirPantalla(); });
   bPantalla.addEventListener("click", function () { if (enPantalla()) salirPantalla(); else entrarPantalla(); });
+  /* Deslizar el dedo hacia abajo en pantalla completa (en todo el video y también sobre la barra de controles):
+     sale de pantalla completa y va al video actual de la lista */
+  var gx = 0, gy = 0, gt = 0, gOk = false, gDx = 0, gSwipe = 0;
+  contenedor.addEventListener("touchstart", function (e) {
+    gOk = enPantalla() && e.touches.length === 1;
+    if (!gOk) return;
+    gx = e.touches[0].clientX; gy = e.touches[0].clientY; gt = Date.now(); gDx = 0;
+  }, { passive: true });
+  contenedor.addEventListener("touchmove", function (e) {
+    if (!gOk) return;
+    if (e.touches.length > 1) { gOk = false; return; }
+    gDx = Math.max(gDx, Math.abs(e.touches[0].clientX - gx));
+  }, { passive: true });
+  contenedor.addEventListener("touchend", function (e) {
+    if (!gOk) return;
+    gOk = false;
+    var t = e.changedTouches[0], dy = t.clientY - gy, dx = Math.abs(t.clientX - gx);
+    // hacia abajo, bastante largo, mayormente vertical y rápido (así no se confunde con mover la barra de avance o el volumen)
+    if (dy < 80 || dy < Math.max(dx, gDx) * 1.8 || Date.now() - gt > 900) return;
+    gSwipe = Date.now();
+    irAlSalir = true;
+    salirPantalla();
+    setTimeout(function () { if (irAlSalir) { irAlSalir = false; irAlVideoActual(); } }, 800);   // respaldo por si el navegador no avisa el cambio
+  }, { passive: true });
+  // el deslizamiento no debe contar además como un toque en un botón
+  contenedor.addEventListener("click", function (e) {
+    if (Date.now() - gSwipe < 500) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+
   contenedor.addEventListener("pointermove", mostrarControles);
   document.getElementById("controles").addEventListener("pointerdown", mostrarControles);
   wrapperVideo.addEventListener("click", function (e) {
