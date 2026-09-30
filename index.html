@@ -10,7 +10,22 @@
   var OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|i\.ytimg\.com|yt3\.ggpht\.com)\//;
   var SRC_OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|s\.ytimg\.com)\//;
   var abrir = window.open;
-  window.open = function (u) { return OK.test(String(u || "")) ? abrir.apply(window, arguments) : null; };
+  var filtro = function (u) { return OK.test(String(u || "")) ? abrir.apply(window, arguments) : null; };
+  /* Capa extra 1: window.open queda congelado, ningún script puede restaurarlo */
+  try { Object.defineProperty(window, "open", { value: filtro, writable: false, configurable: false }); }
+  catch (e) { window.open = filtro; }
+  /* Capa extra 2: ningún script (ni anuncio) puede sacar esta página hacia otro sitio */
+  try {
+    if (window.navigation) navigation.addEventListener("navigate", function (e) {
+      try { if (e.cancelable && new URL(e.destination.url).origin !== location.origin) e.preventDefault(); } catch (x) {}
+    });
+  } catch (e) {}
+  /* Capa extra 3: cualquier enlace externo que aparezca en la página se anula */
+  document.addEventListener("click", function (e) {
+    var a = e.target && e.target.closest && e.target.closest("a[href]");
+    if (a && a.origin && a.origin !== location.origin) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+
   new MutationObserver(function (ms) {
     ms.forEach(function (m) {
       m.addedNodes.forEach(function (n) {
@@ -135,6 +150,11 @@
   .vol-panel { display: none; position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); background: #1d2b3a; padding: 12px 16px; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 9; }
   .vol-panel.abierto { display: block; }
   .vol-panel input { width: 130px; display: block; margin: 0; }
+  /* Botón 🔓 solo en modo padres: quita la barrera transparente para poder tocar avisos de YouTube */
+  #b-libre { display: none !important; }
+  body.padre #b-libre { display: flex !important; }
+  .video-marco-wrapper.libre iframe { pointer-events: auto; }
+  .video-marco-wrapper.libre .tapa { display: none !important; }
   .selector-grid .item { position: relative; display: flex; }
   .selector-grid .item > button { width: 100%; }
   .quitar-video { position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.75); color: #fff; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2; }
@@ -226,6 +246,7 @@
         <span class="tiempo" id="tiempo">0:00 / 0:00</span>
         <div class="vol"><div class="vol-panel" id="vol-panel"><input type="range" id="volumen" min="0" max="100" value="100" aria-label="Volumen"></div><button type="button" id="b-sonido" aria-label="Volumen"></button></div>
         <button type="button" id="b-subs" aria-label="Subtítulos" aria-pressed="false"></button>
+        <button type="button" id="b-libre" aria-label="Padres: quitar la barrera del video un momento" title="Padres: tocar el aviso de YouTube"></button>
         <button type="button" id="b-pantalla" aria-label="Pantalla completa"></button>
       </div>
     </div>
@@ -268,6 +289,7 @@
     mudo: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15 9l6 6M21 9l-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
     pantalla: '<svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zM20 4v6h-2V6h-4V4zM4 20v-6h2v4h4v2zM20 20h-6v-2h4v-4h2z"/></svg>',
     salir: '<svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>',
+    libre: '<svg viewBox="0 0 24 24"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"/></svg>',
     subs: '<svg viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1zm7 0h-1.5v-.5h-2v3h2V13H18v1c0 .55-.45 1-1 1h-3c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1z"/></svg>'
   };
 
@@ -396,6 +418,7 @@
     indiceActual = i;
     videoActualId = listaVideos[i];
     tapa.hidden = true;
+    nuevoVideoSubs(); bloquearOtraVez();
     jugador.loadVideoById(listaVideos[i]);
     aplicarOrientacion();
     if (subir) window.scrollTo({ top: 0, behavior: "smooth" });
@@ -424,6 +447,7 @@
     yaPreparado = true;
     videoActualId = id;
     indiceActual = 0;
+    nuevoVideoSubs();
     jugador.loadVideoById(id); // se reproduce solo (si el navegador lo bloquea, queda el botón de play)
     sincronizarIndice();
   }
@@ -553,7 +577,7 @@
 
     cargarApi(function () {
       if (jugador) return;
-      var vars = { controls: 0, fs: 0, rel: 0, disablekb: 1, iv_load_policy: 3, playsinline: 1 };
+      var vars = { controls: 0, fs: 0, rel: 0, disablekb: 1, iv_load_policy: 3, playsinline: 1, cc_load_policy: 0 };
       if (location.protocol.indexOf("http") === 0) vars.origin = location.origin;
       jugador = new YT.Player("marco", {
         width: "100%", height: "100%",
@@ -566,7 +590,7 @@
           },
           onStateChange: function (e) {
             bPlay.innerHTML = (e.data === 1) ? ICONOS.pausa : ICONOS.play;
-            if (e.data === 1) { tapa.hidden = true; errores = 0; if (subsOn && videoConSubs !== videoActualId) { videoConSubs = videoActualId; aplicarSubs(); } }
+            if (e.data === 1) { tapa.hidden = true; errores = 0; if (videoConSubs !== videoActualId) { videoConSubs = videoActualId; aplicarSubs(); } }
             else if (e.data === 2) { tapa.hidden = false; }
             if (e.data === 5 && esperandoLista) {
               esperandoLista = false;
@@ -593,6 +617,7 @@
   }
 
   function actualizarCronometro() {
+    if (wrapperVideo.classList.contains("libre") && !document.body.classList.contains("padre")) bloquearOtraVez();
     if (!listo || !jugador.getDuration) return;
     var dur = jugador.getDuration() || 0, t = jugador.getCurrentTime() || 0;
     if (!arrastrando && dur > 0) rango.value = Math.round(t / dur * 1000);
@@ -602,6 +627,7 @@
   }
 
   function regresarAprincipal() {
+    bloquearOtraVez();
     document.body.classList.remove("viendo");
     marcarNav(navActual());
     history.replaceState(null, "", location.pathname + location.search);
@@ -684,12 +710,23 @@
 
   /* ---------- Subtítulos (función interna de YouTube, solo si el video los tiene) ---------- */
   var bSubs = document.getElementById("b-subs"), subsOn = false, videoConSubs = null;
-  try { subsOn = localStorage.getItem("fmv_subs") === "1"; } catch (e) {}
+  try { localStorage.removeItem("fmv_subs"); } catch (e) {}   // ya no se recuerda: cada video arranca sin subtítulos
   function pintarSubs() { bSubs.classList.toggle("activo", subsOn); bSubs.setAttribute("aria-pressed", subsOn); }
+  /* Cada video nuevo empieza sin subtítulos; el botón solo los activa para el video que se está viendo */
+  function nuevoVideoSubs() { subsOn = false; videoConSubs = null; pintarSubs(); }
   function aplicarSubs() {
     if (!listo) return;
     try {
-      if (!subsOn) { jugador.unloadModule("captions"); return; }
+      if (!subsOn) {
+        var vid = videoActualId;
+        var quitar = function () {
+          if (subsOn || vid !== videoActualId) return;
+          try { jugador.setOption("captions", "track", {}); } catch (e) {}
+          try { jugador.unloadModule("captions"); } catch (e) {}
+        };
+        quitar(); setTimeout(quitar, 800); setTimeout(quitar, 2500);   // YouTube a veces los enciende con retraso
+        return;
+      }
       jugador.loadModule("captions");
       setTimeout(function () {
         var p = jugador.getOption("captions", "tracklist") || [];
@@ -701,9 +738,25 @@
   pintarSubs();
   bSubs.addEventListener("click", function () {
     subsOn = !subsOn;
-    try { localStorage.setItem("fmv_subs", subsOn ? "1" : "0"); } catch (e) {}
     videoConSubs = videoActualId;
     pintarSubs(); aplicarSubs();
+  });
+
+  /* ---------- Modo padres: quitar la barrera transparente un momento (para tocar avisos de YouTube) ---------- */
+  var bLibre = document.getElementById("b-libre"), tLibre = null;
+  bLibre.innerHTML = ICONOS.libre;
+  function bloquearOtraVez() {
+    clearTimeout(tLibre);
+    wrapperVideo.classList.remove("libre");
+    bLibre.classList.remove("activo");
+  }
+  bLibre.addEventListener("click", function () {
+    if (wrapperVideo.classList.contains("libre")) { bloquearOtraVez(); return; }
+    if (!document.body.classList.contains("padre")) return;
+    wrapperVideo.classList.add("libre");
+    bLibre.classList.add("activo");
+    clearTimeout(tLibre);
+    tLibre = setTimeout(bloquearOtraVez, 90000);   // se vuelve a cerrar solo a los 90 segundos
   });
 
   /* ---------- Pantalla completa con nuestros propios controles ---------- */
