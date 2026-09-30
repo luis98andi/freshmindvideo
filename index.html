@@ -116,7 +116,7 @@
 
   /* Selector inferior de todos los videos del canal */
   .seccion-videos-canal h3 { margin: 0 0 12px 0; font-size: 1.1rem; }
-  html, body { touch-action: pan-x pan-y; }   /* sin zoom con los dedos ni doble toque */
+  html, body { touch-action: pan-x pan-y; overscroll-behavior: none; }   /* sin zoom con los dedos ni doble toque */
   .perfil-chip { display: inline-flex; align-items: center; gap: 4px; background: #e6f7f2; color: #0a6b53; font-weight: 800; font-size: .85rem; padding: 5px 11px; border-radius: 999px; }
   .perfil-chip[hidden] { display: none; }
   #conmutador { display: flex; gap: 8px; margin: 0 0 18px; }
@@ -385,16 +385,23 @@
   window.FMV_PERFILES = { hija: { n: "Hija", e: "👧" }, hijo: { n: "Hijo", e: "👦" } };
   window.FMV_perfil = "";
   var quienEl = document.getElementById("quien");
+  function sesion() { try { return JSON.parse(sessionStorage.getItem("fmv_sesion")) || {}; } catch (e) { return {}; } }
+  function guardarSesion(o) { try { var x = sesion(); for (var k in o) x[k] = o[k]; sessionStorage.setItem("fmv_sesion", JSON.stringify(x)); } catch (e) {} }
+  function aplicarPerfil(p) {
+    window.FMV_perfil = p;
+    LS_ULT = "fmv_ultimo_" + p;   // cada perfil recuerda su propio video y minuto
+    quienEl.hidden = true;
+    var pf = window.FMV_PERFILES[p], chip = document.getElementById("perfil-chip");
+    chip.textContent = pf.e + " " + pf.n; chip.hidden = false;
+    guardarSesion({ perfil: p });
+    if (window.FMV_repintar) FMV_repintar();   // muestra solo los canales de este perfil
+  }
   quienEl.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("button[data-p]");
-    if (!b) return;
-    window.FMV_perfil = b.getAttribute("data-p");
-    LS_ULT = "fmv_ultimo_" + window.FMV_perfil;   // cada perfil recuerda su propio video y minuto
-    quienEl.hidden = true;
-    var pf = window.FMV_PERFILES[window.FMV_perfil], chip = document.getElementById("perfil-chip");
-    chip.textContent = pf.e + " " + pf.n; chip.hidden = false;
-    if (window.FMV_repintar) FMV_repintar();   // muestra solo los canales de este perfil
+    if (b) aplicarPerfil(b.getAttribute("data-p"));
   });
+  var sesionInicial = sesion();
+  if (sesionInicial.perfil && window.FMV_PERFILES[sesionInicial.perfil]) aplicarPerfil(sesionInicial.perfil);   // tras recargar no vuelve a preguntar
   ["gesturestart", "gesturechange", "gestureend"].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false }); });
   document.addEventListener("touchmove", function (e) { if (e.touches.length > 1 && e.cancelable) e.preventDefault(); }, { passive: false });
   window.FMV_cambiarPerfil = function () { quienEl.hidden = false; };
@@ -759,12 +766,14 @@
     var p = e.target.getAttribute && e.target.getAttribute("data-p");
     if (!p || !canalUC || p === pestana) return;
     pestana = p; canalActual = p + canalUC.slice(2);
+    guardarSesion({ pest: p });
     pintarPestanas();
     abrirReproductor(canalNombre, null, cargarLista);
   });
-  function iniciarCanal(idCanal, nombreCanal, videoId) {
+  function iniciarCanal(idCanal, nombreCanal, videoId, pest) {
     canalUC = idCanal; canalNombre = nombreCanal;
-    pestana = videoId ? "UU" : "UULF";   // si viene del buscador se usa la lista completa para encontrar ese video
+    pestana = videoId ? "UU" : (pest || "UULF");   // si viene del buscador se usa la lista completa para encontrar ese video
+    guardarSesion({ vista: "canal", uc: idCanal, nombre: nombreCanal, pest: pestana });
     canalActual = pestana + idCanal.slice(2);
     pintarPestanas();
     abrirReproductor(nombreCanal, videoId, cargarLista);
@@ -774,6 +783,7 @@
   /* Pestaña "Mis videos": mismo reproductor (con la misma tapa anti-clics) */
   window.FMV_abrirMis = function (id) { iniciarMisVideos(id); };
   function iniciarMisVideos(videoId) {
+    guardarSesion({ vista: "mis" });
     canalActual = "MIS"; canalUC = null; pintarPestanas();
     document.body.classList.remove("modo-buscar");
     location.hash = "videos";
@@ -839,6 +849,7 @@
   }
 
   function regresarAprincipal() {
+    guardarSesion({ vista: "inicio" });
     bloquearOtraVez();
     document.body.classList.remove("viendo");
     marcarNav(navActual());
@@ -864,6 +875,7 @@
   function navActual() { return document.body.classList.contains("modo-buscar") ? "buscar" : document.body.classList.contains("ver-mis") ? "mis" : "inicio"; }
   var conmEl = document.getElementById("conmutador");
   function verMis(si) {
+    guardarSesion({ vermis: si });
     document.body.classList.toggle("ver-mis", si);
     [].forEach.call(conmEl.children, function (b) { b.classList.toggle("on", (b.getAttribute("data-v") === "mis") === si); });
     marcarNav(si ? "mis" : "inicio");
@@ -882,7 +894,13 @@
   document.getElementById("nav-buscar").addEventListener("click", irBuscar);
   document.getElementById("nav-mis").addEventListener("click", function () { irInicio(); verMis(true); });
   document.getElementById("nav-padres").addEventListener("click", function () { if (window.FMV_abrirPadres) FMV_abrirPadres(); });
-  window.FMV_alListo = function () { window.FMV_alListo = null; if (location.hash === "#videos") iniciarMisVideos(); };
+  window.FMV_alListo = function () {
+    window.FMV_alListo = null;
+    var ss = sesion();   // si la página se recargó, vuelve a donde estaba
+    if (location.hash === "#videos" || ss.vista === "mis") iniciarMisVideos();
+    else if (ss.vista === "canal" && ss.uc) iniciarCanal(ss.uc, ss.nombre, null, ss.pest);
+    else if (ss.vermis) verMis(true);
+  };
   window.FMV_repintarSelector = function () { if (vistaCanal.classList.contains("activo") && listaVideos.length) construirSelector(0); };
   window.FMV_tabVideos = function (n) { var c = document.getElementById("cuenta-mis"); c.textContent = n > 99 ? "99+" : n; var b2 = document.getElementById("conmutador").lastElementChild; b2.textContent = "⭐ Mis videos" + (n ? " (" + n + ")" : ""); c.classList.toggle("hay", n > 0); };
 
