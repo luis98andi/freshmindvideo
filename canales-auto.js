@@ -203,17 +203,7 @@
           .map(function (c) { c.extra = true; return c; });
         var ocu = leer(LS_OCULTOS, []);
         todos = base.concat(extra).filter(function (c) { return ocu.indexOf(c.url) < 0; });
-
-        // ⚡ Pintar inmediatamente con los datos que ya conocemos de canales.json.
-        // YouTube NO bloquea la aparición inicial de los canales.
-        pintar();
-        if (window.FMV_alListo) window.FMV_alListo();
-
-        // 🔄 Resolver/actualizar IDs e imágenes en segundo plano.
-        // La caché fmv_cache evita consultas innecesarias durante 7 días.
-        resolver(todos).then(function () {
-          pintar();
-        });
+        return resolver(todos).then(pintar).then(function () { if (window.FMV_alListo) window.FMV_alListo(); });
       });
   }
 
