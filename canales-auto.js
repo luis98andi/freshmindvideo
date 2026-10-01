@@ -4,6 +4,7 @@
   window.FMV_API_KEY = API_KEY; // la usa index.html para leer los títulos de los videos
   var PIN_PADRES = "1234"; // cámbialo por el PIN que quieras
   var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache", LS_VID = "fmv_videos", LS_OCULTOS = "fmv_ocultos", LS_VOCULTOS = "fmv_videos_ocultos";
+  var LS_BLOQ = "fmv_bloqueados", LS_DET_OCULTOS = "fmv_ocultos_det", bloqBase = [];
   var BASE = "https://www.googleapis.com/youtube/v3/";
   var ID_OK = /^UC[\w-]{22}$/;
   var grid = document.getElementById("cuadricula"), msg = document.getElementById("mensaje");
@@ -20,23 +21,80 @@
   function foto(it) { var t = it.snippet.thumbnails || {}; return (t.medium || t.default || t.high || {}).url || ""; }
   function dec(t) { var d = document.createElement("textarea"); d.innerHTML = t || ""; return d.value; }
 
-  var LS_BLOQ = "fmv_bloqueados", bloqBase = [];
-  function videoDe(u) { var m = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/.exec(u || ""); return m ? m[1] : ""; }
+  function videoDe(u) {
+    var s = String(u || "").trim();
+    if (/^[\w-]{11}$/.test(s)) return s;
+    var m = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/.exec(s);
+    return m ? m[1] : "";
+  }
+
+  function guardarDetalleOculto(id, titulo, canal, motivo) {
+    if (!id) return;
+    var det = leer(LS_DET_OCULTOS, []).filter(function (x) { return x && x.id !== id; });
+    det.unshift({
+      id: id,
+      titulo: titulo || "Video (" + id + ")",
+      canal: canal || "",
+      motivo: motivo || "padre",
+      t: Date.now()
+    });
+    guardar(LS_DET_OCULTOS, det);
+  }
+
+  function obtenerDetallesOcultos() {
+    var det = leer(LS_DET_OCULTOS, []);
+    var mapa = {};
+    det.forEach(function (x) { if (x && x.id) mapa[x.id] = x; });
+    var todosIds = window.FMV_bloqueados().concat(leer(LS_VOCULTOS, []));
+    var unicos = [];
+    todosIds.forEach(function (id) {
+      if (id && unicos.indexOf(id) < 0) unicos.push(id);
+    });
+    return unicos.map(function (id) {
+      return mapa[id] || { id: id, titulo: "Video (" + id + ")", canal: "", motivo: "padre", t: 0 };
+    });
+  }
+
   window.FMV_esPadre = esPadre;
   window.FMV_misVideos = function () { return misVideos(); };
   window.FMV_bloqueados = function () { return bloqBase.concat(leer(LS_BLOQ, [])).filter(function (x, i, a) { return a.indexOf(x) === i; }); };
-  window.FMV_bloquear = function (id) { var b = leer(LS_BLOQ, []); if (b.indexOf(id) < 0) { b.push(id); guardar(LS_BLOQ, b); } };
-  window.FMV_quitarPropio = function (id) {
+  window.FMV_bloquear = function (id, titulo, canal, motivo) {
+    var b = leer(LS_BLOQ, []);
+    if (b.indexOf(id) < 0) { b.push(id); guardar(LS_BLOQ, b); }
+    guardarDetalleOculto(id, titulo, canal, motivo || "padre");
+    try { localStorage.removeItem("fmv_listas"); } catch (e) {}
+  };
+  window.FMV_quitarPropio = function (id, titulo, motivo) {
+    var prev = misTodos().filter(function (o) { return o.id === id; })[0];
     guardar(LS_VID, leer(LS_VID, []).filter(function (o) { return o.id !== id; }));
     var ocv = leer(LS_VOCULTOS, []); if (ocv.indexOf(id) < 0) { ocv.push(id); guardar(LS_VOCULTOS, ocv); }
+    guardarDetalleOculto(id, titulo || (prev && prev.titulo) || "", "⭐ Mis videos", motivo || "padre");
     pintar(); actualizarBotones();
+  };
+  window.FMV_ocultarVideo = function (id, titulo, canal, motivo) {
+    if (!id) return;
+    if (canal === "MIS" || canal === "⭐ Mis videos") {
+      window.FMV_quitarPropio(id, titulo, motivo || "padre");
+    } else {
+      window.FMV_bloquear(id, titulo, canal, motivo || "padre");
+      pintar(); actualizarBotones();
+    }
+  };
+  window.FMV_desocultarVideo = function (id) {
+    guardar(LS_BLOQ, leer(LS_BLOQ, []).filter(function (x) { return x !== id; }));
+    guardar(LS_VOCULTOS, leer(LS_VOCULTOS, []).filter(function (x) { return x !== id; }));
+    guardar(LS_DET_OCULTOS, leer(LS_DET_OCULTOS, []).filter(function (x) { return x && x.id !== id; }));
+    bloqBase = bloqBase.filter(function (x) { return x !== id; });
+    try { localStorage.removeItem("fmv_listas"); } catch (e) {}
+    pintar(); actualizarBotones();
+    if (window.FMV_recargarCanalActual) window.FMV_recargarCanalActual();
   };
 
   /* Videos = los de canales.json + los de este dispositivo, sin repetir y sin los quitados */
   function misTodos() {
-    var oc = leer(LS_VOCULTOS, []), vistos = {}, salida = [];
+    var oc = leer(LS_VOCULTOS, []), bl = window.FMV_bloqueados(), vistos = {}, salida = [];
     videosBase.concat(leer(LS_VID, [])).forEach(function (v) {
-      if (!v || !v.id || vistos[v.id] || oc.indexOf(v.id) >= 0) return;
+      if (!v || !v.id || vistos[v.id] || oc.indexOf(v.id) >= 0 || bl.indexOf(v.id) >= 0) return;
       vistos[v.id] = 1;
       salida.push(v);
     });
@@ -136,14 +194,15 @@
       if (esPadre()) {
         if (!ver) t.style.opacity = ".4";
         t.style.position = "relative";
-        var x = document.createElement("button"); x.textContent = "×"; x.title = "Quitar video";
+        var x = document.createElement("button"); x.textContent = "×"; x.title = "Ocultar / Quitar video";
         x.style.cssText = "position:absolute;top:6px;right:6px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:20px;cursor:pointer;z-index:2";
         x.addEventListener("click", function (ev) {
           ev.stopPropagation();
-          if (!confirm("¿Quitar este video?")) return;
-          var ps = vperf(v).filter(function (q) { return q !== p; });
-          if (p && ver && ps.length) { var m = leer(LS_VPERF, {}); m[v.id] = ps; guardar(LS_VPERF, m); pintar(); }
-          else FMV_quitarPropio(v.id);
+          confirmarAccion("¿Ocultar este video?", function () {
+            var ps = vperf(v).filter(function (q) { return q !== p; });
+            if (p && ver && ps.length) { var m = leer(LS_VPERF, {}); m[v.id] = ps; guardar(LS_VPERF, m); pintar(); }
+            else window.FMV_quitarPropio(v.id, v.titulo, "padre");
+          });
         });
         t.appendChild(x);
         t.appendChild(chipsPerfil(v, function () { return vperf(v); }, function (ps) { var m = leer(LS_VPERF, {}); m[v.id] = ps; guardar(LS_VPERF, m); pintar(); }));
@@ -170,11 +229,12 @@
         x.style.cssText = "position:absolute;top:6px;right:6px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:20px;cursor:pointer;z-index:2";
         x.addEventListener("click", function (e) {
           e.stopPropagation();
-          if (!confirm("¿Quitar " + c.nombre + "?")) return;
-          if (c.extra) guardar(LS_EXTRA, leer(LS_EXTRA, []).filter(function (o) { return o.id !== c.id; }));
-          else { var oc = leer(LS_OCULTOS, []); oc.push(c.url); guardar(LS_OCULTOS, oc); }
-          todos = todos.filter(function (o) { return o !== c; });
-          pintar(); actualizarBotones();
+          confirmarAccion("¿Quitar " + c.nombre + "?", function () {
+            if (c.extra) guardar(LS_EXTRA, leer(LS_EXTRA, []).filter(function (o) { return o.id !== c.id; }));
+            else { var oc = leer(LS_OCULTOS, []); oc.push(c.url); guardar(LS_OCULTOS, oc); }
+            todos = todos.filter(function (o) { return o !== c; });
+            pintar(); actualizarBotones();
+          });
         });
         t.style.position = "relative";
         t.appendChild(x);
@@ -203,7 +263,15 @@
           .map(function (c) { c.extra = true; return c; });
         var ocu = leer(LS_OCULTOS, []);
         todos = base.concat(extra).filter(function (c) { return ocu.indexOf(c.url) < 0; });
-        return resolver(todos).then(pintar).then(function () { if (window.FMV_alListo) window.FMV_alListo(); });
+
+        // ⚡ Pintar inmediatamente con los datos que ya conocemos de canales.json.
+        pintar();
+        if (window.FMV_alListo) window.FMV_alListo();
+
+        // 🔄 Resolver/actualizar IDs e imágenes en segundo plano.
+        resolver(todos).then(function () {
+          pintar();
+        });
       });
   }
 
@@ -222,12 +290,31 @@
     return { caja: c, cerrar: function () { f.remove(); } };
   }
 
+  function confirmarAccion(pregunta, alAceptar) {
+    var m = modal(
+      '<h3 style="margin:0 0 10px">' + pregunta + '</h3>' +
+      '<div style="display:flex;gap:8px;margin-top:14px">' +
+      '<button type="button" data-si style="' + ESTILO_BT + ';background:#d93025">Sí, ocultar</button>' +
+      '<button type="button" data-no style="' + ESTILO_BT + ';background:#5b6b7a">Cancelar</button>' +
+      '</div>',
+      380
+    );
+    m.caja.querySelector("[data-si]").addEventListener("click", function () { m.cerrar(); alAceptar(); });
+    m.caja.querySelector("[data-no]").addEventListener("click", m.cerrar);
+  }
+  window.FMV_confirmar = confirmarAccion;
+
   function pedirPin(alEntrar) {
-    var m = modal('<h3 style="margin:0 0 6px">Zona de padres</h3><input type="password" inputmode="numeric" placeholder="PIN" style="' + ESTILO_IN + '"><button style="' + ESTILO_BT + '">Entrar</button>');
-    var inp = m.caja.querySelector("input"), b = m.caja.querySelector("button");
+    var m = modal(
+      '<h3 style="margin:0 0 6px">Zona de padres</h3>' +
+      '<input type="password" inputmode="numeric" placeholder="PIN" style="' + ESTILO_IN + '">' +
+      '<p data-err style="color:#d93025;font-weight:700;margin:0 0 8px;display:none">PIN incorrecto</p>' +
+      '<button style="' + ESTILO_BT + '">Entrar</button>'
+    );
+    var inp = m.caja.querySelector("input"), b = m.caja.querySelector("button"), err = m.caja.querySelector("[data-err]");
     function ok() {
       if (inp.value === PIN_PADRES) { setPadre(true); vigilar(); m.cerrar(); actualizarBotones(); pintar(); if (alEntrar) alEntrar(); }
-      else { alert("PIN incorrecto"); inp.value = ""; }
+      else { err.style.display = "block"; inp.value = ""; inp.focus(); }
     }
     b.addEventListener("click", ok);
     inp.addEventListener("keydown", function (e) { if (e.key === "Enter") ok(); });
@@ -253,6 +340,20 @@
     }
     return ab;
   }
+  function botonOcultarBusqueda(vid, titulo, canal) {
+    var yaOculto = window.FMV_bloqueados().indexOf(vid) >= 0;
+    var ob = document.createElement("button"); ob.type = "button";
+    ob.style.cssText = ESTILO_BT + ";background:#6b7280;width:calc(100% - 28px);margin:0 14px 14px";
+    if (yaOculto) { ob.textContent = "🙈 Oculto"; ob.disabled = true; ob.style.opacity = ".5"; }
+    else {
+      ob.textContent = "🙈 Ocultar video";
+      ob.addEventListener("click", function () {
+        window.FMV_ocultarVideo(vid, titulo, canal || "", "padre");
+        ob.textContent = "🙈 Oculto"; ob.disabled = true; ob.style.opacity = ".5";
+      });
+    }
+    return ob;
+  }
   function tarjeta(img, nombre, boton) {
     var card = document.createElement("div"); card.className = "tarjeta"; card.style.cursor = "default";
     var media = document.createElement("div"); media.className = "media";
@@ -274,10 +375,12 @@
     if (ex) { if (p) { var ps = vperf(ex).slice(); if (ps.indexOf(p) < 0) ps.push(p); var m = leer(LS_VPERF, {}); m[vid] = ps; guardar(LS_VPERF, m); } }
     else { var vs = leer(LS_VID, []), o = { id: vid, titulo: titulo, img: img }; if (p) o.perfiles = [p]; vs.push(o); guardar(LS_VID, vs); }
     guardar(LS_VOCULTOS, leer(LS_VOCULTOS, []).filter(function (q) { return q !== vid; }));
+    guardar(LS_BLOQ, leer(LS_BLOQ, []).filter(function (q) { return q !== vid; }));
+    guardar(LS_DET_OCULTOS, leer(LS_DET_OCULTOS, []).filter(function (x) { return x && x.id !== vid; }));
     pintar(); actualizarBotones();
   }
   function verVideos(id, nombre) {
-    pr.textContent = ""; pm.textContent = "Videos de " + nombre + " — toca «+ Agregar» en los que quieras";
+    pr.textContent = ""; pm.textContent = "Videos de " + nombre + " — puedes agregarlos o también ocultarlos";
     var volver = document.createElement("button"); volver.type = "button"; volver.textContent = "← Volver a los resultados";
     volver.style.cssText = ESTILO_BT + ";background:#5b6b7a;margin:6px 0 0";
     volver.addEventListener("click", function () { mostrar(ultimo[0], ultimo[1]); });
@@ -292,7 +395,10 @@
             var s = it.snippet, vid = s && s.resourceId && s.resourceId.videoId;
             if (!vid || s.title === "Private video" || s.title === "Deleted video") return;
             var titulo = dec(s.title), img = foto(it), ya = misVideos().some(function (o) { return o.id === vid; });
-            g.appendChild(tarjeta(img, titulo, botonAgregar(ya, function () { agregarVideo(vid, titulo, img); })));
+            var fr = document.createDocumentFragment();
+            fr.appendChild(botonAgregar(ya, function () { agregarVideo(vid, titulo, img); }));
+            fr.appendChild(botonOcultarBusqueda(vid, titulo, nombre));
+            g.appendChild(tarjeta(img, titulo, fr));
           });
           if (mas) mas.remove();
           if (d.nextPageToken) {
@@ -315,7 +421,7 @@
   function mostrar(canales, videos) {
     ultimo = [canales, videos];
     pr.textContent = "";
-    pm.textContent = (canales.length || videos.length) ? "Toca «+ Agregar» en lo que quieras" : "No encontré resultados. Prueba con otras palabras.";
+    pm.textContent = (canales.length || videos.length) ? "Toca «+ Agregar» o «🙈 Ocultar video» en lo que quieras" : "No encontré resultados. Prueba con otras palabras.";
     if (canales.length) {
       var g1 = seccion("Canales");
       canales.forEach(function (it) {
@@ -336,7 +442,10 @@
       videos.forEach(function (it) {
         var vid = typeof it.id === "string" ? it.id : it.id.videoId, titulo = dec(it.snippet.title), img = foto(it);
         var ya = misVideos().some(function (o) { return o.id === vid; });
-        g2.appendChild(tarjeta(img, titulo, botonAgregar(ya, function () { agregarVideo(vid, titulo, img); })));
+        var fr = document.createDocumentFragment();
+        fr.appendChild(botonAgregar(ya, function () { agregarVideo(vid, titulo, img); }));
+        fr.appendChild(botonOcultarBusqueda(vid, titulo, dec(it.snippet.channelTitle || "")));
+        g2.appendChild(tarjeta(img, titulo, fr));
       });
     }
   }
@@ -369,6 +478,105 @@
     m.caja.querySelector("[data-h]").appendChild(panel);
     pq.focus();
   }
+
+  /* ---------- Sección de Padres: Videos Ocultos (manuales y automáticos por 6 repeticiones en 2 min) ---------- */
+  function abrirVideosOcultos() {
+    var m = modal(
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+      '<h3 style="margin:0">🙈 Videos ocultos</h3>' +
+      '<button type="button" data-x style="' + ESTILO_BT + ';background:#5b6b7a">Cerrar</button>' +
+      '</div>' +
+      '<p style="margin:0 0 12px;font-size:13.5px;opacity:.8;line-height:1.35">Aquí aparecen los videos que ocultaste manualmente y los que se ocultaron solos al reproducirse <b>6 veces seguidas en menos de 2 minutos</b>.</p>' +
+      '<div style="display:flex;gap:8px;margin-bottom:14px">' +
+      '<input data-in type="text" placeholder="Pegar enlace o ID de YouTube para ocultar…" style="' + ESTILO_IN + ';margin:0;flex:1">' +
+      '<button type="button" data-add style="' + ESTILO_BT + ';white-space:nowrap">🙈 Ocultar</button>' +
+      '</div>' +
+      '<div data-lista style="display:flex;flex-direction:column;gap:10px"></div>',
+      680
+    );
+    m.caja.querySelector("[data-x]").addEventListener("click", m.cerrar);
+    var inp = m.caja.querySelector("[data-in]"), btnAdd = m.caja.querySelector("[data-add]"), box = m.caja.querySelector("[data-lista]");
+
+    function renderLista() {
+      box.innerHTML = "";
+      var lista = obtenerDetallesOcultos();
+      if (!lista.length) {
+        var vacio = document.createElement("p");
+        vacio.style.cssText = "text-align:center;padding:24px 10px;font-weight:700;opacity:.7;margin:0";
+        vacio.textContent = "No hay videos ocultos en este momento.";
+        box.appendChild(vacio);
+        return;
+      }
+      lista.forEach(function (item) {
+        var fila = document.createElement("div");
+        fila.style.cssText = "display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;background:#f4f8fb";
+        var img = document.createElement("img");
+        img.src = "https://i.ytimg.com/vi/" + encodeURIComponent(item.id) + "/mqdefault.jpg";
+        img.alt = "";
+        img.style.cssText = "width:110px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#000;flex:none";
+
+        var info = document.createElement("div");
+        info.style.cssText = "flex:1;min-width:0";
+        var tit = document.createElement("div");
+        tit.style.cssText = "font-weight:800;font-size:.95rem;line-height:1.25;margin-bottom:4px;word-break:break-word";
+        tit.textContent = item.titulo || ("Video " + item.id);
+
+        var sub = document.createElement("div");
+        sub.style.cssText = "font-size:.78rem;opacity:.8;display:flex;flex-wrap:wrap;gap:6px;align-items:center";
+        var badge = document.createElement("span");
+        var esAuto = item.motivo === "auto";
+        badge.style.cssText = "padding:2px 8px;border-radius:999px;font-weight:800;font-size:.72rem;color:#fff;background:" + (esAuto ? "#d97706" : "#6b2fa8");
+        badge.textContent = esAuto ? "⚡ Auto (6 veces en 2 min)" : "🔒 Ocultado por padres";
+        sub.appendChild(badge);
+        if (item.canal) {
+          var cn = document.createElement("span");
+          cn.textContent = "· " + item.canal;
+          sub.appendChild(cn);
+        }
+
+        info.appendChild(tit);
+        info.appendChild(sub);
+
+        var btnMostrar = document.createElement("button");
+        btnMostrar.type = "button";
+        btnMostrar.style.cssText = ESTILO_BT + ";background:#12a37f;padding:8px 12px;font-size:13.5px;flex:none";
+        btnMostrar.textContent = "👁 Mostrar";
+        btnMostrar.addEventListener("click", function () {
+          window.FMV_desocultarVideo(item.id);
+          renderLista();
+        });
+
+        fila.appendChild(img);
+        fila.appendChild(info);
+        fila.appendChild(btnMostrar);
+        box.appendChild(fila);
+      });
+    }
+
+    function ocultarManualDesdeInput() {
+      var vid = videoDe(inp.value);
+      if (!vid) { inp.focus(); return; }
+      inp.value = "";
+      if (!sinClave) {
+        api("videos", "part=snippet&id=" + vid).then(function (it) {
+          var s = it[0] && it[0].snippet;
+          window.FMV_ocultarVideo(vid, s ? dec(s.title) : ("Video " + vid), s ? dec(s.channelTitle || "") : "", "padre");
+          renderLista();
+        }).catch(function () {
+          window.FMV_ocultarVideo(vid, "Video " + vid, "", "padre");
+          renderLista();
+        });
+      } else {
+        window.FMV_ocultarVideo(vid, "Video " + vid, "", "padre");
+        renderLista();
+      }
+    }
+
+    btnAdd.addEventListener("click", ocultarManualDesdeInput);
+    inp.addEventListener("keydown", function (e) { if (e.key === "Enter") ocultarManualDesdeInput(); });
+    renderLista();
+  }
+  window.FMV_abrirVideosOcultos = abrirVideosOcultos;
 
   /* ---------- Actualizar para todos ---------- */
   /* Arma el contenido completo de canales.json con lo que ves en este dispositivo */
@@ -440,14 +648,18 @@
     });
   }
 
-  /* ---------- Panel de padres (se abre desde el botón 🔒 de la barra inferior) ---------- */
+  /* ---------- Panel de padres (se abre desde el botón 🔒 de la barra superior) ---------- */
   function actualizarBotones() { document.body.classList.toggle("padre", esPadre()); }
   function hayOcultos() { return leer(LS_OCULTOS, []).length || leer(LS_VOCULTOS, []).length || leer(LS_BLOQ, []).length; }
   function restaurar() {
-    if (confirm("¿Volver a mostrar los canales y videos que quitaste?")) {
-      guardar(LS_OCULTOS, []); guardar(LS_VOCULTOS, []); guardar(LS_BLOQ, []); bloqBase = []; try { localStorage.removeItem("fmv_listas"); } catch (e) {}
-      iniciar().then(actualizarBotones);
-    }
+    confirmarAccion("¿Volver a mostrar todos los canales y videos que quitaste?", function () {
+      guardar(LS_OCULTOS, []); guardar(LS_VOCULTOS, []); guardar(LS_BLOQ, []); guardar(LS_DET_OCULTOS, []); bloqBase = [];
+      try { localStorage.removeItem("fmv_listas"); } catch (e) {}
+      iniciar().then(function () {
+        actualizarBotones();
+        if (window.FMV_recargarCanalActual) window.FMV_recargarCanalActual();
+      });
+    });
   }
   function salirDePadres() {
     setPadre(false); clearTimeout(tInac);
@@ -483,7 +695,7 @@
         box.appendChild(t);
       }
       var f = document.createElement("div"); f.style.cssText = "display:flex;gap:10px;align-items:center;padding:6px 0;cursor:pointer";
-      f.innerHTML = '<img src="https://i.ytimg.com/vi/' + encodeURIComponent(x.id) + '/mqdefault.jpg" alt="" style="width:120px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#000;flex:none"><div style="min-width:0"><div data-n style="font-weight:700;line-height:1.25"></div><div data-s style="font-size:.8rem;opacity:.7"></div></div>';
+      f.innerHTML = '<img src="https://i.ytimg.com/vi/' + encodeURIComponent(x.id) + '/mqdefault.jpg" alt="" style="width:120px;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#000;flex:none"><div style="flex:1;min-width:0"><div data-n style="font-weight:700;line-height:1.25"></div><div data-s style="font-size:.8rem;opacity:.7"></div></div>';
       f.querySelector("[data-n]").textContent = x.n || "Video";
       f.querySelector("[data-s]").textContent = (pf ? pf.e + " " : "") + x.c + " · " + d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
       f.addEventListener("click", function () {
@@ -495,7 +707,8 @@
     });
   }
   function abrirPanelPadres() {
-    var m = modal('<h3 style="margin:0 0 4px">🔒 Zona de padres</h3><p style="margin:0 0 14px;font-size:14px;opacity:.75">Aquí agregas y quitas contenido para tus hijos.</p><div data-l style="display:flex;flex-direction:column;gap:10px"></div>', 420);
+    var cantOcultos = obtenerDetallesOcultos().length;
+    var m = modal('<h3 style="margin:0 0 4px">🔒 Zona de padres</h3><p style="margin:0 0 14px;font-size:14px;opacity:.75">Aquí agregas, ocultas y administras el contenido para tus hijos.</p><div data-l style="display:flex;flex-direction:column;gap:10px"></div>', 420);
     var l = m.caja.querySelector("[data-l]");
     function fila(texto, color, fn) {
       var b = document.createElement("button"); b.type = "button"; b.textContent = texto;
@@ -504,8 +717,9 @@
       l.appendChild(b);
     }
     fila("🔍 Buscar en YouTube y agregar", "", abrirBuscador);
+    fila("🙈 Videos ocultos" + (cantOcultos ? " (" + cantOcultos + ")" : ""), "#475569", abrirVideosOcultos);
     fila("🌐 Actualizar para todos", "#2f6fdd", abrirActualizar);
-    if (hayOcultos()) fila("↩ Restaurar lo que quité", "#e08a00", restaurar);
+    if (hayOcultos()) fila("↩ Restaurar todo lo que quité", "#e08a00", restaurar);
     fila("🕘 Historial", "#6b4fd0", abrirHistorial);
     fila("👧👦 Cambiar perfil", "#b06a00", function () { if (window.FMV_cambiarPerfil) FMV_cambiarPerfil(); });
     fila("🚪 Salir de padres", "#5b6b7a", salirDePadres);
