@@ -366,7 +366,7 @@
     <div class="seccion-videos-canal">
       <div class="fila-titulo">
         <h3>Todos los videos del canal (<span id="contador-total">0</span>)</h3>
-        <div id="pestanas" hidden><button type="button" data-p="UULF">🎬 Videos</button><button type="button" data-p="UUSH">📱 Reels</button></div>
+        <div id="pestanas" hidden><button type="button" data-p="UULF">🎬 Videos</button><button type="button" data-p="UULV">🔴 En vivo</button><button type="button" data-p="UUSH">📱 Reels</button></div>
       </div>
       <p id="selector-mensaje">Cargando lista completa de videos…</p>
       <div class="selector-grid" id="selector-grid"></div>
@@ -659,17 +659,35 @@
     return m + ":" + (s < 10 ? "0" : "") + s;
   }
 
-  /* ---------- Caché pequeña de listas (6 horas, máximo 8 canales) y caché de títulos ---------- */
-  var LS_TITULOS = "fmv_titulos_v1";
+  /* ---------- Caché pequeña de listas (6 horas, máximo 8 canales), caché de títulos y de directos ---------- */
+  var LS_TITULOS = "fmv_titulos_v1", LS_VIVOS = "fmv_vivos_v1", LS_VIVOS_CANAL = "fmv_vivos_canal_v1";
   function lsLeer(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch (e) { return {}; } }
   function lsGuardar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   var cacheTitulos = lsLeer(LS_TITULOS);
+  var vivosGuardados = lsLeer(LS_VIVOS);
+  var vivosPorCanal = lsLeer(LS_VIVOS_CANAL);
+  Object.keys(vivosGuardados).forEach(function (k) { vivos[k] = vivosGuardados[k]; });
+
   function guardarTituloCache(id, tit) {
     if (!id || !tit) return;
     cacheTitulos[id] = tit;
     var ks = Object.keys(cacheTitulos);
     if (ks.length > 1500) ks.slice(0, 300).forEach(function (k) { delete cacheTitulos[k]; });
     lsGuardar(LS_TITULOS, cacheTitulos);
+  }
+  function registrarVivoDeCanal(id, estado) {
+    if (!id || !estado) return;
+    vivos[id] = estado;
+    vivosGuardados[id] = estado;
+    lsGuardar(LS_VIVOS, vivosGuardados);
+    if (canalUC) {
+      var arr = vivosPorCanal[canalUC] || [];
+      if (arr.indexOf(id) < 0) {
+        arr.unshift(id);
+        vivosPorCanal[canalUC] = arr.slice(0, 40);
+        lsGuardar(LS_VIVOS_CANAL, vivosPorCanal);
+      }
+    }
   }
   function listaEnCache(canal) {
     var e = lsLeer(LS_LISTAS)[canal];
@@ -682,11 +700,11 @@
     lsGuardar(LS_LISTAS, m);
   }
 
-  /* ---------- Selector de videos (miniatura + título de 2 filas + etiqueta EN VIVO / NO DISPONIBLE) ---------- */
+  /* ---------- Selector de videos (miniatura + título de 2 filas + etiqueta EN VIVO al lado del número) ---------- */
   function crearEtiquetaVivo(estadoVivo) {
     var lv = document.createElement("span");
     lv.className = "vivo" + (estadoVivo === 2 ? " prog" : "");
-    lv.textContent = estadoVivo === 2 ? "⏳ EN VIVO · NO DISPONIBLE" : "● EN VIVO";
+    lv.textContent = estadoVivo === 2 ? "⏳ EN VIVO · PROGRAMADO" : "● EN VIVO";
     return lv;
   }
 
@@ -761,7 +779,8 @@
     if (textoTit && !titulos[i]) titulos[i] = textoTit;
     var t = document.createElement("span"); t.className = "titulo"; t.textContent = textoTit || ("Cargando título " + (i + 1) + "…");
     var mc = document.createElement("span"); mc.className = "marcas"; mc.appendChild(num);
-    if (vivos[vid]) mc.appendChild(crearEtiquetaVivo(vivos[vid]));
+    var estVivo = vivos[vid] || (pestana === "UULV" ? 1 : 0);
+    if (estVivo) mc.appendChild(crearEtiquetaVivo(estVivo));
     b.appendChild(img); b.appendChild(mc); b.appendChild(t);
     b.addEventListener("click", function () { irA(i, true); });
     w.appendChild(b);
@@ -800,8 +819,19 @@
 
   function sinBloqueados() {
     var b = window.FMV_bloqueados ? FMV_bloqueados() : [], ni = [], nt = [];
+    /* En la sección 🔴 En vivo, incluimos al inicio los videos en vivo o programados detectados en el canal (como David y Jonatán) */
+    if (pestana === "UULV" && canalUC && vivosPorCanal[canalUC]) {
+      vivosPorCanal[canalUC].forEach(function (vid) {
+        if (listaVideos.indexOf(vid) < 0) {
+          listaVideos.unshift(vid);
+          titulos.unshift(cacheTitulos[vid] || "");
+        }
+      });
+    }
     listaVideos.forEach(function (id, i) {
       if (b.indexOf(id) >= 0) return;
+      /* Si estamos en Todos los videos (🎬 Videos) o Reels, sacamos los videos en vivo o programados para que solo estén en 🔴 En vivo */
+      if (pestana !== "UULV" && canalActual !== "MIS" && vivos[id]) return;
       ni.push(id); nt.push(titulos[i] || cacheTitulos[id] || "");
     });
     listaVideos = ni; titulos = nt;
@@ -826,8 +856,9 @@
     indiceActual = i;
     videoActualId = nuevoId;
     nuevoVideoSubs(); bloquearOtraVez();
-    marcarActual(); pintarMarca(); guardarUltimo(0);
+    marcarActual(); guardarUltimo(0);
     cargarVideo(nuevoId);
+    pintarMarca();
     detectarOrientacion(videoActualId, function () {});
     aplicarOrientacion();
     if (subir) window.scrollTo({ top: 0, behavior: "smooth" });
@@ -850,36 +881,72 @@
     marcarActual(); pintarMarca();
   }
 
+  /* Saca de la sección 🎬 Videos cualquier video que resulte ser En Vivo o Programado (pasa a 🔴 En vivo) */
+  function depurarVivosEnListaNormal() {
+    if (pestana === "UULV" || canalActual === "MIS") return;
+    var habiaActual = false, idxAntes = indiceActual;
+    var ni = [], nt = [], cambio = false;
+    for (var i = 0; i < listaVideos.length; i++) {
+      var id = listaVideos[i];
+      if (vivos[id]) {
+        cambio = true;
+        if (id === videoActualId) habiaActual = true;
+      } else {
+        ni.push(id);
+        nt.push(titulos[i] || cacheTitulos[id] || "");
+      }
+    }
+    if (!cambio) return;
+    listaVideos = ni;
+    titulos = nt;
+    if (canalActual) guardarListaCache(canalActual, listaVideos, titulos);
+    selectorGrid.innerHTML = "";
+    contadorTotal.textContent = listaVideos.length;
+    for (var j = 0; j < listaVideos.length; j++) agregarBoton(j);
+    if (habiaActual && listaVideos.length) {
+      videoActualId = null;
+      irA(Math.min(idxAntes, listaVideos.length - 1), false);
+    } else {
+      sincronizarIndice();
+    }
+    completarTitulosFaltantes();
+  }
+
   /* ---------- Marcas: contador 52/500, EN VIVO y video actual ---------- */
   var marcaVideo = document.getElementById("marca-video"), mvNum = document.getElementById("mv-num"), mvVivo = document.getElementById("mv-vivo");
   var irActual = document.getElementById("ir-actual");
   function pintarMarca() {
-    var n = listaVideos.length, estadoVivo = (videoActualId && vivos[videoActualId]) || 0;
+    var n = listaVideos.length;
+    var estadoVivo = (videoActualId && (vivos[videoActualId] || (pestana === "UULV" ? 1 : 0))) || 0;
     if (listo && videoActualId && jugador && jugador.getVideoData) {
       try {
         var vd = jugador.getVideoData() || {};
-        /* Si el reproductor ya conoce el título del video actual (ej. video #1 en vivo), lo actualiza en la tarjeta de abajo */
-        if (vd.title) {
-          guardarTituloCache(videoActualId, vd.title);
-          var idxAct = listaVideos.indexOf(videoActualId);
-          if (idxAct >= 0 && !titulos[idxAct]) actualizarTituloEnDOM(idxAct, vd.title);
-        }
-        if (vd.isLive) {
-          var st = jugador.getPlayerState ? jugador.getPlayerState() : -1;
-          var dur = jugador.getDuration ? jugador.getDuration() : 0;
-          /* Si es en vivo pero no está reproduciendo (st !== 1), está programado / no disponible por horario */
-          var nuevoEstado = (st === 1) ? 1 : 2;
-          if (vivos[videoActualId] !== nuevoEstado) {
-            vivos[videoActualId] = nuevoEstado;
-            pintarVivos();
+        /* Solo aplicar datos si el reproductor ya tiene cargado exactamente el videoActualId */
+        if (vd.video_id === videoActualId) {
+          if (vd.title) {
+            guardarTituloCache(videoActualId, vd.title);
+            var idxAct = listaVideos.indexOf(videoActualId);
+            if (idxAct >= 0 && !titulos[idxAct]) actualizarTituloEnDOM(idxAct, vd.title);
           }
-          estadoVivo = nuevoEstado;
-          if (estadoVivo === 2 && st !== 1 && st !== 3) {
-            mostrarCargador(false);
-            tapa.hidden = true;
-            avisoVivo.hidden = false;
-          } else if (estadoVivo === 1) {
-            avisoVivo.hidden = true;
+          if (vd.isLive) {
+            var st = jugador.getPlayerState ? jugador.getPlayerState() : -1;
+            var nuevoEstado = (st === 1) ? 1 : 2;
+            if (vivos[videoActualId] !== nuevoEstado) {
+              registrarVivoDeCanal(videoActualId, nuevoEstado);
+              pintarVivos();
+              if (pestana !== "UULV" && canalActual !== "MIS") {
+                depurarVivosEnListaNormal();
+                return;
+              }
+            }
+            estadoVivo = nuevoEstado;
+            if (estadoVivo === 2 && st !== 1 && st !== 3) {
+              mostrarCargador(false);
+              tapa.hidden = true;
+              avisoVivo.hidden = false;
+            } else if (estadoVivo === 1) {
+              avisoVivo.hidden = true;
+            }
           }
         }
       } catch (e) {}
@@ -890,7 +957,7 @@
     mvVivo.hidden = !estadoVivo;
     if (estadoVivo) {
       mvVivo.className = "vivo" + (estadoVivo === 2 ? " prog" : "");
-      mvVivo.textContent = estadoVivo === 2 ? "⏳ EN VIVO · NO DISPONIBLE" : "● EN VIVO";
+      mvVivo.textContent = estadoVivo === 2 ? "⏳ EN VIVO · PROGRAMADO" : "● EN VIVO";
     }
   }
   function marcarActual() {
@@ -909,28 +976,54 @@
     var hijos = selectorGrid.children;
     for (var i = 0; i < hijos.length && i < listaVideos.length; i++) {
       var vid = listaVideos[i];
+      var est = vivos[vid] || (pestana === "UULV" ? 1 : 0);
       var mc = hijos[i].querySelector(".marcas");
-      if (mc && vivos[vid]) {
+      if (mc && est) {
         var existente = mc.querySelector(".vivo");
-        var nuevo = crearEtiquetaVivo(vivos[vid]);
+        var nuevo = crearEtiquetaVivo(est);
         if (existente) existente.replaceWith(nuevo);
         else mc.appendChild(nuevo);
       }
     }
   }
-  /* Pregunta a YouTube (50 videos por consulta) cuáles están en directo ahora mismo o programados con horario */
+  /* Detecta videos en vivo o programados (como David y Jonatán) usando tanto el fotograma mq1.jpg de YouTube como la API de datos */
+  var revisadosImg = {};
   function revisarVivos() {
     var clave = window.FMV_API_KEY, canal = canalActual;
+    /* 1) Verificación instantánea sin API key: los videos en vivo programados (sin fotogramas VOD) devuelven 120x90 en mq1.jpg en vez de 320x180 */
+    listaVideos.slice(0, 30).forEach(function (id) {
+      if (revisadosImg[id]) return;
+      revisadosImg[id] = 1;
+      var im = new Image();
+      im.onload = function () {
+        if (im.naturalWidth > 0 && im.naturalWidth <= 120) {
+          registrarVivoDeCanal(id, 2);
+          if (canal === canalActual) {
+            pintarVivos();
+            depurarVivosEnListaNormal();
+            if (videoActualId === id && vivos[id] === 2) {
+              mostrarCargador(false);
+              tapa.hidden = true;
+              avisoVivo.hidden = false;
+            }
+          }
+        }
+      };
+      im.src = "https://i.ytimg.com/vi/" + id + "/mq1.jpg";
+    });
+
+    /* 2) Consulta por lotes a la API de YouTube */
     var pend = listaVideos.filter(function (id) { return !revisados[id]; });
     pend.forEach(function (id) { revisados[id] = 1; });
     if (!clave || !pend.length) {
       pintarVivos();
+      depurarVivosEnListaNormal();
       return;
     }
     (function paso() {
       if (!pend.length || canal !== canalActual) return;
       var lote = pend.splice(0, 50);
-      fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&fields=items(id,snippet/title,snippet/liveBroadcastContent,liveStreamingDetails(actualStartTime,actualEndTime,scheduledStartTime))&id=" +
+      fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=" +
             lote.join(",") + "&key=" + encodeURIComponent(clave))
         .then(function (r) { return r.json(); })
         .then(function (d) {
@@ -943,12 +1036,13 @@
             var bc = it.snippet && it.snippet.liveBroadcastContent;
             var ls = it.liveStreamingDetails;
             if (bc === "live") {
-              vivos[it.id] = 1;
+              registrarVivoDeCanal(it.id, 1);
             } else if (bc === "upcoming" || (ls && ls.scheduledStartTime && !ls.actualStartTime && !ls.actualEndTime)) {
-              vivos[it.id] = 2; // En vivo programado por horario (no disponible por el momento)
+              registrarVivoDeCanal(it.id, 2);
             }
           });
           pintarVivos();
+          depurarVivosEnListaNormal();
           if (videoActualId && vivos[videoActualId] === 2) {
             mostrarCargador(false);
             tapa.hidden = true;
@@ -972,6 +1066,7 @@
     if (!listo || yaPreparado) return;
     var ult = (!videoInicial && canalActual) ? lsLeer(LS_ULT)[canalActual] : null;
     if (ult && window.FMV_bloqueados && FMV_bloqueados().indexOf(ult.id) >= 0) ult = null;
+    if (ult && pestana !== "UULV" && canalActual !== "MIS" && vivos[ult.id]) ult = null;
     if (ult && listaVideos.length && listaVideos.indexOf(ult.id) < 0) ult = null;
     var id = videoInicial || (ult && ult.id) || listaVideos[0];
     if (!id) return;
@@ -1008,7 +1103,11 @@
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (canal !== canalActual) return; // cambió de canal mientras cargaba
-          if (d.error) throw new Error(d.error.message);
+          if (d.error) {
+            var err = new Error(d.error.message || "error");
+            err.code = d.error.code;
+            throw err;
+          }
           var antes = ids.length;
           (d.items || []).forEach(function (it) {
             var s = it.snippet;
@@ -1017,32 +1116,44 @@
             var vid = s.resourceId.videoId;
             if (bloq.indexOf(vid) >= 0) return;
             guardarTituloCache(vid, s.title);
+            if (pestana !== "UULV" && vivos[vid]) return;
             ids.push(vid);
             nombres.push(s.title);
           });
           listaVideos = ids;
           titulos = nombres;
+          if (antes === 0) sinBloqueados();
           construirSelector(antes);
-          if (antes === 0 && ids.length) prepararPrimero();
+          if (antes === 0 && listaVideos.length) prepararPrimero();
           if (d.nextPageToken && ids.length < 1000) pagina(d.nextPageToken);
-          else guardarListaCache(canal, ids, nombres);
+          else guardarListaCache(canal, listaVideos, titulos);
         })
-        .catch(function () {
+        .catch(function (err) {
           if (canal !== canalActual || ids.length) return;
-          if (pestana === "UUSH" || pestana === "UULV") {
-            mostrarCargador(false);
-            selectorMensaje.style.display = "block";
-            selectorMensaje.textContent = pestana === "UUSH" ? "Este canal no tiene reels." : "Este canal no tiene videos en vivo.";
-            return;
+          /* Si la API devolvió 404 (el canal no tiene esa sub-lista), en UULF pasamos a UU; si fue 403/red usamos Plan B con la lista actual */
+          if (err && err.code === 404) {
+            if (pestana === "UUSH" || pestana === "UULV") {
+              if (pestana === "UULV" && canalUC && vivosPorCanal[canalUC] && vivosPorCanal[canalUC].length) {
+                listaVideos = []; titulos = [];
+                sinBloqueados();
+                construirSelector(0);
+                prepararPrimero();
+                return;
+              }
+              mostrarCargador(false);
+              selectorMensaje.style.display = "block";
+              selectorMensaje.textContent = pestana === "UUSH" ? "Este canal no tiene reels." : "Este canal no tiene videos en vivo.";
+              return;
+            }
+            if (pestana === "UULF") { pestana = "UU"; canalActual = "UU" + canalUC.slice(2); pintarPestanas(); cargarLista(); return; }
           }
-          if (pestana === "UULF") { pestana = "UU"; canalActual = "UU" + canalUC.slice(2); pintarPestanas(); cargarLista(); return; }
-          usarListaDelReproductor(); // plan B: solo miniaturas
+          usarListaDelReproductor(); // plan B: obtiene la lista desde el reproductor
         });
     }
     pagina("");
   }
 
-  /* Plan B si la API de datos falla o se acaba la cuota: solo miniaturas con número */
+  /* Plan B si la API de datos falla o se acaba la cuota: extrae IDs del reproductor y carga títulos con oEmbed */
   function usarListaDelReproductor() {
     var canal = canalActual;
     if (!listo) {
@@ -1062,12 +1173,19 @@
       sinBloqueados();
       construirSelector(0);
       prepararPrimero();
-    } else if (intento < 10) {
-      setTimeout(function () { if (canal === canalActual) leerListaDelReproductor(intento + 1); }, 500);
+    } else if (intento < 8) {
+      setTimeout(function () { if (canal === canalActual) leerListaDelReproductor(intento + 1); }, 450);
+    } else if (pestana === "UULF") {
+      pestana = "UU"; canalActual = "UU" + canalUC.slice(2); pintarPestanas(); usarListaDelReproductor();
+    } else if (pestana === "UULV" && canalUC && vivosPorCanal[canalUC] && vivosPorCanal[canalUC].length) {
+      listaVideos = []; titulos = [];
+      sinBloqueados();
+      construirSelector(0);
+      prepararPrimero();
     } else {
       mostrarCargador(false);
       selectorMensaje.style.display = "block";
-      selectorMensaje.textContent = "No se pudieron recuperar los videos de este canal.";
+      selectorMensaje.textContent = pestana === "UUSH" ? "Este canal no tiene reels." : pestana === "UULV" ? "Este canal no tiene videos en vivo." : "No se pudieron recuperar los videos de este canal.";
     }
   }
 
