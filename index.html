@@ -444,7 +444,7 @@
   var cargadorTimer = null;
   var videoInicial = null;    // video que se debe dejar listo (viene del buscador)
   var videoActualId = null, yaPreparado = false;
-  var LS_LISTAS = "fmv_listas", LS_ULT = "fmv_ultimo";
+  var LS_LISTAS = "fmv_listas_v2", LS_ULT = "fmv_ultimo";
   window.FMV_PERFILES = { hija: { n: "Hija", e: "👧" }, hijo: { n: "Hijo", e: "👦" } };
   window.FMV_perfil = "";
   var quienEl = document.getElementById("quien");
@@ -633,7 +633,7 @@
     return m + ":" + (s < 10 ? "0" : "") + s;
   }
 
-  /* ---------- Caché pequeña de listas (6 horas, máximo 8 canales) ---------- */
+  /* ---------- Caché de listas (6 horas, máximo 8 canales) ---------- */
   function lsLeer(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch (e) { return {}; } }
   function lsGuardar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   function listaEnCache(canal) {
@@ -1024,7 +1024,7 @@
             if (bloq.indexOf(s.resourceId.videoId) >= 0) return;
             ids.push(s.resourceId.videoId); nombres.push(s.title);
           });
-          if (d.nextPageToken && ids.length < 1000) pagina(d.nextPageToken);
+          if (d.nextPageToken) pagina(d.nextPageToken);
           else {
             todosVideos = ids; todosTitulos = nombres;
             guardarListaCache(canal, ids, nombres);
