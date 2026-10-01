@@ -346,7 +346,7 @@
             <div class="cargador-aro"></div>
             <svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#12a37f"/><path d="M19 14v20l17-10z" fill="#fff"/></svg>
           </div>
-          <span>Cargando video…</span>
+          <span id="cargador-txt">Cargando video…</span>
         </div>
         <!-- Tapa translúcida de Play/Pausa: no oscurece en negro sólido ni tapa imágenes de en vivo programado -->
         <button type="button" id="tapa" class="tapa" aria-label="Reproducir" hidden>
@@ -431,6 +431,7 @@
   var tiempo = document.getElementById("tiempo");
   var tapa = document.getElementById("tapa");
   var cargadorVideo = document.getElementById("cargador-video");
+  var cargadorTxt = document.getElementById("cargador-txt");
   var avisoVivo = document.getElementById("aviso-vivo");
   var wrapperVideo = document.querySelector(".video-marco-wrapper");
 
@@ -449,7 +450,7 @@
   var esperandoLista = false; // solo se usa si falla la API de datos
   var videoInicial = null;    // video que se debe dejar listo (viene del buscador)
   var videoActualId = null, yaPreparado = false;
-  var tCargador = null, mudoPorAnuncio = false, ultimoSaltoAnuncio = 0;
+  var tCargador = null, tTextoAnuncio = null, mudoPorAnuncio = false, ultimoSaltoAnuncio = 0;
   var LS_LISTAS = "fmv_listas", LS_ULT = "fmv_ultimo";
 
   function actualizarPortadaTapa() {
@@ -460,15 +461,49 @@
     }
   }
 
-  /* Capa 5: Cargador 100% opaco hasta que el video real esté reproduciéndose (sin destapar a los 2.2s si hay un anuncio en estado -1) */
-  function mostrarCargador(si) {
+  function silenciarPreventivo() {
+    if (!listo || !jugador || !jugador.mute) return;
+    try {
+      if (!jugador.isMuted || !jugador.isMuted()) {
+        jugador.mute();
+        mudoPorAnuncio = true;
+      }
+    } catch (e) {}
+  }
+
+  function restaurarSonidoReal() {
+    if (!mudoPorAnuncio || !listo || !jugador) return;
+    mudoPorAnuncio = false;
+    try {
+      var v = +volumen.value;
+      if (v > 0) {
+        if (jugador.unMute) jugador.unMute();
+        if (jugador.setVolume) jugador.setVolume(v);
+      }
+    } catch (e) {}
+  }
+
+  /* Capa 5: Muestra "Cargando video…" al cargar de verdad, y si demora en estado -1 por publicidad pasa a "Eliminando publicidad…" en silencio */
+  function mostrarCargador(si, texto) {
     clearTimeout(tCargador);
+    clearTimeout(tTextoAnuncio);
     cargadorVideo.hidden = !si;
     if (si) {
+      cargadorTxt.textContent = texto || "Cargando video…";
       tapa.hidden = true;
       avisoVivo.hidden = true;
       actualizarPortadaTapa();
-      /* Respaldo solo si el navegador bloqueó el autoplay (estado 5 / sin arrancar) o si es un en vivo programado */
+      silenciarPreventivo();
+      /* Si tras 1.3s sigue en estado -1 (YouTube reproduciendo los 5s de publicidad antes de soltar el video), muestra "Eliminando publicidad…" y asegura silencio */
+      tTextoAnuncio = setTimeout(function () {
+        if (cargadorVideo.hidden || !listo || !jugador || !jugador.getPlayerState) return;
+        var st = jugador.getPlayerState();
+        if ((st === -1 || st === 3) && vivos[videoActualId] !== 2) {
+          silenciarPreventivo();
+          cargadorTxt.textContent = "Eliminando publicidad…";
+        }
+      }, 1300);
+      /* Respaldo solo si el navegador bloqueó el autoplay (estado 5 / 2) o si es un en vivo programado */
       tCargador = setTimeout(function () {
         if (!listo || !jugador || !jugador.getPlayerState) return;
         var st = jugador.getPlayerState();
@@ -482,10 +517,12 @@
           tapa.hidden = false;
         }
       }, 2500);
+    } else {
+      restaurarSonidoReal();
     }
   }
 
-  /* Capa 4: Escudo Anti-Anuncios en el reproductor (detecta si YouTube metió un ID publicitario distinto a videoActualId, lo silencia y lo salta) */
+  /* Capa 4: Escudo Anti-Anuncios en el reproductor (detecta publicidad, la silencia mostrando "Eliminando publicidad…" y la salta) */
   function vigilarAnuncios() {
     if (!listo || !videoActualId || !jugador || !jugador.getVideoData) return false;
     try {
@@ -493,12 +530,10 @@
       var st = jugador.getPlayerState ? jugador.getPlayerState() : -1;
       /* Si el reproductor está corriendo un ID que NO es nuestro videoActualId, es un anuncio pre-roll o mid-roll */
       if (vd.video_id && vd.video_id !== videoActualId) {
+        cargadorTxt.textContent = "Eliminando publicidad…";
         cargadorVideo.hidden = false;
         tapa.hidden = true;
-        if (jugador.isMuted && !jugador.isMuted()) {
-          jugador.mute();
-          mudoPorAnuncio = true;
-        }
+        silenciarPreventivo();
         var ahora = Date.now();
         if (ahora - ultimoSaltoAnuncio > 1200) {
           ultimoSaltoAnuncio = ahora;
@@ -506,17 +541,17 @@
         }
         return true;
       }
-      /* Si mientras aún no llega al estado 1 (estado -1 o 3) intenta sonar un anuncio, mantener cubierto */
+      /* Si mientras aún no llega al estado 1 (estado -1 o 3) YouTube retiene el arranque por los 5s de anuncio, mantener silenciado y cubierto */
       if (st === -1 || st === 3) {
         if (vivos[videoActualId] !== 2) {
+          silenciarPreventivo();
           cargadorVideo.hidden = false;
           tapa.hidden = true;
         }
       }
       /* Cuando ya está reproduciendo nuestro video real, restaurar sonido si se silenció por anuncio */
-      if (st === 1 && vd.video_id === videoActualId && mudoPorAnuncio) {
-        mudoPorAnuncio = false;
-        if (+volumen.value > 0 && jugador.unMute) jugador.unMute();
+      if (st === 1 && (!vd.video_id || vd.video_id === videoActualId)) {
+        restaurarSonidoReal();
       }
     } catch (e) {}
     return false;
@@ -1349,7 +1384,7 @@
     tiempo.textContent = formato(arrastrando ? rango.value / 1000 * dur : t) + " / " + formato(dur);
     pintarSonido();
     if (videoActualId && jugador.getPlayerState() === 1 && (++ticksGuardar % 10 === 0)) guardarUltimo(t);
-    if (!moviendoVol) volumen.value = jugador.isMuted() ? 0 : jugador.getVolume();
+    if (!moviendoVol && !mudoPorAnuncio) volumen.value = jugador.isMuted() ? 0 : jugador.getVolume();
   }
 
   function regresarAprincipal() {
