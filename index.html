@@ -1,38 +1,1764 @@
-/* FreshMindVideo - service worker
-   Red primero: siempre intenta traer la versión nueva; solo usa lo guardado si no hay internet.
-   Solo toca archivos de este mismo sitio (nunca YouTube, la API ni GitHub). */
-var VERSION = "fmv-v3";
-var BASICOS = ["./", "index.html", "canales-auto.js", "buscador.js", "manifest.json", "icon-192.png", "icon-512.png"];
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.googleapis.com https://api.github.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'none'; media-src 'none'; worker-src 'self'; manifest-src 'self';">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script>
+/* Escudo: bloquea ventanas emergentes y cualquier iframe/script inyectado que no sea de YouTube o de tu sitio */
+(function () {
+  try {
+    var _f = window.fetch ? window.fetch.bind(window) : null;
+    if (_f) Object.defineProperty(window, "fetch", { configurable: true, enumerable: true, get: function () { return _f; }, set: function (v) { if (typeof v === "function") _f = v; } });
+  } catch (e) {}
+  var OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|i\.ytimg\.com|yt3\.ggpht\.com)\//;
+  var SRC_OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|s\.ytimg\.com)\//;
+  var abrir = window.open;
+  var filtro = function (u) { return OK.test(String(u || "")) ? abrir.apply(window, arguments) : null; };
+  /* Capa extra 1: window.open queda congelado (setter vacío para no lanzar TypeError en strict mode), ningún script puede restaurarlo */
+  try { Object.defineProperty(window, "open", { get: function () { return filtro; }, set: function () {}, configurable: false }); }
+  catch (e) { try { window.open = filtro; } catch (x) {} }
+  /* Capa extra 2: ningún script (ni anuncio) puede sacar esta página hacia otro sitio */
+  try {
+    if (window.navigation) navigation.addEventListener("navigate", function (e) {
+      try { if (e.cancelable && new URL(e.destination.url).origin !== location.origin) e.preventDefault(); } catch (x) {}
+    });
+  } catch (e) {}
+  /* Capa extra 3: cualquier enlace externo que aparezca en la página se anula */
+  document.addEventListener("click", function (e) {
+    var a = e.target && e.target.closest && e.target.closest("a[href]");
+    if (a && a.origin && a.origin !== location.origin) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
 
-self.addEventListener("install", function (e) {
-  e.waitUntil(
-    caches.open(VERSION)
-      .then(function (c) { return c.addAll(BASICOS); })
-      .catch(function () {})
-      .then(function () { return self.skipWaiting(); })
-  );
-});
+  new MutationObserver(function (ms) {
+    ms.forEach(function (m) {
+      m.addedNodes.forEach(function (n) {
+        if (n.nodeType !== 1 || !/^(IFRAME|SCRIPT|EMBED|OBJECT)$/.test(n.tagName) || !n.src) return;
+        if (n.src.indexOf(location.origin) !== 0 && !SRC_OK.test(n.src)) n.remove();
+      });
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="FreshMind">
+<title>FreshMindVideo</title>
+<meta name="description" content="Videos seguros para niños, solo de los canales que eliges." />
+<meta property="og:title" content="FreshMindVideo" />
+<meta property="og:description" content="Videos seguros para niños, solo de los canales que eliges." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fondo: #8ecbf7;
+    --tarjeta: #ffffff;
+    --texto: #1d2b3a;
+    --acento: #12a37f;
+    --proporcion: 16 / 9;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: #8ecbf7 linear-gradient(180deg, #d9f0ff 0%, #9fd6fb 45%, #6fb9f0 100%) fixed; color: var(--texto); font-family: "Nunito", "Segoe UI", Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+  header { position: sticky; top: 0; z-index: 10; background: #fff; padding: 10px 18px; box-shadow: 0 2px 10px rgba(20, 60, 100, .16); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  header h1 { margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--acento); letter-spacing: -.02em; }
+  header h1 span { color: var(--texto); }
+  .logo { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .logo svg { width: 34px; height: 34px; display: block; }
+  .badge-padre { display: none; align-items: center; gap: 4px; background: #efe4fb; color: #6b2fa8; font-weight: 800; font-size: .78rem; padding: 5px 11px; border-radius: 999px; }
+  body.padre .badge-padre { display: inline-flex; }
+  main { max-width: 1000px; margin: 0 auto; padding: 18px 16px 120px; }
+  body.viendo main { padding-bottom: 40px; }
+  .cuadricula { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .tarjeta {
+    display: block; background: var(--tarjeta); border-radius: 20px; overflow: hidden;
+    color: inherit; text-decoration: none; box-shadow: 0 3px 10px rgba(20, 60, 100, .2);
+    transition: transform .15s ease, box-shadow .15s ease; cursor: pointer;
+  }
+  .tarjeta:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(20, 60, 100, .26); }
+  .tarjeta:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+  .media { aspect-ratio: var(--proporcion); background: #dfe6ea; position: relative; }
+  .media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .inicial { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 3.2rem; font-weight: 800; color: rgba(29, 43, 58, .75); }
+  .nombre { margin: 0; padding: 12px 16px 16px; font-size: 1.05rem; font-weight: 800; line-height: 1.3; }
+  .mensaje { text-align: center; padding: 40px 16px; font-weight: 600; }
 
-self.addEventListener("activate", function (e) {
-  e.waitUntil(
-    caches.keys()
-      .then(function (ks) { return Promise.all(ks.filter(function (k) { return k !== VERSION; }).map(function (k) { return caches.delete(k); })); })
-      .then(function () { return self.clients.claim(); })
-  );
-});
+  /* Vista de Canal / Reproductor Orgánico */
+  #vista-canal { display: none; }
+  #vista-canal.activo { display: block; }
+  #vista-principal.oculto { display: none; }
 
-self.addEventListener("fetch", function (e) {
-  var r = e.request;
-  if (r.method !== "GET" || new URL(r.url).origin !== self.location.origin) return;   // lo demás pasa directo
-  e.respondWith(
-    fetch(r).then(function (resp) {
-      if (resp && resp.ok) {
-        var copia = resp.clone();
-        caches.open(VERSION).then(function (c) { c.put(r, copia); }).catch(function () {});
+  .barra-navegacion { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+  .volver {
+    padding: 10px 18px; border: 0; background: #fff; color: var(--texto); border-radius: 999px; box-shadow: 0 2px 8px rgba(20, 60, 100, .2);
+    cursor: pointer; font-weight: 800; font-family: inherit; display: flex; align-items: center; gap: 6px;
+  }
+  .volver:hover { opacity: 0.9; }
+  .titulo-canal-activo { font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--texto); }
+
+  .contenedor-reproductor-principal { background: #0f1720; border-radius: 22px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-bottom: 24px; color: #fff; }
+  .video-marco-wrapper { position: relative; aspect-ratio: 16 / 9; width: 100%; background: #000; }
+  .video-marco-wrapper iframe { width: 100%; height: 100%; border: 0; display: block; pointer-events: none; }
+  
+  /* Tapa 100% opaca con la miniatura limpia del video: bloquea anuncios/banners al pausar sin dejar pantalla negra */
+  .tapa {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0; margin: 0; padding: 0;
+    background: #0f1720 center / cover no-repeat; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5;
+  }
+  .tapa::before {
+    content: ""; position: absolute; inset: 0; background: rgba(15, 23, 32, .35);
+  }
+  .tapa[hidden] { display: none; }
+  .tapa .play-circulo {
+    position: relative; z-index: 1;
+    width: 82px; height: 82px; border-radius: 50%; background: rgba(18, 163, 127, .94);
+    box-shadow: 0 6px 22px rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center;
+    transition: transform .15s ease, background .15s ease;
+  }
+  .tapa:hover .play-circulo { transform: scale(1.07); background: #12a37f; }
+  .tapa svg { width: 42px; height: 42px; fill: #fff; margin-left: 4px; }
+
+  /* Logo cargador al inicio cuando el reproductor/video está en negro cargando */
+  .cargador-video {
+    position: absolute; inset: 0; z-index: 6; background: #0f1720;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    color: #fff; font-weight: 800; font-size: .95rem; pointer-events: none;
+  }
+  .cargador-video[hidden] { display: none; }
+  .cargador-logo { position: relative; width: 78px; height: 78px; display: flex; align-items: center; justify-content: center; }
+  .cargador-logo svg { width: 52px; height: 52px; border-radius: 14px; box-shadow: 0 4px 16px rgba(18,163,127,.45); animation: fmv-pulso 1.2s ease-in-out infinite; }
+  .cargador-aro {
+    position: absolute; inset: 0; border-radius: 50%;
+    border: 4px solid rgba(255,255,255,.15); border-top-color: #12a37f;
+    animation: fmv-giro .9s linear infinite;
+  }
+  @keyframes fmv-giro { to { transform: rotate(360deg); } }
+  @keyframes fmv-pulso { 0%, 100% { transform: scale(1); } 50% { transform: scale(.92); } }
+
+  /* Aviso sobre el video cuando un En Vivo está programado / no disponible por horario */
+  .aviso-vivo {
+    position: absolute; left: 14px; right: 14px; bottom: 14px; z-index: 6;
+    background: rgba(15, 23, 32, .88); border: 2px solid #f59e0b; border-radius: 16px;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    color: #fff; font-weight: 800; font-size: .92rem;
+  }
+  .aviso-vivo[hidden] { display: none; }
+  .aviso-vivo button {
+    border: 0; border-radius: 999px; background: var(--acento); color: #fff; font: inherit;
+    font-weight: 800; font-size: .85rem; padding: 8px 14px; cursor: pointer; white-space: nowrap;
+  }
+
+  .controles { display: flex; align-items: center; gap: 4px; padding: 8px 14px; background: #1d2b3a; }
+  .controles button {
+    min-width: 40px; min-height: 40px; border: 0; background: none; color: #fff; border-radius: 8px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+  }
+  .controles button:hover { background: rgba(255, 255, 255, .12); }
+  .controles svg { width: 22px; height: 22px; fill: currentColor; }
+  .controles input[type=range] { flex: 1; min-width: 60px; accent-color: var(--acento); }
+  .tiempo { min-width: 92px; text-align: center; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+
+  /* Selector inferior de todos los videos del canal */
+  .seccion-videos-canal h3 { margin: 0 0 12px 0; font-size: 1.1rem; }
+  html, body { touch-action: pan-x pan-y; overscroll-behavior: none; }   /* sin zoom con los dedos ni doble toque */
+  .perfil-chip { display: inline-flex; align-items: center; gap: 4px; background: #e6f7f2; color: #0a6b53; font-weight: 800; font-size: .85rem; padding: 5px 11px; border-radius: 999px; }
+  .perfil-chip[hidden] { display: none; }
+  #conmutador { display: flex; gap: 8px; margin: 0 0 18px; }
+  #conmutador button { flex: 1; border: 0; border-radius: 999px; padding: 12px 10px; font: inherit; font-weight: 800; font-size: 1rem; cursor: pointer; background: #fff; color: var(--texto); box-shadow: 0 2px 8px rgba(20,60,100,.18); }
+  #conmutador button.on { background: var(--acento); color: #fff; }
+  #cuadricula-mis { display: none; }
+  body.ver-mis #cuadricula, body.ver-mis #mensaje { display: none; }
+  body.ver-mis #cuadricula-mis { display: grid; }
+  body.modo-buscar #conmutador { display: none; }
+  .fila-titulo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; }
+  .fila-titulo h3 { margin: 0; }
+  #pestanas { display: flex; gap: 8px; flex-wrap: wrap; }
+  #pestanas[hidden] { display: none; }
+  #pestanas button { border: 0; border-radius: 999px; padding: 8px 14px; font: inherit; font-weight: 800; font-size: .9rem; cursor: pointer; background: #fff; color: var(--texto); box-shadow: 0 2px 6px rgba(20,60,100,.2); }
+  #pestanas button.on { background: var(--acento); color: #fff; }
+  #quien { position: fixed; inset: 0; z-index: 200; background: linear-gradient(#dff1ff, #fff); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
+  #quien[hidden] { display: none; }
+  #quien h2 { margin: 0; font-size: 1.8rem; color: var(--texto); }
+  #quien div { display: flex; gap: 22px; }
+  #quien button { border: 0; border-radius: 28px; padding: 26px 34px; font: inherit; font-size: 1.3rem; font-weight: 800; cursor: pointer; background: #fff; color: var(--texto); box-shadow: 0 4px 14px rgba(20,60,100,.25); }
+  #quien button span { display: block; font-size: 4rem; }
+  .selector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 16px; }
+  .selector-grid button {
+    position: relative; border: 0; padding: 0; background: var(--tarjeta); color: var(--texto);
+    border-radius: 20px; overflow: hidden; cursor: pointer; display: flex; flex-direction: column;
+    text-align: left; font-family: inherit; box-shadow: 0 3px 10px rgba(20, 60, 100, .2);
+  }
+  .selector-grid button img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; background: #000; }
+  .selector-grid .num {
+    position: absolute; top: 4px; left: 4px; background: rgba(0, 0, 0, .75); color: #fff;
+    font-size: .7rem; font-weight: 700; padding: 1px 6px; border-radius: 4px;
+  }
+  .selector-grid .titulo {
+    margin: 12px 16px 16px; padding: 0; font-size: .95rem; font-weight: 800; line-height: 1.3;
+    min-height: 2.6em; max-height: 2.6em;
+    display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .selector-grid button:hover { outline: 3px solid #fff; }
+
+  @media (max-width: 760px) { .cuadricula { grid-template-columns: repeat(2, 1fr); gap: 14px; } }
+  .controles button.activo { background: var(--acento); }
+  .en-pantalla { position: fixed; inset: 0; z-index: 200; margin: 0; border-radius: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: #000; }
+  .en-pantalla .video-marco-wrapper { flex: 1; aspect-ratio: auto; min-height: 0; }
+  .en-pantalla .controles { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; background: linear-gradient(transparent, rgba(0,0,0,.8)); padding-top: 28px; transition: opacity .25s; }
+  .en-pantalla.inactivo .controles { opacity: 0; pointer-events: none; }
+  .en-pantalla.inactivo { cursor: none; }
+  @media (max-width: 600px) {
+    .controles { flex-wrap: wrap; }
+    #rango { order: -1; flex: 1 1 calc(100% - 100px); }
+    .tiempo { order: -1; }
+  }
+  @media (max-width: 360px) { .cuadricula { grid-template-columns: 1fr; } }
+  .vol { position: relative; display: flex; }
+  .vol-panel { display: none; position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%); background: #1d2b3a; padding: 12px 16px; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,.4); z-index: 9; }
+  .vol-panel.abierto { display: block; }
+  .vol-panel input { width: 130px; display: block; margin: 0; }
+  /* Botón 🔓 solo en modo padres: quita la barrera transparente para poder tocar avisos de YouTube */
+  #b-libre { display: none !important; }
+  body.padre #b-libre { display: flex !important; }
+  .video-marco-wrapper.libre iframe { pointer-events: auto; }
+  .video-marco-wrapper.libre .tapa { display: none !important; }
+  .selector-grid .item { position: relative; display: flex; }
+  .selector-grid .item > button { width: 100%; }
+  .quitar-video { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,.78); color: #fff; font-size: 18px; font-weight: 800; display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 2; }
+  body.padre .quitar-video { display: flex; }
+  /* Pantalla completa: barra al doble de tamaño */
+  .en-pantalla .controles { flex-wrap: wrap; justify-content: center; gap: 6px; padding: 26px 12px 12px; }
+  .en-pantalla .controles button { min-width: 46px; min-height: 46px; }
+  .en-pantalla .controles svg { width: 26px; height: 26px; }
+  .en-pantalla .tiempo { order: 0; font-size: .9rem; min-width: 96px; }
+  .en-pantalla #rango { order: -1; flex: 1 1 100%; height: 28px; }
+  .en-pantalla .vol-panel { padding: 14px 18px; }
+  .en-pantalla .vol-panel input { width: 170px; height: 28px; }
+  /* Celular en vertical: todo en una sola fila */
+  @media (max-width: 480px) {
+    .en-pantalla .controles { gap: 2px; padding: 22px 8px 10px; }
+    .en-pantalla .controles button { min-width: 40px; min-height: 44px; }
+    .en-pantalla .controles svg { width: 24px; height: 24px; }
+    .en-pantalla .tiempo { font-size: .82rem; min-width: 80px; }
+  }
+  /* Barra grande solo en pantallas grandes (computadora / tablet horizontal) */
+  @media (min-width: 901px) and (min-height: 501px) {
+    .en-pantalla .controles { gap: 10px; padding: 40px 28px 22px; }
+    .en-pantalla .controles button { min-width: 80px; min-height: 80px; }
+    .en-pantalla .controles svg { width: 44px; height: 44px; }
+    .en-pantalla .tiempo { font-size: 1.7rem; min-width: 190px; }
+    .en-pantalla #rango { height: 40px; }
+    .en-pantalla .vol-panel { padding: 22px 28px; }
+    .en-pantalla .vol-panel input { width: 260px; height: 40px; }
+  }
+  .seccion-videos-canal h3 { font-size: 1.15rem; }
+  #selector-mensaje { font-weight: 700; }
+
+  /* Contador y EN VIVO sobre el video */
+  .marca-video { position: absolute; top: 10px; right: 10px; z-index: 6; display: flex; gap: 6px; pointer-events: none; font-weight: 800; font-size: .85rem; }
+  .marca-video[hidden] { display: none; }
+  .marca-video span { background: rgba(0,0,0,.65); color: #fff; padding: 3px 10px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+  .marca-video span[hidden] { display: none; }
+  .marca-video .vivo, .selector-grid .vivo { background: #e62117; color: #fff; }
+  .marca-video .vivo.prog, .selector-grid .vivo.prog { background: #d97706; color: #fff; }
+  .selector-grid .marcas { position: absolute; top: 4px; left: 4px; display: flex; gap: 4px; z-index: 1; flex-wrap: wrap; max-width: calc(100% - 40px); }
+  .selector-grid .marcas .num { position: static; }
+  .selector-grid .vivo { font-size: .7rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; }
+  /* Video que se esta reproduciendo, marcado dentro de la lista (sin cambiar el orden) */
+  .selector-grid .item.actual > button { outline: 4px solid var(--acento); }
+  .selector-grid .item.actual .titulo::before { content: "▶ Reproduciendo · "; color: var(--acento); }
+  #ir-actual { display: none; position: fixed; right: 14px; bottom: 18px; z-index: 60; border: 0; border-radius: 999px; background: var(--acento); color: #fff; font: inherit; font-weight: 800; padding: 11px 16px; box-shadow: 0 4px 14px rgba(0,0,0,.3); cursor: pointer; }
+  body.viendo #ir-actual.hay { display: block; }
+
+  /* ---------- Barra inferior (estilo YouTube Kids) ---------- */
+  #barra-inferior { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; justify-content: center; gap: 6px; background: #fff; border-radius: 24px 24px 0 0; box-shadow: 0 -3px 14px rgba(20, 60, 100, .22); padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); }
+  body.viendo #barra-inferior { display: none; }
+  #barra-inferior button { flex: 1; max-width: 130px; border: 0; background: none; font: inherit; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 0; color: #5b6b7a; font-size: .74rem; font-weight: 700; cursor: pointer; }
+  #barra-inferior button.activo { color: #0f1720; font-weight: 800; }
+  #barra-inferior .ico { position: relative; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
+  #barra-inferior svg { width: 28px; height: 28px; fill: currentColor; display: block; }
+  #barra-inferior .on { display: none; }
+  #barra-inferior button.activo .on { display: block; }
+  #barra-inferior button.activo .of { display: none; }
+  .avatar-padres { width: 28px; height: 28px; border-radius: 50%; background: #9b59d0; display: flex; align-items: center; justify-content: center; }
+  #barra-inferior .avatar-padres svg { width: 15px; height: 15px; fill: #fff; }
+  body.padre .avatar-padres { background: var(--acento); }
+  .cuenta { position: absolute; top: -5px; right: -11px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--acento); color: #fff; font-size: .66rem; font-weight: 800; display: none; align-items: center; justify-content: center; }
+  .cuenta.hay { display: flex; }
+
+  /* Modo "Buscar": se ve la caja y los resultados; el listado de canales se esconde */
+  body:not(.modo-buscar) #buscador, body:not(.modo-buscar) #fmv-zona { display: none !important; }
+  body.modo-buscar #cuadricula, body.modo-buscar #mensaje { display: none !important; }
+
+  /* Botón Padres arriba (cabecera), en PC y celular */
+  header .der { display: flex; align-items: center; gap: 10px; }
+  #nav-padres { border: 0; background: none; font: inherit; display: flex; align-items: center; gap: 8px; padding: 2px 4px; color: #5b6b7a; font-weight: 800; font-size: .85rem; cursor: pointer; }
+  body.padre #nav-padres { color: #0f1720; }
+  #nav-padres .avatar-padres { width: 40px; height: 40px; }
+  #nav-padres .avatar-padres svg { width: 22px; height: 22px; fill: #fff; display: block; }
+  @media (max-width: 520px) { #nav-padres .et { display: none; } .badge-padre { display: none !important; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" id="logo-inicio" role="button" tabindex="0" aria-label="Ir al inicio">
+    <svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#12a37f"/><path d="M19 14v20l17-10z" fill="#fff"/></svg>
+    <h1>Fresh<span>MindVideo</span></h1>
+  </div>
+  <div class="der">
+    <span class="perfil-chip" id="perfil-chip" hidden></span>
+    <span class="badge-padre">🔒 Modo padres</span>
+    <button type="button" id="nav-padres" aria-label="Padres">
+      <span class="avatar-padres"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></span>
+      <span class="et">Padres</span>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- VISTA PRINCIPAL: Cuadrícula de Canales -->
+  <div id="vista-principal">
+    <div id="conmutador"><button type="button" class="on" data-v="canales">📺 Canales</button><button type="button" data-v="mis">⭐ Mis videos</button></div>
+    <div id="cuadricula" class="cuadricula"></div>
+    <div id="cuadricula-mis" class="cuadricula"></div>
+    <p id="mensaje" class="mensaje">Cargando canales…</p>
+  </div>
+
+  <!-- VISTA DE CANAL: Reproductor orgánico y lista completa de videos -->
+  <div id="vista-canal">
+    <div class="barra-navegacion">
+      <button class="volver" id="btn-volver" type="button">← Volver a canales</button>
+      <h2 class="titulo-canal-activo" id="titulo-canal-activo"></h2>
+    </div>
+
+    <div class="contenedor-reproductor-principal" id="contenedor-reproductor">
+      <div class="video-marco-wrapper">
+        <div id="marco"></div>
+        <!-- Logo cargador mientras el reproductor/video está en negro al inicio -->
+        <div id="cargador-video" class="cargador-video">
+          <div class="cargador-logo">
+            <div class="cargador-aro"></div>
+            <svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#12a37f"/><path d="M19 14v20l17-10z" fill="#fff"/></svg>
+          </div>
+          <span>Cargando video…</span>
+        </div>
+        <!-- Tapa translúcida de Play/Pausa: no oscurece en negro sólido ni tapa imágenes de en vivo programado -->
+        <button type="button" id="tapa" class="tapa" aria-label="Reproducir" hidden>
+          <span class="play-circulo"><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg></span>
+        </button>
+        <!-- Aviso cuando un video En Vivo está programado por horario y no transmite en este momento -->
+        <div id="aviso-vivo" class="aviso-vivo" hidden>
+          <span id="aviso-vivo-txt">⏳ Este video en vivo tiene horario programado y no está disponible por el momento.</span>
+          <button type="button" id="aviso-vivo-sig">Siguiente video →</button>
+        </div>
+        <div class="marca-video" id="marca-video" hidden><span id="mv-num"></span><span class="vivo" id="mv-vivo" hidden>● EN VIVO</span></div>
+      </div>
+      <div class="controles" id="controles">
+        <button type="button" id="b-anterior" aria-label="Video anterior"></button>
+        <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
+        <button type="button" id="b-siguiente" aria-label="Video siguiente"></button>
+        <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
+        <span class="tiempo" id="tiempo">0:00 / 0:00</span>
+        <div class="vol"><div class="vol-panel" id="vol-panel"><input type="range" id="volumen" min="0" max="100" value="100" aria-label="Volumen"></div><button type="button" id="b-sonido" aria-label="Volumen"></button></div>
+        <button type="button" id="b-subs" aria-label="Subtítulos" aria-pressed="false"></button>
+        <button type="button" id="b-libre" aria-label="Padres: quitar la barrera del video un momento" title="Padres: tocar el aviso de YouTube"></button>
+        <button type="button" id="b-pantalla" aria-label="Pantalla completa"></button>
+      </div>
+    </div>
+
+    <div class="seccion-videos-canal">
+      <div class="fila-titulo">
+        <h3>Todos los videos del canal (<span id="contador-total">0</span>)</h3>
+        <div id="pestanas" hidden><button type="button" data-p="UULF">🎬 Videos</button><button type="button" data-p="UULV">🔴 En vivo</button><button type="button" data-p="UUSH">📱 Reels</button></div>
+      </div>
+      <p id="selector-mensaje">Cargando lista completa de videos…</p>
+      <div class="selector-grid" id="selector-grid"></div>
+    </div>
+  </div>
+</main>
+<div id="quien"><h2>¿Quién va a ver?</h2><div><button type="button" data-p="hija"><span>👧</span>Hija</button><button type="button" data-p="hijo"><span>👦</span>Hijo</button></div></div>
+
+<button type="button" id="ir-actual">◎ Ir al video actual</button>
+
+<nav id="barra-inferior" aria-label="Navegación principal">
+  <button type="button" id="nav-inicio" class="activo">
+    <span class="ico"><svg class="of" viewBox="0 0 24 24"><path d="M12 5.69l5 4.5V18h-2v-6H9v6H7v-7.81l5-4.5M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/></svg><svg class="on" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></span>
+    <span class="et">Inicio</span>
+  </button>
+  <button type="button" id="nav-buscar">
+    <span class="ico"><svg class="of" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><svg class="on" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg></span>
+    <span class="et">Buscar</span>
+  </button>
+  <button type="button" id="nav-mis">
+    <span class="ico"><svg class="of" viewBox="0 0 24 24"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg><svg class="on" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg><span class="cuenta" id="cuenta-mis"></span></span>
+    <span class="et">Mis videos</span>
+  </button>
+</nav>
+
+<script>
+  var COLORES = ["#ffd166", "#7bdff2", "#b2f7b8", "#ffb3c1", "#cdb4ff", "#ffc98b"];
+  var ICONOS = {
+    anterior: '<svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
+    siguiente: '<svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
+    play: '<svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg>',
+    pausa: '<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+    sonido: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9zM16.5 12a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>',
+    mudo: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15 9l6 6M21 9l-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
+    pantalla: '<svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zM20 4v6h-2V6h-4V4zM4 20v-6h2v4h4v2zM20 20h-6v-2h4v-4h2z"/></svg>',
+    salir: '<svg viewBox="0 0 24 24"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>',
+    libre: '<svg viewBox="0 0 24 24"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"/></svg>',
+    subs: '<svg viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1zm7 0h-1.5v-.5h-2v3h2V13H18v1c0 .55-.45 1-1 1h-3c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1z"/></svg>'
+  };
+
+  var vistaPrincipal = document.getElementById("vista-principal");
+  var vistaCanal = document.getElementById("vista-canal");
+  var tituloCanalActivo = document.getElementById("titulo-canal-activo");
+  var selectorGrid = document.getElementById("selector-grid");
+  var selectorMensaje = document.getElementById("selector-mensaje");
+  var contadorTotal = document.getElementById("contador-total");
+
+  var bPlay = document.getElementById("b-play");
+  var bSonido = document.getElementById("b-sonido");
+  var bAnterior = document.getElementById("b-anterior");
+  var bSiguiente = document.getElementById("b-siguiente");
+  var rango = document.getElementById("rango");
+  var tiempo = document.getElementById("tiempo");
+  var tapa = document.getElementById("tapa");
+  var cargadorVideo = document.getElementById("cargador-video");
+  var avisoVivo = document.getElementById("aviso-vivo");
+  var wrapperVideo = document.querySelector(".video-marco-wrapper");
+
+  bAnterior.innerHTML = ICONOS.anterior;
+  bSiguiente.innerHTML = ICONOS.siguiente;
+  document.getElementById("b-pantalla").innerHTML = ICONOS.pantalla;
+  bPlay.innerHTML = ICONOS.play;
+  bSonido.innerHTML = ICONOS.sonido;
+  document.getElementById("b-subs").innerHTML = ICONOS.subs;
+
+  var jugador = null, listo = false, canalActual = null;
+  var listaVideos = [];   // IDs de los videos del canal
+  var titulos = [];       // nombres, en el mismo orden que listaVideos
+  var indiceActual = 0;
+  var temporizador = null, arrastrando = false, errores = 0, apiPendiente = null;
+  var esperandoLista = false; // solo se usa si falla la API de datos
+  var videoInicial = null;    // video que se debe dejar listo (viene del buscador)
+  var videoActualId = null, yaPreparado = false;
+  var tCargador = null, mudoPorAnuncio = false, ultimoSaltoAnuncio = 0;
+  var LS_LISTAS = "fmv_listas", LS_ULT = "fmv_ultimo";
+
+  function actualizarPortadaTapa() {
+    if (videoActualId) {
+      tapa.style.backgroundImage = 'url("https://i.ytimg.com/vi/' + encodeURIComponent(videoActualId) + '/hqdefault.jpg")';
+    } else {
+      tapa.style.backgroundImage = "none";
+    }
+  }
+
+  /* Capa 5: Cargador 100% opaco hasta que el video real esté reproduciéndose (sin destapar a los 2.2s si hay un anuncio en estado -1) */
+  function mostrarCargador(si) {
+    clearTimeout(tCargador);
+    cargadorVideo.hidden = !si;
+    if (si) {
+      tapa.hidden = true;
+      avisoVivo.hidden = true;
+      actualizarPortadaTapa();
+      /* Respaldo solo si el navegador bloqueó el autoplay (estado 5 / sin arrancar) o si es un en vivo programado */
+      tCargador = setTimeout(function () {
+        if (!listo || !jugador || !jugador.getPlayerState) return;
+        var st = jugador.getPlayerState();
+        if (vivos[videoActualId] === 2 && st !== 1) {
+          cargadorVideo.hidden = true;
+          tapa.hidden = true;
+          avisoVivo.hidden = false;
+        } else if (st === 5 || st === 2) {
+          cargadorVideo.hidden = true;
+          actualizarPortadaTapa();
+          tapa.hidden = false;
+        }
+      }, 2500);
+    }
+  }
+
+  /* Capa 4: Escudo Anti-Anuncios en el reproductor (detecta si YouTube metió un ID publicitario distinto a videoActualId, lo silencia y lo salta) */
+  function vigilarAnuncios() {
+    if (!listo || !videoActualId || !jugador || !jugador.getVideoData) return false;
+    try {
+      var vd = jugador.getVideoData() || {};
+      var st = jugador.getPlayerState ? jugador.getPlayerState() : -1;
+      /* Si el reproductor está corriendo un ID que NO es nuestro videoActualId, es un anuncio pre-roll o mid-roll */
+      if (vd.video_id && vd.video_id !== videoActualId) {
+        cargadorVideo.hidden = false;
+        tapa.hidden = true;
+        if (jugador.isMuted && !jugador.isMuted()) {
+          jugador.mute();
+          mudoPorAnuncio = true;
+        }
+        var ahora = Date.now();
+        if (ahora - ultimoSaltoAnuncio > 1200) {
+          ultimoSaltoAnuncio = ahora;
+          jugador.loadVideoById(videoActualId);
+        }
+        return true;
       }
-      return resp;
-    }).catch(function () {
-      return caches.match(r).then(function (g) { return g || caches.match("index.html"); });
+      /* Si mientras aún no llega al estado 1 (estado -1 o 3) intenta sonar un anuncio, mantener cubierto */
+      if (st === -1 || st === 3) {
+        if (vivos[videoActualId] !== 2) {
+          cargadorVideo.hidden = false;
+          tapa.hidden = true;
+        }
+      }
+      /* Cuando ya está reproduciendo nuestro video real, restaurar sonido si se silenció por anuncio */
+      if (st === 1 && vd.video_id === videoActualId && mudoPorAnuncio) {
+        mudoPorAnuncio = false;
+        if (+volumen.value > 0 && jugador.unMute) jugador.unMute();
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  /* ---------- Detector de 6 reproducciones seguidas del mismo video dentro de 2 minutos ---------- */
+  var repSeguida = { id: null, tiempos: [], ultimoReg: 0 };
+  function registrarReproduccionSeguida(id) {
+    if (!id) return false;
+    var ahora = Date.now();
+    if (repSeguida.id === id && ahora - repSeguida.ultimoReg < 1200) return false; // evita contar doble el mismo evento de arranque
+    if (repSeguida.id !== id) {
+      repSeguida.id = id;
+      repSeguida.tiempos = [ahora];
+      repSeguida.ultimoReg = ahora;
+      return false;
+    }
+    /* Mismo video de forma consecutiva: filtramos últimos 2 minutos (120,000 ms) */
+    repSeguida.tiempos = repSeguida.tiempos.filter(function (t) { return ahora - t <= 120000; });
+    repSeguida.tiempos.push(ahora);
+    repSeguida.ultimoReg = ahora;
+    if (repSeguida.tiempos.length >= 6) {
+      repSeguida = { id: null, tiempos: [], ultimoReg: 0 };
+      ocultarPorRepeticion(id);
+      return true;
+    }
+    return false;
+  }
+
+  function ocultarPorRepeticion(id) {
+    var idx = listaVideos.indexOf(id);
+    var tit = (idx >= 0 && titulos[idx]) ? titulos[idx] : ("Video " + id);
+    var nomCanal = canalActual === "MIS" ? "⭐ Mis videos" : (tituloCanalActivo.textContent || "");
+    if (window.FMV_ocultarVideo) {
+      window.FMV_ocultarVideo(id, tit, nomCanal, "auto");
+    } else if (window.FMV_bloquear) {
+      window.FMV_bloquear(id, tit, nomCanal, "auto");
+    }
+    if (idx >= 0) {
+      listaVideos.splice(idx, 1);
+      titulos.splice(idx, 1);
+    }
+    contadorTotal.textContent = listaVideos.length;
+    construirSelector(0);
+    if (listaVideos.length) {
+      irA(Math.min(idx >= 0 ? idx : 0, listaVideos.length - 1), false);
+    } else if (listo && jugador) {
+      jugador.stopVideo();
+      mostrarCargador(false);
+      tapa.hidden = false;
+    }
+  }
+
+  window.FMV_PERFILES = { hija: { n: "Hija", e: "👧" }, hijo: { n: "Hijo", e: "👦" } };
+  window.FMV_perfil = "";
+  var quienEl = document.getElementById("quien");
+  function sesion() { try { return JSON.parse(sessionStorage.getItem("fmv_sesion")) || {}; } catch (e) { return {}; } }
+  function guardarSesion(o) { try { var x = sesion(); for (var k in o) x[k] = o[k]; sessionStorage.setItem("fmv_sesion", JSON.stringify(x)); } catch (e) {} }
+  function aplicarPerfil(p) {
+    window.FMV_perfil = p;
+    LS_ULT = "fmv_ultimo_" + p;   // cada perfil recuerda su propio video y minuto
+    quienEl.hidden = true;
+    var pf = window.FMV_PERFILES[p], chip = document.getElementById("perfil-chip");
+    chip.textContent = pf.e + " " + pf.n; chip.hidden = false;
+    guardarSesion({ perfil: p });
+    if (window.FMV_repintar) FMV_repintar();   // muestra solo los canales de este perfil
+  }
+  quienEl.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("button[data-p]");
+    if (b) aplicarPerfil(b.getAttribute("data-p"));
+  });
+  var sesionInicial = sesion();
+  if (sesionInicial.perfil && window.FMV_PERFILES[sesionInicial.perfil]) aplicarPerfil(sesionInicial.perfil);   // tras recargar no vuelve a preguntar
+  ["gesturestart", "gesturechange", "gestureend"].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false }); });
+  document.addEventListener("touchmove", function (e) { if (e.touches.length > 1 && e.cancelable) e.preventDefault(); }, { passive: false });
+  window.FMV_cambiarPerfil = function () { quienEl.hidden = false; };
+  /* vivos[id]: 1 = en vivo ahora, 2 = en vivo programado / no disponible por horario */
+  var vivos = {}, revisados = {}, itemActual = null, ticksGuardar = 0;
+  var posInicio = 0;      // scroll de la pantalla principal, para volver justo donde estabas
+
+  document.getElementById("aviso-vivo-sig").addEventListener("click", function () {
+    avisoVivo.hidden = true;
+    siguienteVideo();
+  });
+
+  /* ---------- Crear / recrear el reproductor ---------- */
+  var modoSubs = false;      // true: este reproductor se creó con subtítulos forzados
+  var alEstarListo = null;   // qué hacer cuando el reproductor nuevo esté listo
+  function crearJugador(conSubs, despues) {
+    var vars = { controls: 0, fs: 0, rel: 0, disablekb: 1, iv_load_policy: 3, playsinline: 1, cc_load_policy: conSubs ? 1 : 0 };
+    if (conSubs) vars.cc_lang_pref = "es";
+    if (location.protocol.indexOf("http") === 0) vars.origin = location.origin;
+    modoSubs = conSubs;
+    alEstarListo = despues || null;
+    jugador = new YT.Player("marco", {
+      width: "100%", height: "100%",
+      host: "https://www.youtube-nocookie.com",
+      playerVars: vars,
+      events: {
+        onReady: function () {
+          listo = true;
+          if (alEstarListo) { var f = alEstarListo; alEstarListo = null; f(); }
+          else prepararPrimero();
+        },
+        onStateChange: function (e) {
+          bPlay.innerHTML = (e.data === 1) ? ICONOS.pausa : ICONOS.play;
+          if (e.data === 1 && videoActualId && histId !== videoActualId) {
+            histId = videoActualId;
+            if (window.FMV_historial) FMV_historial(videoActualId, titulos[listaVideos.indexOf(videoActualId)] || "", tituloCanalActivo.textContent, canalUC || "MIS");
+          }
+          if (e.data === 1) {
+            if (vigilarAnuncios()) return;
+            mostrarCargador(false);
+            tapa.hidden = true;
+            avisoVivo.hidden = true;
+            errores = 0;
+            /* Si está arrancando cerca del segundo 0, cuenta como reproducción de este video para el límite de 6 seguidas en 2 min */
+            var segActual = 0;
+            try { segActual = jugador.getCurrentTime() || 0; } catch (err) {}
+            if (segActual < 6) {
+              if (registrarReproduccionSeguida(videoActualId)) return;
+            }
+            if (videoConSubs !== videoActualId) { videoConSubs = videoActualId; aplicarSubs(); }
+          } else if (e.data === 2) {
+            mostrarCargador(false);
+            actualizarPortadaTapa();
+            tapa.hidden = false;
+          } else if (e.data === 5) {
+            mostrarCargador(false);
+            if (esperandoLista) {
+              esperandoLista = false;
+              leerListaDelReproductor(0);
+            } else if (vivos[videoActualId] === 2) {
+              avisoVivo.hidden = false;
+            } else {
+              actualizarPortadaTapa();
+              tapa.hidden = false;
+            }
+          } else if (e.data === -1) {
+            if (vivos[videoActualId] === 2) {
+              mostrarCargador(false);
+              tapa.hidden = true;
+              avisoVivo.hidden = false;
+            } else {
+              vigilarAnuncios();
+            }
+          }
+          if (e.data === 0) {
+            siguienteVideo();
+          }
+        },
+        onError: function () {
+          mostrarCargador(false);
+          errores++;
+          if (errores < 5) siguienteVideo();
+        }
+      }
+    });
+  }
+
+  function recrearJugador(conSubs, despues) {
+    var vol = 100, mudo = false;
+    try { vol = jugador.getVolume(); mudo = jugador.isMuted(); } catch (e) {}
+    listo = false;
+    mostrarCargador(true);
+    setTimeout(function () {
+      try { jugador.destroy(); } catch (e) {}
+      var d = document.createElement("div");
+      d.id = "marco";
+      wrapperVideo.insertBefore(d, cargadorVideo);
+      crearJugador(conSubs, function () {
+        try { jugador.setVolume(vol); if (mudo) jugador.mute(); } catch (e) {}
+        if (despues) despues();
+      });
+    }, 30);
+  }
+
+  /* Si el reproductor quedó con subtítulos forzados, se recrea normal para que el video siguiente arranque sin ellos */
+  function cargarVideo(id, seg) {
+    mostrarCargador(true);
+    var arg = seg > 5 ? { videoId: id, startSeconds: seg } : id;
+    if (modoSubs) recrearJugador(false, function () { jugador.loadVideoById(arg); });
+    else jugador.loadVideoById(arg);
+  }
+
+  function cargarApi(cb) {
+    if (window.YT && YT.Player) { cb(); return; }
+    apiPendiente = cb;
+    if (!document.getElementById("yt-api")) {
+      var s = document.createElement("script");
+      s.id = "yt-api";
+      s.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(s);
+    }
+  }
+  window.onYouTubeIframeAPIReady = function () {
+    if (apiPendiente) { var f = apiPendiente; apiPendiente = null; f(); }
+  };
+
+  function formato(seg) {
+    seg = Math.max(0, Math.floor(seg || 0));
+    var m = Math.floor(seg / 60), s = seg % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  /* ---------- Caché pequeña de listas (6 horas, máximo 8 canales), caché de títulos y de directos ---------- */
+  var LS_TITULOS = "fmv_titulos_v1", LS_VIVOS = "fmv_vivos_v1", LS_VIVOS_CANAL = "fmv_vivos_canal_v1";
+  function lsLeer(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch (e) { return {}; } }
+  function lsGuardar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  var cacheTitulos = lsLeer(LS_TITULOS);
+  var vivosGuardados = lsLeer(LS_VIVOS);
+  var vivosPorCanal = lsLeer(LS_VIVOS_CANAL);
+  Object.keys(vivosGuardados).forEach(function (k) { vivos[k] = vivosGuardados[k]; });
+
+  function guardarTituloCache(id, tit) {
+    if (!id || !tit) return;
+    cacheTitulos[id] = tit;
+    var ks = Object.keys(cacheTitulos);
+    if (ks.length > 1500) ks.slice(0, 300).forEach(function (k) { delete cacheTitulos[k]; });
+    lsGuardar(LS_TITULOS, cacheTitulos);
+  }
+  function registrarVivoDeCanal(id, estado) {
+    if (!id || !estado) return;
+    vivos[id] = estado;
+    vivosGuardados[id] = estado;
+    lsGuardar(LS_VIVOS, vivosGuardados);
+    if (canalUC) {
+      var arr = vivosPorCanal[canalUC] || [];
+      if (arr.indexOf(id) < 0) {
+        arr.unshift(id);
+        vivosPorCanal[canalUC] = arr.slice(0, 40);
+        lsGuardar(LS_VIVOS_CANAL, vivosPorCanal);
+      }
+    }
+  }
+  function listaEnCache(canal) {
+    var e = lsLeer(LS_LISTAS)[canal];
+    return (e && e.ids && e.ids.length && Date.now() - e.t < 216e5) ? e : null;
+  }
+  function guardarListaCache(canal, ids, nombres) {
+    var m = lsLeer(LS_LISTAS);
+    m[canal] = { t: Date.now(), ids: ids, titulos: nombres };
+    Object.keys(m).sort(function (a, b) { return m[b].t - m[a].t; }).slice(8).forEach(function (k) { delete m[k]; });
+    lsGuardar(LS_LISTAS, m);
+  }
+
+  /* ---------- Selector de videos (miniatura + título de 2 filas + etiqueta EN VIVO al lado del número) ---------- */
+  function crearEtiquetaVivo(estadoVivo) {
+    var lv = document.createElement("span");
+    lv.className = "vivo" + (estadoVivo === 2 ? " prog" : "");
+    lv.textContent = estadoVivo === 2 ? "⏳ EN VIVO · PROGRAMADO" : "● EN VIVO";
+    return lv;
+  }
+
+  function actualizarTituloEnDOM(idx, texto) {
+    if (!texto || idx < 0) return;
+    titulos[idx] = texto;
+    var card = selectorGrid.children[idx];
+    if (card) {
+      var sp = card.querySelector(".titulo");
+      if (sp && sp.textContent !== texto) sp.textContent = texto;
+    }
+  }
+
+  /* Si la lista vino del Plan B del reproductor sin títulos, obtiene los títulos reales de 2 filas con oEmbed de YouTube (sin gastar API key) */
+  var colaTitulosCanal = null;
+  function completarTitulosFaltantes() {
+    var canal = canalActual;
+    colaTitulosCanal = canal;
+    var pendientes = [];
+    for (var i = 0; i < listaVideos.length; i++) {
+      var vid = listaVideos[i];
+      if (!titulos[i] && cacheTitulos[vid]) {
+        actualizarTituloEnDOM(i, cacheTitulos[vid]);
+      }
+      if (!titulos[i]) pendientes.push(vid);
+    }
+    if (!pendientes.length) return;
+    var guardados = 0;
+    function trabajador() {
+      if (colaTitulosCanal !== canal || !pendientes.length) return;
+      var vid = pendientes.shift();
+      fetch("https://www.youtube.com/oembed?format=json&url=" + encodeURIComponent("https://www.youtube.com/watch?v=" + vid))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (d && d.title) {
+            guardarTituloCache(vid, d.title);
+            if (colaTitulosCanal === canal) {
+              var k = listaVideos.indexOf(vid);
+              if (k >= 0) actualizarTituloEnDOM(k, d.title);
+              if (++guardados % 15 === 0 && canalActual && canalActual !== "MIS") {
+                guardarListaCache(canalActual, listaVideos, titulos);
+              }
+            }
+          }
+          if (d && d.width && d.height) {
+            guardarOrient(vid, d.height > d.width ? "v" : "h");
+          }
+        })
+        .catch(function () {})
+        .then(function () {
+          if (colaTitulosCanal === canal && pendientes.length) trabajador();
+          else if (colaTitulosCanal === canal && guardados > 0 && canalActual && canalActual !== "MIS") {
+            guardarListaCache(canalActual, listaVideos, titulos);
+          }
+        });
+    }
+    for (var w = 0; w < 6; w++) trabajador();
+  }
+
+  function agregarBoton(i) {
+    var w = document.createElement("div");
+    w.className = "item";
+    var vid = listaVideos[i];
+    if (vid === videoActualId) { w.classList.add("actual"); itemActual = w; }
+    var b = document.createElement("button");
+    b.type = "button";
+    var img = document.createElement("img");
+    img.src = "https://i.ytimg.com/vi/" + vid + "/mqdefault.jpg";
+    img.alt = ""; img.loading = "lazy";
+    var num = document.createElement("span"); num.className = "num"; num.textContent = (i + 1);
+    var textoTit = titulos[i] || cacheTitulos[vid] || "";
+    if (textoTit && !titulos[i]) titulos[i] = textoTit;
+    var t = document.createElement("span"); t.className = "titulo"; t.textContent = textoTit || ("Cargando título " + (i + 1) + "…");
+    var mc = document.createElement("span"); mc.className = "marcas"; mc.appendChild(num);
+    var estVivo = vivos[vid] || (pestana === "UULV" ? 1 : 0);
+    if (estVivo) mc.appendChild(crearEtiquetaVivo(estVivo));
+    b.appendChild(img); b.appendChild(mc); b.appendChild(t);
+    b.addEventListener("click", function () { irA(i, true); });
+    w.appendChild(b);
+    var q = document.createElement("span");
+    q.className = "quitar-video"; q.textContent = "×"; q.title = "Ocultar video";
+    q.addEventListener("click", function (e) { e.stopPropagation(); quitarVideo(i); });
+    w.appendChild(q);
+    selectorGrid.appendChild(w);
+  }
+
+  function ejecutarQuitarVideo(i) {
+    var id = listaVideos[i], tit = titulos[i] || cacheTitulos[id] || "";
+    var nomCanal = canalActual === "MIS" ? "⭐ Mis videos" : (tituloCanalActivo.textContent || "");
+    if (window.FMV_ocultarVideo) window.FMV_ocultarVideo(id, tit, nomCanal, "padre");
+    else if (canalActual === "MIS") FMV_quitarPropio(id, tit, "padre");
+    else FMV_bloquear(id, tit, nomCanal, "padre");
+    var eraActual = (id === videoActualId);
+    listaVideos.splice(i, 1); titulos.splice(i, 1);
+    contadorTotal.textContent = listaVideos.length;
+    construirSelector(0);
+    if (eraActual) {
+      if (listaVideos.length) irA(Math.min(i, listaVideos.length - 1), false);
+      else if (listo) { jugador.stopVideo(); mostrarCargador(false); tapa.hidden = false; }
+    }
+  }
+
+  function quitarVideo(i) {
+    if (window.FMV_confirmar) {
+      window.FMV_confirmar("¿Ocultar este video?", function () { ejecutarQuitarVideo(i); });
+    } else {
+      ejecutarQuitarVideo(i);
+    }
+  }
+
+  function sinBloqueados() {
+    var b = window.FMV_bloqueados ? FMV_bloqueados() : [], ni = [], nt = [];
+    /* En la sección 🔴 En vivo, incluimos al inicio los videos en vivo o programados detectados en el canal (como David y Jonatán) */
+    if (pestana === "UULV" && canalUC && vivosPorCanal[canalUC]) {
+      vivosPorCanal[canalUC].forEach(function (vid) {
+        if (listaVideos.indexOf(vid) < 0) {
+          listaVideos.unshift(vid);
+          titulos.unshift(cacheTitulos[vid] || "");
+        }
+      });
+    }
+    listaVideos.forEach(function (id, i) {
+      if (b.indexOf(id) >= 0) return;
+      /* Si estamos en Todos los videos (🎬 Videos) o Reels, sacamos los videos en vivo o programados para que solo estén en 🔴 En vivo */
+      if (pestana !== "UULV" && canalActual !== "MIS" && vivos[id]) return;
+      ni.push(id); nt.push(titulos[i] || cacheTitulos[id] || "");
+    });
+    listaVideos = ni; titulos = nt;
+  }
+
+  function construirSelector(desde) {
+    selectorMensaje.style.display = "none";
+    if (!desde) selectorGrid.innerHTML = "";
+    contadorTotal.textContent = listaVideos.length;
+    for (var i = desde || 0; i < listaVideos.length; i++) agregarBoton(i);
+    sincronizarIndice();
+    revisarVivos();
+    completarTitulosFaltantes();
+  }
+
+  /* ---------- Reproducción con nuestra propia lista ---------- */
+  function irA(i, subir) {
+    if (!listo || !listaVideos.length) return;
+    var nuevoId = listaVideos[i];
+    /* Registrar si el usuario toca repetidamente el mismo video */
+    if (subir && registrarReproduccionSeguida(nuevoId)) return;
+    indiceActual = i;
+    videoActualId = nuevoId;
+    nuevoVideoSubs(); bloquearOtraVez();
+    marcarActual(); guardarUltimo(0);
+    cargarVideo(nuevoId);
+    pintarMarca();
+    detectarOrientacion(videoActualId, function () {});
+    aplicarOrientacion();
+    if (subir) window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function siguienteVideo() {
+    if (!listaVideos.length) return;
+    irA((indiceActual + 1) % listaVideos.length, false);
+  }
+
+  function anteriorVideo() {
+    if (!listaVideos.length) return;
+    irA((indiceActual - 1 + listaVideos.length) % listaVideos.length, false);
+  }
+
+  function sincronizarIndice() {
+    if (!videoActualId) return;
+    var k = listaVideos.indexOf(videoActualId);
+    if (k >= 0) indiceActual = k;
+    marcarActual(); pintarMarca();
+  }
+
+  /* Saca de la sección 🎬 Videos cualquier video que resulte ser En Vivo o Programado (pasa a 🔴 En vivo) */
+  function depurarVivosEnListaNormal() {
+    if (pestana === "UULV" || canalActual === "MIS") return;
+    var habiaActual = false, idxAntes = indiceActual;
+    var ni = [], nt = [], cambio = false;
+    for (var i = 0; i < listaVideos.length; i++) {
+      var id = listaVideos[i];
+      if (vivos[id]) {
+        cambio = true;
+        if (id === videoActualId) habiaActual = true;
+      } else {
+        ni.push(id);
+        nt.push(titulos[i] || cacheTitulos[id] || "");
+      }
+    }
+    if (!cambio) return;
+    listaVideos = ni;
+    titulos = nt;
+    if (canalActual) guardarListaCache(canalActual, listaVideos, titulos);
+    selectorGrid.innerHTML = "";
+    contadorTotal.textContent = listaVideos.length;
+    for (var j = 0; j < listaVideos.length; j++) agregarBoton(j);
+    if (habiaActual && listaVideos.length) {
+      videoActualId = null;
+      irA(Math.min(idxAntes, listaVideos.length - 1), false);
+    } else {
+      sincronizarIndice();
+    }
+    completarTitulosFaltantes();
+  }
+
+  /* ---------- Marcas: contador 52/500, EN VIVO y video actual ---------- */
+  var marcaVideo = document.getElementById("marca-video"), mvNum = document.getElementById("mv-num"), mvVivo = document.getElementById("mv-vivo");
+  var irActual = document.getElementById("ir-actual");
+  function pintarMarca() {
+    var n = listaVideos.length;
+    var estadoVivo = (videoActualId && (vivos[videoActualId] || (pestana === "UULV" ? 1 : 0))) || 0;
+    if (listo && videoActualId && jugador && jugador.getVideoData) {
+      try {
+        var vd = jugador.getVideoData() || {};
+        /* Solo aplicar datos si el reproductor ya tiene cargado exactamente el videoActualId */
+        if (vd.video_id === videoActualId) {
+          if (vd.title) {
+            guardarTituloCache(videoActualId, vd.title);
+            var idxAct = listaVideos.indexOf(videoActualId);
+            if (idxAct >= 0 && !titulos[idxAct]) actualizarTituloEnDOM(idxAct, vd.title);
+          }
+          if (vd.isLive) {
+            var st = jugador.getPlayerState ? jugador.getPlayerState() : -1;
+            var nuevoEstado = (st === 1) ? 1 : 2;
+            if (vivos[videoActualId] !== nuevoEstado) {
+              registrarVivoDeCanal(videoActualId, nuevoEstado);
+              pintarVivos();
+              if (pestana !== "UULV" && canalActual !== "MIS") {
+                depurarVivosEnListaNormal();
+                return;
+              }
+            }
+            estadoVivo = nuevoEstado;
+            if (estadoVivo === 2 && st !== 1 && st !== 3) {
+              mostrarCargador(false);
+              tapa.hidden = true;
+              avisoVivo.hidden = false;
+            } else if (estadoVivo === 1) {
+              avisoVivo.hidden = true;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+    marcaVideo.hidden = !(n && videoActualId);
+    var txt = (indiceActual + 1) + "/" + n;
+    if (mvNum.textContent !== txt) mvNum.textContent = txt;
+    mvVivo.hidden = !estadoVivo;
+    if (estadoVivo) {
+      mvVivo.className = "vivo" + (estadoVivo === 2 ? " prog" : "");
+      mvVivo.textContent = estadoVivo === 2 ? "⏳ EN VIVO · PROGRAMADO" : "● EN VIVO";
+    }
+  }
+  function marcarActual() {
+    var k = listaVideos.indexOf(videoActualId);
+    var el = k >= 0 ? selectorGrid.children[k] : null;
+    if (itemActual && itemActual !== el) itemActual.classList.remove("actual");
+    if (el) el.classList.add("actual");
+    itemActual = el;
+    irActual.classList.toggle("hay", !!el);
+  }
+  function irAlVideoActual() {
+    if (itemActual) itemActual.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  irActual.addEventListener("click", irAlVideoActual);
+  function pintarVivos() {
+    var hijos = selectorGrid.children;
+    for (var i = 0; i < hijos.length && i < listaVideos.length; i++) {
+      var vid = listaVideos[i];
+      var est = vivos[vid] || (pestana === "UULV" ? 1 : 0);
+      var mc = hijos[i].querySelector(".marcas");
+      if (mc && est) {
+        var existente = mc.querySelector(".vivo");
+        var nuevo = crearEtiquetaVivo(est);
+        if (existente) existente.replaceWith(nuevo);
+        else mc.appendChild(nuevo);
+      }
+    }
+  }
+  /* Detecta videos en vivo o programados (como David y Jonatán) usando tanto el fotograma mq1.jpg de YouTube como la API de datos */
+  var revisadosImg = {};
+  function revisarVivos() {
+    var clave = window.FMV_API_KEY, canal = canalActual;
+    /* 1) Verificación instantánea sin API key: los videos en vivo programados (sin fotogramas VOD) devuelven 120x90 en mq1.jpg en vez de 320x180 */
+    listaVideos.slice(0, 30).forEach(function (id) {
+      if (revisadosImg[id]) return;
+      revisadosImg[id] = 1;
+      var im = new Image();
+      im.onload = function () {
+        if (im.naturalWidth > 0 && im.naturalWidth <= 120) {
+          registrarVivoDeCanal(id, 2);
+          if (canal === canalActual) {
+            pintarVivos();
+            depurarVivosEnListaNormal();
+            if (videoActualId === id && vivos[id] === 2) {
+              mostrarCargador(false);
+              tapa.hidden = true;
+              avisoVivo.hidden = false;
+            }
+          }
+        }
+      };
+      im.src = "https://i.ytimg.com/vi/" + id + "/mq1.jpg";
+    });
+
+    /* 2) Consulta por lotes a la API de YouTube */
+    var pend = listaVideos.filter(function (id) { return !revisados[id]; });
+    pend.forEach(function (id) { revisados[id] = 1; });
+    if (!clave || !pend.length) {
+      pintarVivos();
+      depurarVivosEnListaNormal();
+      return;
+    }
+    (function paso() {
+      if (!pend.length || canal !== canalActual) return;
+      var lote = pend.splice(0, 50);
+      fetch("https://www.googleapis.com/youtube/v3/videos?part=snippet,liveStreamingDetails&id=" +
+            lote.join(",") + "&key=" + encodeURIComponent(clave))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          (d.items || []).forEach(function (it) {
+            if (it.snippet && it.snippet.title) {
+              guardarTituloCache(it.id, it.snippet.title);
+              var k = listaVideos.indexOf(it.id);
+              if (k >= 0 && !titulos[k]) actualizarTituloEnDOM(k, it.snippet.title);
+            }
+            var bc = it.snippet && it.snippet.liveBroadcastContent;
+            var ls = it.liveStreamingDetails;
+            if (bc === "live") {
+              registrarVivoDeCanal(it.id, 1);
+            } else if (bc === "upcoming" || (ls && ls.scheduledStartTime && !ls.actualStartTime && !ls.actualEndTime)) {
+              registrarVivoDeCanal(it.id, 2);
+            }
+          });
+          pintarVivos();
+          depurarVivosEnListaNormal();
+          if (videoActualId && vivos[videoActualId] === 2) {
+            mostrarCargador(false);
+            tapa.hidden = true;
+            avisoVivo.hidden = false;
+          }
+          paso();
+        })
+        .catch(function () { paso(); });
+    })();
+  }
+
+  /* ---------- Recordar en qué video (y minuto) se quedó cada canal ---------- */
+  function guardarUltimo(t) {
+    if (!canalActual || !videoActualId) return;
+    var m = lsLeer(LS_ULT);
+    m[canalActual] = { id: videoActualId, t: Math.floor(t || 0) };
+    lsGuardar(LS_ULT, m);
+  }
+
+  function prepararPrimero() {
+    if (!listo || yaPreparado) return;
+    var ult = (!videoInicial && canalActual) ? lsLeer(LS_ULT)[canalActual] : null;
+    if (ult && window.FMV_bloqueados && FMV_bloqueados().indexOf(ult.id) >= 0) ult = null;
+    if (ult && pestana !== "UULV" && canalActual !== "MIS" && vivos[ult.id]) ult = null;
+    if (ult && listaVideos.length && listaVideos.indexOf(ult.id) < 0) ult = null;
+    var id = videoInicial || (ult && ult.id) || listaVideos[0];
+    if (!id) return;
+    yaPreparado = true;
+    videoActualId = id;
+    indiceActual = Math.max(0, listaVideos.indexOf(id));
+    nuevoVideoSubs();
+    cargarVideo(id, (ult && ult.id === id) ? ult.t : 0);
+    detectarOrientacion(id, function () {});
+    sincronizarIndice();
+  }
+
+  /* ---------- Cargar la lista del canal (con títulos) ---------- */
+  function cargarLista() {
+    var canal = canalActual, clave = window.FMV_API_KEY;
+
+    var cache = listaEnCache(canal);
+    if (cache) {
+      listaVideos = cache.ids.slice();
+      titulos = (cache.titulos || []).slice();
+      sinBloqueados();
+      construirSelector(0);
+      prepararPrimero();
+      return;
+    }
+    if (!clave) { usarListaDelReproductor(); return; }
+
+    var ids = [], nombres = [];
+    var bloq = window.FMV_bloqueados ? FMV_bloqueados() : [];
+    function pagina(token) {
+      fetch("https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=" +
+            encodeURIComponent(canal) + "&key=" + encodeURIComponent(clave) +
+            (token ? "&pageToken=" + encodeURIComponent(token) : ""))
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (canal !== canalActual) return; // cambió de canal mientras cargaba
+          if (d.error) {
+            var err = new Error(d.error.message || "error");
+            err.code = d.error.code;
+            throw err;
+          }
+          var antes = ids.length;
+          (d.items || []).forEach(function (it) {
+            var s = it.snippet;
+            if (!s || !s.resourceId || !s.resourceId.videoId) return;
+            if (s.title === "Private video" || s.title === "Deleted video") return;
+            var vid = s.resourceId.videoId;
+            if (bloq.indexOf(vid) >= 0) return;
+            guardarTituloCache(vid, s.title);
+            if (pestana !== "UULV" && vivos[vid]) return;
+            ids.push(vid);
+            nombres.push(s.title);
+          });
+          listaVideos = ids;
+          titulos = nombres;
+          if (antes === 0) sinBloqueados();
+          construirSelector(antes);
+          if (antes === 0 && listaVideos.length) prepararPrimero();
+          if (d.nextPageToken && ids.length < 1000) pagina(d.nextPageToken);
+          else guardarListaCache(canal, listaVideos, titulos);
+        })
+        .catch(function (err) {
+          if (canal !== canalActual || ids.length) return;
+          /* Si la API devolvió 404 (el canal no tiene esa sub-lista), en UULF pasamos a UU; si fue 403/red usamos Plan B con la lista actual */
+          if (err && err.code === 404) {
+            if (pestana === "UUSH" || pestana === "UULV") {
+              if (pestana === "UULV" && canalUC && vivosPorCanal[canalUC] && vivosPorCanal[canalUC].length) {
+                listaVideos = []; titulos = [];
+                sinBloqueados();
+                construirSelector(0);
+                prepararPrimero();
+                return;
+              }
+              mostrarCargador(false);
+              selectorMensaje.style.display = "block";
+              selectorMensaje.textContent = pestana === "UUSH" ? "Este canal no tiene reels." : "Este canal no tiene videos en vivo.";
+              return;
+            }
+            if (pestana === "UULF") { pestana = "UU"; canalActual = "UU" + canalUC.slice(2); pintarPestanas(); cargarLista(); return; }
+          }
+          usarListaDelReproductor(); // plan B: obtiene la lista desde el reproductor
+        });
+    }
+    pagina("");
+  }
+
+  /* Plan B si la API de datos falla o se acaba la cuota: extrae IDs del reproductor y carga títulos con oEmbed */
+  function usarListaDelReproductor() {
+    var canal = canalActual;
+    if (!listo) {
+      setTimeout(function () { if (canal === canalActual) usarListaDelReproductor(); }, 300);
+      return;
+    }
+    esperandoLista = true;
+    jugador.cuePlaylist({ listType: "playlist", list: canal, index: 0 });
+  }
+
+  function leerListaDelReproductor(intento) {
+    var canal = canalActual;
+    var lista = (jugador.getPlaylist && jugador.getPlaylist()) || [];
+    if (lista.length) {
+      listaVideos = lista.slice();
+      titulos = [];
+      sinBloqueados();
+      construirSelector(0);
+      prepararPrimero();
+    } else if (intento < 8) {
+      setTimeout(function () { if (canal === canalActual) leerListaDelReproductor(intento + 1); }, 450);
+    } else if (pestana === "UULF") {
+      pestana = "UU"; canalActual = "UU" + canalUC.slice(2); pintarPestanas(); usarListaDelReproductor();
+    } else if (pestana === "UULV" && canalUC && vivosPorCanal[canalUC] && vivosPorCanal[canalUC].length) {
+      listaVideos = []; titulos = [];
+      sinBloqueados();
+      construirSelector(0);
+      prepararPrimero();
+    } else {
+      mostrarCargador(false);
+      selectorMensaje.style.display = "block";
+      selectorMensaje.textContent = pestana === "UUSH" ? "Este canal no tiene reels." : pestana === "UULV" ? "Este canal no tiene videos en vivo." : "No se pudieron recuperar los videos de este canal.";
+    }
+  }
+
+  var canalUC = null, canalNombre = "", pestana = "UULF", histId = null;
+  var pestanasEl = document.getElementById("pestanas");
+  function pintarPestanas() {
+    pestanasEl.hidden = !canalUC;
+    [].forEach.call(pestanasEl.children, function (b) {
+      var p = b.getAttribute("data-p");
+      b.classList.toggle("on", p === pestana || (pestana === "UU" && p === "UULF"));
+    });
+  }
+  pestanasEl.addEventListener("click", function (e) {
+    var p = e.target.getAttribute && e.target.getAttribute("data-p");
+    if (!p || !canalUC || p === pestana) return;
+    pestana = p; canalActual = p + canalUC.slice(2);
+    guardarSesion({ pest: p });
+    pintarPestanas();
+    abrirReproductor(canalNombre, null, cargarLista);
+  });
+  function iniciarCanal(idCanal, nombreCanal, videoId, pest) {
+    canalUC = idCanal; canalNombre = nombreCanal;
+    pestana = videoId ? "UU" : (pest || "UULF");
+    guardarSesion({ vista: "canal", uc: idCanal, nombre: nombreCanal, pest: pestana });
+    canalActual = pestana + idCanal.slice(2);
+    pintarPestanas();
+    abrirReproductor(nombreCanal, videoId, cargarLista);
+  }
+  window.FMV_abrirCanal = iniciarCanal;
+  window.FMV_recargarCanalActual = function () {
+    if (!vistaCanal.classList.contains("activo")) return;
+    if (canalActual === "MIS") iniciarMisVideos(videoActualId);
+    else if (canalUC) cargarLista();
+  };
+
+  /* Pestaña "Mis videos": mismo reproductor (con la misma tapa anti-clics) */
+  window.FMV_abrirMis = function (id) { iniciarMisVideos(id); };
+  function iniciarMisVideos(videoId) {
+    guardarSesion({ vista: "mis" });
+    canalActual = "MIS"; canalUC = null; pintarPestanas();
+    document.body.classList.remove("modo-buscar");
+    location.hash = "videos";
+    abrirReproductor("⭐ Mis videos", videoId || null, function () {
+      var vs = window.FMV_misVideos ? FMV_misVideos() : [];
+      listaVideos = vs.map(function (v) { return v.id; });
+      titulos = vs.map(function (v) { return v.titulo || ""; });
+      if (!listaVideos.length) {
+        mostrarCargador(false);
+        selectorMensaje.style.display = "block";
+        selectorMensaje.textContent = "Aún no hay videos individuales. Los padres pueden agregarlos desde 🔒 Padres → Buscar en YouTube.";
+        if (listo) jugador.stopVideo();
+        return;
+      }
+      construirSelector(0);
+      prepararPrimero();
+    });
+  }
+
+  function abrirReproductor(nombreCanal, videoId, cargarFn) {
+    if (!vistaCanal.classList.contains("activo")) posInicio = window.scrollY;
+    videoInicial = videoId || null;
+    videoActualId = null;
+    yaPreparado = false;
+    tituloCanalActivo.textContent = nombreCanal;
+    marcarNav(canalActual === "MIS" ? "mis" : navActual());
+    document.body.classList.add("viendo");
+    vistaPrincipal.classList.add("oculto");
+    vistaCanal.classList.add("activo");
+    window.scrollTo(0, 0);   // el reproductor siempre debe quedar a la vista
+
+    listaVideos = [];
+    titulos = [];
+    esperandoLista = false;
+    selectorGrid.innerHTML = "";
+    selectorMensaje.style.display = "block";
+    selectorMensaje.textContent = "Cargando videos...";
+    contadorTotal.textContent = "0";
+    mostrarCargador(true);
+
+    cargarApi(function () {
+      if (jugador) return;
+      crearJugador(false, null);
+    });
+
+    cargarFn();
+    if (videoInicial) prepararPrimero(); // viene del buscador: dejarlo listo de inmediato
+
+    if (!temporizador) {
+      temporizador = setInterval(actualizarCronometro, 500);
+    }
+  }
+
+  function actualizarCronometro() {
+    if (wrapperVideo.classList.contains("libre") && !document.body.classList.contains("padre")) bloquearOtraVez();
+    if (vigilarAnuncios()) return;
+    pintarMarca();
+    if (!listo || !jugador.getDuration) return;
+    var dur = jugador.getDuration() || 0, t = jugador.getCurrentTime() || 0;
+    if (!arrastrando && dur > 0) rango.value = Math.round(t / dur * 1000);
+    tiempo.textContent = formato(arrastrando ? rango.value / 1000 * dur : t) + " / " + formato(dur);
+    pintarSonido();
+    if (videoActualId && jugador.getPlayerState() === 1 && (++ticksGuardar % 10 === 0)) guardarUltimo(t);
+    if (!moviendoVol) volumen.value = jugador.isMuted() ? 0 : jugador.getVolume();
+  }
+
+  function regresarAprincipal() {
+    guardarSesion({ vista: "inicio" });
+    bloquearOtraVez();
+    mostrarCargador(false);
+    tapa.hidden = true;
+    avisoVivo.hidden = true;
+    document.body.classList.remove("viendo");
+    marcarNav(navActual());
+    history.replaceState(null, "", location.pathname + location.search);
+    vistaCanal.classList.remove("activo");
+    vistaPrincipal.classList.remove("oculto");
+    window.scrollTo(0, posInicio);
+    if (listo && jugador.stopVideo) {
+      jugador.stopVideo();
+    }
+    if (temporizador) {
+      clearInterval(temporizador);
+      temporizador = null;
+    }
+  }
+
+  document.getElementById("btn-volver").addEventListener("click", regresarAprincipal);
+  /* ---------- Barra inferior ---------- */
+  var NAV = { inicio: "nav-inicio", buscar: "nav-buscar", mis: "nav-mis" };
+  function marcarNav(cual) {
+    Object.keys(NAV).forEach(function (k) { document.getElementById(NAV[k]).classList.toggle("activo", k === cual); });
+  }
+  function navActual() { return document.body.classList.contains("modo-buscar") ? "buscar" : document.body.classList.contains("ver-mis") ? "mis" : "inicio"; }
+  var conmEl = document.getElementById("conmutador");
+  function verMis(si) {
+    guardarSesion({ vermis: si });
+    document.body.classList.toggle("ver-mis", si);
+    [].forEach.call(conmEl.children, function (b) { b.classList.toggle("on", (b.getAttribute("data-v") === "mis") === si); });
+    marcarNav(si ? "mis" : "inicio");
+  }
+  conmEl.addEventListener("click", function (e) { var b = e.target.closest && e.target.closest("button[data-v]"); if (b) verMis(b.getAttribute("data-v") === "mis"); });
+  function irInicio() { verMis(false); document.body.classList.remove("modo-buscar"); regresarAprincipal(); window.scrollTo(0, 0); }
+  function irBuscar() {
+    verMis(false);
+    document.body.classList.add("modo-buscar");
+    regresarAprincipal(); window.scrollTo(0, 0);
+    var i = document.querySelector("#buscador input");
+    if (i) i.focus();
+  }
+  document.getElementById("logo-inicio").addEventListener("click", irInicio);
+  document.getElementById("nav-inicio").addEventListener("click", irInicio);
+  document.getElementById("nav-buscar").addEventListener("click", irBuscar);
+  document.getElementById("nav-mis").addEventListener("click", function () { irInicio(); verMis(true); });
+  document.getElementById("nav-padres").addEventListener("click", function () { if (window.FMV_abrirPadres) FMV_abrirPadres(); });
+  window.FMV_alListo = function () {
+    window.FMV_alListo = null;
+    var ss = sesion();   // si la página se recargó, vuelve a donde estaba
+    if (location.hash === "#videos" || ss.vista === "mis") iniciarMisVideos();
+    else if (ss.vista === "canal" && ss.uc) iniciarCanal(ss.uc, ss.nombre, null, ss.pest);
+    else if (ss.vermis) verMis(true);
+  };
+  window.FMV_repintarSelector = function () { if (vistaCanal.classList.contains("activo") && listaVideos.length) construirSelector(0); };
+  window.FMV_tabVideos = function (n) { var c = document.getElementById("cuenta-mis"); c.textContent = n > 99 ? "99+" : n; var b2 = document.getElementById("conmutador").lastElementChild; b2.textContent = "⭐ Mis videos" + (n ? " (" + n + ")" : ""); c.classList.toggle("hay", n > 0); };
+
+  // Controles del reproductor
+  bAnterior.addEventListener("click", anteriorVideo);
+  bSiguiente.addEventListener("click", siguienteVideo);
+  bPlay.addEventListener("click", function () {
+    if (!listo) return;
+    if (jugador.getPlayerState() === 1) {
+      jugador.pauseVideo();
+    } else {
+      tapa.hidden = true;
+      jugador.playVideo();
+    }
+  });
+  tapa.addEventListener("click", function () {
+    /* Se oculta de inmediato en el mismo clic para no tapar los primeros milisegundos del video */
+    tapa.hidden = true;
+    if (listo) jugador.playVideo();
+  });
+  var volPanel = document.getElementById("vol-panel"), tVol = null;
+  function cerrarVol() { volPanel.classList.remove("abierto"); }
+  function pintarSonido() {
+    if (!listo) return;
+    bSonido.innerHTML = (jugador.isMuted() || !jugador.getVolume()) ? ICONOS.mudo : ICONOS.sonido;
+  }
+  bSonido.addEventListener("click", function (e) {
+    e.stopPropagation();
+    volPanel.classList.toggle("abierto");
+    clearTimeout(tVol);
+    if (volPanel.classList.contains("abierto")) tVol = setTimeout(cerrarVol, 4000);
+  });
+  volPanel.addEventListener("click", function (e) { e.stopPropagation(); });
+  document.addEventListener("click", cerrarVol);
+  rango.addEventListener("input", function () { arrastrando = true; });
+  rango.addEventListener("change", function () {
+    if (listo) {
+      var nuevoSeg = jugador.getDuration() * rango.value / 1000;
+      if (nuevoSeg < 5 && videoActualId) {
+        if (registrarReproduccionSeguida(videoActualId)) { arrastrando = false; return; }
+      }
+      jugador.seekTo(nuevoSeg, true);
+    }
+    arrastrando = false;
+  });
+
+  /* ---------- Volumen (en iPhone/iPad el volumen se maneja con los botones del equipo) ---------- */
+  var volumen = document.getElementById("volumen"), moviendoVol = false;
+  volumen.addEventListener("input", function () {
+    if (!listo) return;
+    moviendoVol = true; clearTimeout(tVol);
+    var v = +volumen.value;
+    jugador.setVolume(v);
+    if (v === 0) jugador.mute(); else if (jugador.isMuted()) jugador.unMute();
+    pintarSonido();
+  });
+  volumen.addEventListener("change", function () { moviendoVol = false; tVol = setTimeout(cerrarVol, 3000); });
+
+  /* ---------- Subtítulos (función interna de YouTube, solo si el video los tiene) ---------- */
+  var bSubs = document.getElementById("b-subs"), subsOn = false, videoConSubs = null;
+  try { localStorage.removeItem("fmv_subs"); } catch (e) {}   // ya no se recuerda: cada video arranca sin subtítulos
+  function pintarSubs() { bSubs.classList.toggle("activo", subsOn); bSubs.setAttribute("aria-pressed", subsOn); }
+  /* Cada video nuevo empieza sin subtítulos; el botón solo los activa para el video que se está viendo */
+  function nuevoVideoSubs() { subsOn = false; videoConSubs = null; pintarSubs(); }
+  /* Apagar: se usa al empezar cada video (YouTube recuerda el último estado de subtítulos del navegador) */
+  function aplicarSubs() {
+    if (!listo || subsOn) return;
+    var vid = videoActualId;
+    var quitar = function () {
+      if (subsOn || vid !== videoActualId || !listo) return;
+      try { jugador.setOption("captions", "track", {}); } catch (e) {}
+      try { jugador.unloadModule("captions"); } catch (e) {}
+    };
+    quitar(); setTimeout(quitar, 800); setTimeout(quitar, 2500);   // YouTube a veces los enciende con retraso
+  }
+  pintarSubs();
+  /* Plan B (el método anterior): recrear el reproductor con subtítulos forzados */
+  function subsPorRecreacion() {
+    var id = videoActualId, t = 0;
+    try { t = jugador.getCurrentTime() || 0; } catch (e) {}
+    recrearJugador(subsOn, function () {
+      jugador.loadVideoById({ videoId: id, startSeconds: t });
+      if (!subsOn) aplicarSubs();
+    });
+  }
+  /* Interruptor simple, como la tecla C de YouTube: activa/desactiva sin reiniciar el video */
+  function alternarSubs() {
+    if (!listo || !videoActualId) return;
+    subsOn = !subsOn; videoConSubs = videoActualId; pintarSubs();
+    var id = videoActualId;
+    if (modoSubs) { subsPorRecreacion(); return; }           // venían forzados por el método anterior: se apagan recreando
+    if (!subsOn) { try { jugador.setOption("captions", "track", {}); jugador.unloadModule("captions"); } catch (e) {} return; }
+    try { jugador.loadModule("captions"); } catch (e) {}
+    var intentos = 0;
+    (function probar() {
+      if (!subsOn || id !== videoActualId) return;
+      var pistas = [];
+      try { pistas = jugador.getOption("captions", "tracklist") || []; } catch (e) {}
+      if (pistas.length) {
+        var es = pistas.filter(function (p) { return /^es/.test(p.languageCode || ""); })[0] || pistas[0];
+        try { jugador.setOption("captions", "track", { languageCode: es.languageCode }); } catch (e) {}
+        return;
+      }
+      if (++intentos < 6) setTimeout(probar, 400);
+      else subsPorRecreacion();                                // si YouTube no respondió, se usa el método anterior
+    })();
+  }
+  bSubs.addEventListener("click", alternarSubs);
+  document.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey || (e.key !== "c" && e.key !== "C")) return;
+    var t = e.target;
+    if (t && ((t.tagName === "INPUT" && t.type !== "range") || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    if (!document.body.classList.contains("viendo")) return;
+    e.preventDefault(); alternarSubs();
+  });
+
+  /* ---------- Modo padres: quitar la barrera transparente un momento (para tocar avisos de YouTube) ---------- */
+  var bLibre = document.getElementById("b-libre"), tLibre = null;
+  bLibre.innerHTML = ICONOS.libre;
+  function bloquearOtraVez() {
+    clearTimeout(tLibre);
+    wrapperVideo.classList.remove("libre");
+    bLibre.classList.remove("activo");
+  }
+  bLibre.addEventListener("click", function () {
+    if (wrapperVideo.classList.contains("libre")) { bloquearOtraVez(); return; }
+    if (!document.body.classList.contains("padre")) return;
+    wrapperVideo.classList.add("libre");
+    bLibre.classList.add("activo");
+    clearTimeout(tLibre);
+    tLibre = setTimeout(bloquearOtraVez, 90000);   // se vuelve a cerrar solo a los 90 segundos
+  });
+
+  /* ---------- Pantalla completa con nuestros propios controles ---------- */
+  var contenedor = document.getElementById("contenedor-reproductor");
+  var bPantalla = document.getElementById("b-pantalla"), tOculta = null, irAlSalir = false, yAntes = 0;
+  function nativa() { return document.fullscreenElement || document.webkitFullscreenElement; }
+  function enPantalla() { return contenedor.classList.contains("en-pantalla"); }
+  function ocultarYa() { if (listo && jugador.getPlayerState() === 1) contenedor.classList.add("inactivo"); }
+  function programarOcultar() {
+    clearTimeout(tOculta);
+    if (enPantalla()) tOculta = setTimeout(ocultarYa, 3000);
+  }
+  function mostrarControles() { contenedor.classList.remove("inactivo"); programarOcultar(); }
+  function activarPantalla(si) {
+    var estaba = enPantalla();
+    if (si && !estaba) yAntes = window.scrollY;
+    contenedor.classList.toggle("en-pantalla", si);
+    contenedor.classList.remove("inactivo");
+    bPantalla.innerHTML = si ? ICONOS.salir : ICONOS.pantalla;
+    document.body.style.overflow = si ? "hidden" : "";
+    clearTimeout(tOculta);
+    if (si) { programarOcultar(); aplicarOrientacion(); }
+    else {
+      try { screen.orientation.unlock(); } catch (e) {}
+      if (irAlSalir) { irAlSalir = false; setTimeout(irAlVideoActual, 250); }   // deja que el diseño se acomode y luego baja al video
+      else if (estaba) { var y = yAntes; requestAnimationFrame(function () { window.scrollTo(0, y); }); setTimeout(function () { window.scrollTo(0, y); }, 150); }
+    }
+  }
+  var orientacion = lsLeer("fmv_orient");   // se recuerda: solo se guardan resultados seguros
+  function guardarOrient(id, o) {
+    orientacion[id] = o;
+    var k = Object.keys(orientacion);
+    if (k.length > 400) k.slice(0, 100).forEach(function (x) { delete orientacion[x]; });
+    lsGuardar("fmv_orient", orientacion);
+  }
+  /* Respaldo: analiza la miniatura (los videos verticales traen franjas negras a los lados) */
+  function orientPorMiniatura(id, cb) {
+    var im = new Image();
+    im.crossOrigin = "anonymous";
+    im.onload = function () {
+      try {
+        var c = document.createElement("canvas"); c.width = 64; c.height = 36;
+        var g = c.getContext("2d"); g.drawImage(im, 0, 0, 64, 36);
+        var d = g.getImageData(0, 0, 64, 36).data;
+        var brillo = function (x0, x1) {
+          var s = 0, n = 0;
+          for (var y = 0; y < 36; y++) for (var x = x0; x < x1; x++) { var k = (y * 64 + x) * 4; s += d[k] + d[k + 1] + d[k + 2]; n += 3; }
+          return s / n;
+        };
+        var lados = (brillo(0, 10) + brillo(54, 64)) / 2, centro = brillo(20, 44);
+        cb((lados < 10 && centro > lados + 20) ? "v" : "h");
+      } catch (e) { cb(null); }
+    };
+    im.onerror = function () { cb(null); };
+    im.src = "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg";
+  }
+  /* 1) oEmbed de YouTube da el tamaño real del video (vertical: alto > ancho); 2) miniatura; 3) "#shorts" en el título */
+  function detectarOrientacion(id, cb) {
+    if (orientacion[id]) { cb(orientacion[id]); return; }
+    var fin_ = false;
+    function fin(o, seguro) { if (fin_) return; fin_ = true; if (o && seguro) guardarOrient(id, o); cb(o); }
+    function porTitulo() { var t = (titulos[listaVideos.indexOf(id)] || "").toLowerCase(); return /#shorts?\b/.test(t) ? "v" : null; }
+    function miniatura() { orientPorMiniatura(id, function (o) { fin(o || porTitulo(), false); }); }
+    var ctl = window.AbortController ? new AbortController() : null;
+    var tm = setTimeout(function () { if (ctl) ctl.abort(); }, 4000);
+    fetch("https://www.youtube.com/oembed?format=json&url=" + encodeURIComponent("https://www.youtube.com/watch?v=" + id), ctl ? { signal: ctl.signal } : {})
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        clearTimeout(tm);
+        if (d && d.width && d.height) fin(d.height > d.width ? "v" : "h", true); else miniatura();
+      })
+      .catch(function () { clearTimeout(tm); miniatura(); });
+  }
+  function aplicarOrientacion() {
+    if (!enPantalla() || !videoActualId || !screen.orientation) return;
+    var id = videoActualId;
+    detectarOrientacion(id, function (o) {
+      if (!enPantalla() || id !== videoActualId) return;
+      try {
+        if (o === "v") screen.orientation.lock("portrait").catch(function () {});
+        else if (o === "h") screen.orientation.lock("landscape").catch(function () {});
+        else screen.orientation.unlock();          // si no se pudo saber, no forzar nada
+      } catch (e) {}
+    });
+  }
+  function entrarPantalla() {
+    var rf = contenedor.requestFullscreen || contenedor.webkitRequestFullscreen;
+    if (!rf) { activarPantalla(true); return; } // iPhone: pantalla completa simulada
+    var p = rf.call(contenedor);
+    if (p && p.catch) p.catch(function () { activarPantalla(true); });
+  }
+  function salirPantalla() {
+    if (nativa()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else activarPantalla(false);
+  }
+  function cambioNativo() { activarPantalla(!!nativa()); }
+  document.addEventListener("fullscreenchange", cambioNativo);
+  document.addEventListener("webkitfullscreenchange", cambioNativo);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && enPantalla() && !nativa()) salirPantalla(); });
+  bPantalla.addEventListener("click", function () { if (enPantalla()) salirPantalla(); else entrarPantalla(); });
+  /* Deslizar el dedo hacia abajo en pantalla completa (en todo el video y también sobre la barra de controles):
+     sale de pantalla completa y va al video actual de la lista */
+  var gx = 0, gy = 0, gt = 0, gOk = false, gDx = 0, gSwipe = 0;
+  contenedor.addEventListener("touchstart", function (e) {
+    gOk = enPantalla() && e.touches.length === 1;
+    if (!gOk) return;
+    gx = e.touches[0].clientX; gy = e.touches[0].clientY; gt = Date.now(); gDx = 0;
+  }, { passive: true });
+  contenedor.addEventListener("touchmove", function (e) {
+    if (!gOk) return;
+    if (e.touches.length > 1) { gOk = false; return; }
+    gDx = Math.max(gDx, Math.abs(e.touches[0].clientX - gx));
+  }, { passive: true });
+  contenedor.addEventListener("touchend", function (e) {
+    if (!gOk) return;
+    gOk = false;
+    var t = e.changedTouches[0], dy = t.clientY - gy, dx = Math.abs(t.clientX - gx);
+    if (dy < 80 || dy < Math.max(dx, gDx) * 1.8 || Date.now() - gt > 900) return;
+    gSwipe = Date.now();
+    irAlSalir = true;
+    salirPantalla();
+    setTimeout(function () { if (irAlSalir) { irAlSalir = false; irAlVideoActual(); } }, 800);
+  }, { passive: true });
+  contenedor.addEventListener("click", function (e) {
+    if (Date.now() - gSwipe < 500) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+
+  contenedor.addEventListener("pointermove", mostrarControles);
+  document.getElementById("controles").addEventListener("pointerdown", mostrarControles);
+  wrapperVideo.addEventListener("click", function (e) {
+    if (!enPantalla()) {
+      if (e.target === tapa || tapa.contains(e.target) || avisoVivo.contains(e.target) || wrapperVideo.classList.contains("libre") || !listo) return;
+      if (jugador.getPlayerState() === 1) jugador.pauseVideo();
+      else { tapa.hidden = true; jugador.playVideo(); }
+      return;
+    }
+    if (contenedor.classList.contains("inactivo")) mostrarControles();
+    else { clearTimeout(tOculta); ocultarYa(); }
+  });
+
+  // Generación de tarjetas con imágenes automáticas basadas en el ID del canal
+  function inicial(nombre, i) {
+    var d = document.createElement("div");
+    d.className = "inicial";
+    d.style.background = COLORES[i % COLORES.length];
+    d.textContent = nombre.charAt(0).toUpperCase();
+    return d;
+  }
+
+  function crearTarjeta(item, i) {
+    var url = item.url || item.enlace || "";
+    if (!url) return null;
+    var nombre = item.nombre || item.name || "Canal";
+    var idCanal = (item.id || "").trim();
+    var imagen = item.imagen || item.image || "";
+
+    var a = document.createElement("div");
+    a.className = "tarjeta";
+
+    var media = document.createElement("div");
+    media.className = "media";
+
+    if (!imagen && /^UC[\w-]{22}$/.test(idCanal)) {
+      imagen = "https://yt3.googleusercontent.com/ytc/" + idCanal; 
+    }
+
+    if (imagen) {
+      var img = document.createElement("img");
+      img.src = imagen;
+      img.alt = "";
+      img.loading = "lazy";
+      img.onerror = function () { media.replaceChildren(inicial(nombre, i)); };
+      media.appendChild(img);
+    } else {
+      media.appendChild(inicial(nombre, i));
+    }
+
+    var titulo = document.createElement("p");
+    titulo.className = "nombre";
+    titulo.textContent = nombre;
+
+    a.appendChild(media);
+    a.appendChild(titulo);
+
+    if (/^UC[\w-]{22}$/.test(idCanal)) {
+      a.addEventListener("click", function () {
+        iniciarCanal(idCanal, nombre);
+      });
+    } else {
+      a.addEventListener("click", function () {
+        window.open(url, "_blank");
+      });
+    }
+
+    return a;
+  }
+
+  fetch("canales.json", { cache: "no-cache" })
+    .then(function (r) {
+      if (!r.ok) throw new Error("No se encontró canales.json");
+      return r.json();
     })
-  );
-});
+    .then(function (datos) {
+      var lista = Array.isArray(datos) ? datos : (datos.canales || datos.channels || []);
+      var cuadricula = document.getElementById("cuadricula");
+      lista.forEach(function (item, i) {
+        var t = crearTarjeta(item, i);
+        if (t) cuadricula.appendChild(t);
+      });
+      document.getElementById("mensaje").hidden = cuadricula.children.length > 0;
+    })
+    .catch(function () {
+      document.getElementById("mensaje").textContent = "No se pudo leer canales.json.";
+    });
+</script>
+<script>
+  /* App instalable: registra el service worker (solo funciona en https, como GitHub Pages) */
+  if ("serviceWorker" in navigator) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+</script>
+<script src="canales-auto.js?v=3"></script>
+<script src="buscador.js?v=3"></script>
+</body>
+</html>
