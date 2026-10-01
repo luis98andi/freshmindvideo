@@ -10,8 +10,7 @@
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
 <link rel="manifest" href="site.webmanifest">
 
-<!-- Ruffle fijado a una versión estable: no se actualiza solo y no rompe los juegos Flash -->
-<script src="https://unpkg.com/@ruffle-rs/ruffle@0.6.0/ruffle.js"></script>
+<script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <style>
@@ -437,53 +436,6 @@ h1{margin:10px 0}
   margin-bottom:8px;
 }
 
-/* MODO ORDENAR / EDITAR EN LA PÁGINA PRINCIPAL */
-.handle,.card-tools{display:none}
-.modo-orden .card{cursor:default;user-select:none;-webkit-user-select:none}
-.modo-orden .card:hover{transform:none}
-.modo-orden .card p{opacity:1}
-.modo-orden .card img{outline:2px dashed rgba(255,255,255,.55);outline-offset:-2px}
-.modo-orden .handle{
-  display:flex;align-items:center;justify-content:center;
-  position:absolute;top:14px;left:14px;width:40px;height:40px;
-  border-radius:50%;background:rgba(0,0,0,.75);color:#fff;font-size:22px;
-  cursor:grab;touch-action:none;z-index:3
-}
-.modo-orden .card-tools{display:flex;gap:6px;position:absolute;top:14px;right:14px;z-index:3}
-.card-tools button{width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.92);cursor:pointer}
-.card.arrastrando{transition:none!important;z-index:60;opacity:.92;box-shadow:0 12px 30px rgba(0,0,0,.6);border-radius:16px}
-#orden-bar{
-  display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:70px;z-index:998;
-  gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;max-width:94vw;
-  background:rgba(0,0,0,.88);padding:10px 14px;border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.5);font-size:14px
-}
-#orden-bar button{padding:8px 12px;border:0;border-radius:8px;cursor:pointer;font-weight:bold}
-
-/* CUENTAS */
-#cuentas-screen{
-  display:none;position:fixed;inset:0;z-index:1500;overflow:auto;
-  background:rgba(8,8,20,.94);padding:20px;text-align:center
-}
-.cuentas-box{max-width:760px;margin:0 auto}
-#cuentas-lista{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin:20px 0}
-.cuenta-card{
-  width:140px;padding:18px 8px;border:0;border-radius:18px;
-  background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-size:16px;transition:.2s
-}
-.cuenta-card:hover{background:rgba(58,123,213,.6);transform:scale(1.06)}
-.cuenta-card .av{font-size:54px;display:block;margin-bottom:6px}
-#cuentas-clave input{font-size:20px;padding:10px;text-align:center;border-radius:8px;border:1px solid #666;background:#222;color:#fff}
-#cuentas-screen button.btn{padding:9px 14px;border:0;border-radius:8px;cursor:pointer;margin:0 3px}
-#btn-cuentas{
-  display:none;position:fixed;left:14px;bottom:14px;z-index:1000;border:0;border-radius:23px;
-  height:46px;padding:0 16px;background:rgba(255,255,255,.9);font-size:15px;font-weight:bold;
-  cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.35)
-}
-.cuenta-fila{display:flex;align-items:center;gap:10px;background:#292929;padding:8px 10px;border-radius:8px;margin:6px 0;text-align:left}
-.cuenta-fila .grow{flex:1}
-.claves-box label.chk{flex-direction:row;align-items:center;gap:8px}
-.claves-box input[type=password],.claves-box input[type=text]{width:100%}
-
 @media(max-width:600px){
   .form-grid{grid-template-columns:1fr}
 
@@ -573,51 +525,21 @@ h1{margin:10px 0}
 >⚙️</button>
 
 <!-- ADMIN -->
-<!-- SELECTOR DE CUENTAS -->
-<div id="cuentas-screen">
-  <div class="cuentas-box">
-    <img src="portadas/logo.png" alt="FreshMind Games" class="logo">
-    <h2>¿Quién va a jugar?</h2>
-    <div id="cuentas-lista"></div>
-
-    <div id="cuentas-clave" style="display:none">
-      <p id="cuentas-clave-titulo"></p>
-      <input id="cuentas-clave-input" type="password" maxlength="40" placeholder="Contraseña"
-             onkeydown="if(event.key==='Enter')confirmarClaveCuenta()">
-      <br><br>
-      <button class="btn" onclick="confirmarClaveCuenta()">Entrar</button>
-      <button class="btn" onclick="cancelarClaveCuenta()">Atrás</button>
-      <p id="cuentas-clave-error" style="color:#ff8b8b"></p>
-    </div>
-
-    <button id="cuentas-cerrar" class="btn" style="display:none" onclick="ocultarSelector()">Volver</button>
-  </div>
-</div>
-
-<button id="btn-cuentas" onclick="mostrarSelector()"></button>
-
-<div id="orden-bar">
-  <span id="orden-msg"></span>
-  <button onclick="ordenSubirGitHub()">☁️ Guardar en GitHub</button>
-  <button onclick="salirModoOrden()">✅ Listo</button>
-</div>
-
 <div id="admin-panel">
 
   <div class="admin-box">
 
     <div id="pin-screen">
       <h2>🔐 Administración</h2>
-      <p>Introduce la contraseña de administración.</p>
+      <p>Introduce el PIN para entrar.</p>
 
       <input
         id="pin"
         class="pin-input"
         type="password"
-        maxlength="40"
+        inputmode="numeric"
+        maxlength="4"
         placeholder="••••"
-        style="width:200px;letter-spacing:2px"
-        onkeydown="if(event.key==='Enter')validarPin()"
       >
 
       <br><br>
@@ -630,10 +552,10 @@ h1{margin:10px 0}
 
     <div id="admin-content" style="display:none">
 
-      <h2>⚙️ Administrar FreshMind Games <span id="admin-cuenta" style="font-size:16px;opacity:.8"></span></h2>
+      <h2>⚙️ Administrar FreshMind Games</h2>
 
       <p class="admin-muted">
-        Catálogo cargado desde <b id="admin-archivo">juegos.json</b>.
+        Catálogo cargado desde <b>juegos.json</b>.
       </p>
 
       <div class="admin-actions">
@@ -644,14 +566,6 @@ h1{margin:10px 0}
 
         <button onclick="mostrarMultiples()">
           ⚙️ Agregar hasta 20
-        </button>
-
-        <button onclick="mostrarCuentas()">
-          👤 Cuentas
-        </button>
-
-        <button onclick="entrarModoOrden()">
-          ✋ Ordenar / editar en la página
         </button>
 
         <button onclick="exportarJSON()">
@@ -685,7 +599,7 @@ h1{margin:10px 0}
       </div>
 
       <div id="github-config" style="display:none;margin:14px 0;padding:14px;border-radius:14px;background:rgba(0,0,0,.16)">
-        <h3 style="margin:0 0 8px">☁️ Actualizar el catálogo de esta cuenta en GitHub</h3>
+        <h3 style="margin:0 0 8px">☁️ Actualizar juegos.json en GitHub</h3>
         <p class="admin-muted" style="margin:0 0 10px">
           Usa un token de GitHub con permiso <b>Contents: Read and write</b> solamente para este repositorio.
         </p>
@@ -849,18 +763,14 @@ async function cargarCatalogo(){
   try{
 
     const r=await fetch(
-      cuentaActual.archivo,
+      'juegos.json',
       {cache:'no-store'}
     );
 
-    if(r.status===404 && cuentaActual.id!==cuentas[0].id){
-      /* cuenta nueva que aún no se ha subido: empieza sin juegos */
-      catalogo={version:1,categorias:[],juegos:[]};
-    }else{
-      if(!r.ok)
-        throw new Error('No se pudo cargar '+cuentaActual.archivo);
-      catalogo=await r.json();
-    }
+    if(!r.ok)
+      throw new Error('No se pudo cargar juegos.json');
+
+    catalogo=await r.json();
 
     if(!Array.isArray(catalogo.juegos))
       catalogo.juegos=[];
@@ -977,9 +887,7 @@ function renderJuegos(lista=null){
 
     grid.innerHTML=
       '<p style="text-align:center;grid-column:1/-1">'+
-      (catalogo.juegos.length
-        ? 'No se encontraron juegos.'
-        : 'Esta cuenta aún no tiene juegos. Toca ⚙️ para agregar el primero.')+
+      'No se encontraron juegos.'+
       '</p>';
 
     return;
@@ -991,48 +899,23 @@ function renderJuegos(lista=null){
 
     card.className='card';
 
-    card.dataset.id=j.id;
-
-    card.onclick=()=>{
-      if(modoOrden)return;
-      abrirJuego(
-        j.url,
-        j.tipo,
-        j.accion,
-        j
-      );
-    };
+    card.onclick=()=>abrirJuego(
+      j.url,
+      j.tipo,
+      j.accion,
+      j
+    );
 
     const img=document.createElement('img');
 
     img.src=j.imagen;
     img.alt=j.nombre;
-    img.loading='lazy';
 
     const p=document.createElement('p');
 
     p.textContent=j.nombre;
 
     card.append(img,p);
-
-    if(modoOrden){
-
-      const h=document.createElement('div');
-      h.className='handle';
-      h.textContent='⠿';
-      h.title='Arrastra para mover';
-
-      const tools=document.createElement('div');
-      tools.className='card-tools';
-      tools.innerHTML=
-        '<button title="Editar">✏️</button>'+
-        '<button title="Eliminar">🗑️</button>';
-      tools.children[0].onclick=e=>{e.stopPropagation();editarDesdeTarjeta(j.id);};
-      tools.children[1].onclick=e=>{e.stopPropagation();eliminarJuego(j.id);};
-
-      card.append(h,tools);
-
-    }
 
     grid.appendChild(card);
 
@@ -1692,19 +1575,6 @@ function abrirAdmin(){
     'admin-panel'
   ).style.display='block';
 
-  if(cuentaActual && cuentaActual.adminLibre){
-
-    /* esta cuenta no tiene contraseña de administración */
-    document.getElementById('pin-screen').style.display='none';
-    document.getElementById('admin-content').style.display='block';
-    renderAdmin();
-    return;
-
-  }
-
-  document.getElementById('pin-screen').style.display='block';
-  document.getElementById('admin-content').style.display='none';
-
   document.getElementById(
     'pin'
   ).focus();
@@ -1731,22 +1601,20 @@ function cerrarAdmin(){
 
 }
 
-async function validarPin(){
+function validarPin(){
 
-  const v=document.getElementById('pin').value;
-  let ok=false;
+  if(
+    document.getElementById('pin').value===
+    PIN
+  ){
 
-  if(cuentaActual.claveAdmin){
-    ok=(await hashClave(v,cuentaActual.sal))===cuentaActual.claveAdmin;
-  }else{
-    ok=(v===PIN);   /* cuenta principal sin contraseña propia: PIN de siempre */
-  }
+    document.getElementById(
+      'pin-screen'
+    ).style.display='none';
 
-  if(ok){
-
-    document.getElementById('pin-error').textContent='';
-    document.getElementById('pin-screen').style.display='none';
-    document.getElementById('admin-content').style.display='block';
+    document.getElementById(
+      'admin-content'
+    ).style.display='block';
 
     renderAdmin();
 
@@ -1754,7 +1622,7 @@ async function validarPin(){
 
     document.getElementById(
       'pin-error'
-    ).textContent='Contraseña incorrecta.';
+    ).textContent='PIN incorrecto.';
 
   }
 
@@ -1935,7 +1803,6 @@ function mostrarAgregar(){
           <input
             id="fUrl"
             placeholder="https://..."
-            oninput="autoAgregar()"
           >
         </label>
 
@@ -1944,7 +1811,6 @@ function mostrarAgregar(){
           <input
             id="fImagen"
             placeholder="https://...jpg / png / webp"
-            oninput="this.dataset.auto=''"
           >
 
           <button
@@ -2035,91 +1901,6 @@ function actualizarCamposYouTube(selectId,extraId){
       tipo==='youtube'
         ? 'block'
         : 'none';
-
-}
-
-/* Detecta el tipo por la URL y, en YouTube, pone la miniatura y el minuto de inicio */
-function detectarTipoUrl(url){
-
-  if(extraerYouTubeId(url))return 'youtube';
-
-  let host='',ruta='';
-
-  try{
-    const u=new URL(url);
-    host=u.hostname.toLowerCase();
-    ruta=u.pathname.toLowerCase();
-  }catch(e){
-    return null;
-  }
-
-  if(ruta.endsWith('.swf'))return 'swf';
-  if(host==='retrogames.cc'||host.endsWith('.retrogames.cc'))return 'snes';
-
-  return null;
-
-}
-
-function autoDesdeUrl(urlEl,tipoEl,imgEl,extraId,startEl){
-
-  if(!urlEl||!tipoEl)return;
-
-  const url=urlEl.value.trim();
-
-  if(!url)return;
-
-  const tipo=detectarTipoUrl(url);
-
-  if(!tipo)return;
-
-  tipoEl.value=tipo;
-
-  if(extraId)
-    actualizarCamposYouTube(tipoEl.id,extraId);
-
-  if(tipo==='youtube'){
-
-    const id=extraerYouTubeId(url);
-
-    if(imgEl && (!imgEl.value.trim() || imgEl.dataset.auto==='1')){
-      imgEl.value='https://img.youtube.com/vi/'+encodeURIComponent(id)+'/hqdefault.jpg';
-      imgEl.dataset.auto='1';
-    }
-
-    if(startEl && !startEl.value.trim()){
-      const t=obtenerStartDesdeUrl(url);
-      if(t>0)startEl.value=segundosATiempo(t);
-    }
-
-  }
-
-}
-
-function autoAgregar(){
-  autoDesdeUrl(
-    document.getElementById('fUrl'),
-    document.getElementById('fTipo'),
-    document.getElementById('fImagen'),
-    'fYoutubeExtra',
-    document.getElementById('fYoutubeStart')
-  );
-}
-
-function autoEditar(){
-  autoDesdeUrl(
-    document.getElementById('eUrl'),
-    document.getElementById('eTipo'),
-    document.getElementById('eImagen'),
-    'eYoutubeExtra',
-    document.getElementById('eYoutubeStart')
-  );
-}
-
-function autoMulti(i){
-
-  const q=k=>document.querySelector('[data-multi="'+k+'"][data-i="'+i+'"]');
-
-  autoDesdeUrl(q('url'),q('tipo'),q('imagen'),null,q('start'));
 
 }
 
@@ -2294,7 +2075,6 @@ function mostrarMultiples(){
               data-multi="url"
               data-i="${i}"
               placeholder="https://..."
-              oninput="autoMulti(${i})"
             >
           </label>
 
@@ -2304,7 +2084,6 @@ function mostrarMultiples(){
               data-multi="imagen"
               data-i="${i}"
               placeholder="URL de portada"
-              oninput="this.dataset.auto=''"
             >
           </label>
 
@@ -2540,7 +2319,6 @@ function editarJuego(id){
           <input
             id="eUrl"
             value="${escapeAttr(j.url)}"
-            oninput="autoEditar()"
           >
         </label>
 
@@ -2550,7 +2328,6 @@ function editarJuego(id){
           <input
             id="eImagen"
             value="${escapeAttr(j.imagen)}"
-            oninput="this.dataset.auto=''"
           >
 
           <button
@@ -2823,8 +2600,7 @@ function mostrarGitHub(){
 
   document.getElementById('gh-owner').value=cfg.owner || 'luis98andi';
   document.getElementById('gh-repo').value=cfg.repo || 'juegosaludables';
-  document.getElementById('gh-path').value=cuentaActual.archivo;
-  document.getElementById('gh-path').readOnly=true;
+  document.getElementById('gh-path').value=cfg.path || 'juegos.json';
   document.getElementById('gh-branch').value=cfg.branch || 'main';
   document.getElementById('gh-token').value=cfg.token || '';
   document.getElementById('github-status').textContent='';
@@ -2875,59 +2651,6 @@ function textoBase64UTF8(texto){
   return btoa(bin);
 }
 
-async function subirArchivoGitHub(cfg,ruta,contenido,mensaje){
-
-  const apiUrl=
-    'https://api.github.com/repos/'+
-    encodeURIComponent(cfg.owner)+'/'+
-    encodeURIComponent(cfg.repo)+'/contents/'+
-    ruta.split('/').map(encodeURIComponent).join('/');
-
-  const headers={
-    'Accept':'application/vnd.github+json',
-    'Authorization':'Bearer '+cfg.token,
-    'X-GitHub-Api-Version':'2022-11-28'
-  };
-
-  let sha=null;
-
-  const getResponse=await fetch(
-    apiUrl+'?ref='+encodeURIComponent(cfg.branch),
-    {headers}
-  );
-
-  if(getResponse.ok){
-    sha=(await getResponse.json()).sha;
-  }else if(getResponse.status!==404){
-    const error=await getResponse.json().catch(()=>({}));
-    throw new Error(error.message || 'No se pudo leer '+ruta+' en GitHub.');
-  }
-
-  const body={
-    message:mensaje,
-    content:textoBase64UTF8(contenido),
-    branch:cfg.branch
-  };
-
-  if(sha) body.sha=sha;
-
-  const putResponse=await fetch(
-    apiUrl,
-    {
-      method:'PUT',
-      headers:{...headers,'Content-Type':'application/json'},
-      body:JSON.stringify(body)
-    }
-  );
-
-  const result=await putResponse.json().catch(()=>({}));
-
-  if(!putResponse.ok){
-    throw new Error(result.message || 'GitHub rechazó la actualización de '+ruta+'.');
-  }
-
-}
-
 async function actualizarGitHub(){
 
   const status=document.getElementById('github-status');
@@ -2935,6 +2658,7 @@ async function actualizarGitHub(){
   const cfg={
     owner:document.getElementById('gh-owner').value.trim(),
     repo:document.getElementById('gh-repo').value.trim(),
+    path:document.getElementById('gh-path').value.trim() || 'juegos.json',
     branch:document.getElementById('gh-branch').value.trim() || 'main',
     token:document.getElementById('gh-token').value.trim()
   };
@@ -2947,31 +2671,68 @@ async function actualizarGitHub(){
   guardarConfigGitHub();
   reordenar();
 
+  const contenido=JSON.stringify(catalogo,null,2);
+  const apiUrl=
+    'https://api.github.com/repos/'+
+    encodeURIComponent(cfg.owner)+'/'+
+    encodeURIComponent(cfg.repo)+'/contents/'+
+    cfg.path.split('/').map(encodeURIComponent).join('/');
+
   status.textContent='⏳ Conectando con GitHub...';
 
   try{
 
-    if(cuentasSucias){
+    const headers={
+      'Accept':'application/vnd.github+json',
+      'Authorization':'Bearer '+cfg.token,
+      'X-GitHub-Api-Version':'2022-11-28'
+    };
 
-      await subirArchivoGitHub(
-        cfg,
-        'cuentas.json',
-        JSON.stringify(datosCuentas(),null,2),
-        'Actualizar cuentas desde FreshMind Games'
-      );
+    let sha=null;
 
-      cuentasSucias=false;
-
-    }
-
-    await subirArchivoGitHub(
-      cfg,
-      cuentaActual.archivo,
-      JSON.stringify(catalogo,null,2),
-      'Actualizar '+cuentaActual.archivo+' desde FreshMind Games'
+    const getResponse=await fetch(
+      apiUrl+'?ref='+encodeURIComponent(cfg.branch),
+      {headers}
     );
 
-    status.textContent='✅ '+cuentaActual.archivo+' actualizado en GitHub.';
+    if(getResponse.ok){
+      const actual=await getResponse.json();
+      sha=actual.sha;
+    }else if(getResponse.status!==404){
+      const error=await getResponse.json().catch(()=>({}));
+      throw new Error(error.message || 'No se pudo leer juegos.json en GitHub.');
+    }
+
+    const body={
+      message:'Actualizar juegos.json desde FreshMind Games',
+      content:textoBase64UTF8(contenido),
+      branch:cfg.branch
+    };
+
+    if(sha) body.sha=sha;
+
+    const putResponse=await fetch(
+      apiUrl,
+      {
+        method:'PUT',
+        headers:{
+          ...headers,
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify(body)
+      }
+    );
+
+    const result=await putResponse.json().catch(()=>({}));
+
+    if(!putResponse.ok){
+      throw new Error(
+        result.message ||
+        'GitHub rechazó la actualización.'
+      );
+    }
+
+    status.textContent='✅ juegos.json actualizado en GitHub.';
 
   }catch(error){
 
@@ -3010,7 +2771,7 @@ function exportarJSON(){
   a.href=
     URL.createObjectURL(blob);
 
-  a.download=cuentaActual.archivo;
+  a.download='juegos.json';
 
   a.click();
 
@@ -3079,800 +2840,7 @@ function leerJSON(ev){
    INICIO
 ========================= */
 
-/* =========================
-   ORDENAR / EDITAR DESDE LA PÁGINA PRINCIPAL
-========================= */
-
-let modoOrden=false;
-
-function entrarModoOrden(){
-
-  categoriaActual="Todos";
-  document.getElementById('searchInput').value='';
-
-  cerrarAdmin();
-
-  modoOrden=true;
-  document.body.classList.add('modo-orden');
-  document.getElementById('orden-bar').style.display='flex';
-  document.getElementById('orden-msg').textContent=
-    'Arrastra ⠿ para mover · ✏️ editar · 🗑️ eliminar';
-
-  renderCategorias();
-  renderJuegos();
-
-  window.scrollTo({
-    top:document.getElementById('grid').offsetTop-20,
-    behavior:'smooth'
-  });
-
-}
-
-function salirModoOrden(){
-
-  modoOrden=false;
-  document.body.classList.remove('modo-orden');
-  document.getElementById('orden-bar').style.display='none';
-  renderJuegos();
-
-}
-
-function editarDesdeTarjeta(id){
-
-  document.getElementById('admin-panel').style.display='block';
-  document.getElementById('pin-screen').style.display='none';
-  document.getElementById('admin-content').style.display='block';
-
-  renderAdmin();
-  editarJuego(id);
-
-  document.getElementById('admin-panel').scrollTop=0;
-
-}
-
-async function ordenSubirGitHub(){
-
-  const msg=document.getElementById('orden-msg');
-
-  if(!obtenerConfigGitHub().token){
-    msg.textContent='Primero guarda tu token en ⚙️ → Actualizar GitHub.';
-    return;
-  }
-
-  mostrarGitHub();
-  msg.textContent='⏳ Subiendo a GitHub...';
-
-  await actualizarGitHub();
-
-  msg.textContent=
-    document.getElementById('github-status').textContent;
-
-  ocultarGitHub();
-
-}
-
-(function(){
-
-  const grid=document.getElementById('grid');
-  let drag=null,timer=null;
-
-  function posicionar(){
-
-    const c=drag.card;
-
-    c.style.transform='none';
-
-    const r=c.getBoundingClientRect();
-
-    c.style.transform=
-      'translate('+
-      (drag.x-drag.gx-r.left)+'px,'+
-      (drag.y-drag.gy-r.top)+'px)';
-
-  }
-
-  function mover(){
-
-    const c=drag.card;
-
-    posicionar();
-
-    c.style.pointerEvents='none';
-    const el=document.elementFromPoint(drag.x,drag.y);
-    c.style.pointerEvents='';
-
-    const t=el&&el.closest?el.closest('.card'):null;
-
-    if(t&&t!==c&&t.parentNode===grid){
-
-      const tr=t.getBoundingClientRect();
-
-      const despues=
-        (c.compareDocumentPosition(t)&
-         Node.DOCUMENT_POSITION_FOLLOWING)!==0;
-
-      /* si el objetivo está adelante, la tarjeta se coloca después; si está atrás, antes */
-      if(despues)
-        grid.insertBefore(c,t.nextSibling);
-      else
-        grid.insertBefore(c,t);
-
-      try{drag.h.setPointerCapture(drag.id);}catch(e){}
-
-      posicionar();
-
-    }
-
-  }
-
-  grid.addEventListener('pointerdown',e=>{
-
-    if(!modoOrden)return;
-
-    const h=e.target.closest('.handle');
-
-    if(!h)return;
-
-    const card=h.closest('.card');
-    const r=card.getBoundingClientRect();
-
-    drag={
-      card,h,
-      id:e.pointerId,
-      gx:e.clientX-r.left,
-      gy:e.clientY-r.top,
-      x:e.clientX,
-      y:e.clientY
-    };
-
-    card.classList.add('arrastrando');
-
-    try{h.setPointerCapture(e.pointerId);}catch(err){}
-
-    e.preventDefault();
-
-    /* desplazamiento automático al acercarse a los bordes */
-    timer=setInterval(()=>{
-
-      if(!drag)return;
-
-      if(drag.y<90)
-        window.scrollBy(0,-14);
-      else if(drag.y>window.innerHeight-90)
-        window.scrollBy(0,14);
-      else
-        return;
-
-      mover();
-
-    },16);
-
-  });
-
-  document.addEventListener('pointermove',e=>{
-
-    if(!drag||e.pointerId!==drag.id)return;
-
-    drag.x=e.clientX;
-    drag.y=e.clientY;
-
-    mover();
-
-  });
-
-  function soltar(e){
-
-    if(!drag||e.pointerId!==drag.id)return;
-
-    clearInterval(timer);
-
-    drag.card.classList.remove('arrastrando');
-    drag.card.style.transform='';
-
-    drag=null;
-
-    [...grid.querySelectorAll('.card')].forEach((c,i)=>{
-
-      const j=catalogo.juegos.find(x=>x.id===c.dataset.id);
-
-      if(j)j.orden=i+1;
-
-    });
-
-    catalogo.juegos.sort((a,b)=>(a.orden||0)-(b.orden||0));
-
-    document.getElementById('orden-msg').textContent=
-      '✔ Orden cambiado. Pulsa ☁️ Guardar para verlo en todos tus dispositivos.';
-
-    renderJuegos();
-
-  }
-
-  document.addEventListener('pointerup',soltar);
-  document.addEventListener('pointercancel',soltar);
-
-})();
-
-/* =========================
-   CUENTAS / PERFILES
-========================= */
-
-let cuentas=[];
-let cuentaActual=null;
-let cuentasSucias=false;
-let cuentaPendiente=null;
-
-const AVATARES=['🐣','🦄','🚀','🐱','🐶','🦖','🌈','⭐','🎨','🎮','🐼','🦊'];
-
-function normalizarCuenta(c,i){
-
-  const id=String(c.id||('cuenta-'+i)).replace(/[^a-z0-9-]/gi,'');
-
-  return {
-    id,
-    nombre:c.nombre||id,
-    avatar:c.avatar||'🎮',
-    archivo:c.archivo||(i===0?'juegos.json':'juegos-'+id+'.json'),
-    sal:c.sal||'',
-    claveEntrar:c.claveEntrar||null,
-    claveAdmin:c.claveAdmin||null,
-    adminLibre:!!c.adminLibre
-  };
-
-}
-
-function cuentaPrincipal(){
-
-  return normalizarCuenta({
-    id:'principal',
-    nombre:'Principal',
-    avatar:'🎮',
-    archivo:'juegos.json'
-  },0);
-
-}
-
-function datosCuentas(){
-
-  return {
-    version:1,
-    cuentas:cuentas.map(c=>({
-      id:c.id,nombre:c.nombre,avatar:c.avatar,archivo:c.archivo,
-      sal:c.sal,claveEntrar:c.claveEntrar,claveAdmin:c.claveAdmin,
-      adminLibre:c.adminLibre
-    }))
-  };
-
-}
-
-function nuevaSal(){
-
-  const a=new Uint8Array(8);
-
-  (window.crypto||{getRandomValues:x=>x.forEach((_,i)=>x[i]=Math.random()*256)})
-    .getRandomValues(a);
-
-  return [...a].map(x=>x.toString(16).padStart(2,'0')).join('');
-
-}
-
-/* Es un candado suave, no seguridad real: los archivos de un repositorio público se pueden leer */
-async function hashClave(clave,sal){
-
-  const txt=(sal||'')+':'+clave;
-
-  try{
-
-    if(window.crypto && crypto.subtle){
-
-      const b=await crypto.subtle.digest(
-        'SHA-256',
-        new TextEncoder().encode(txt)
-      );
-
-      return [...new Uint8Array(b)]
-        .map(x=>x.toString(16).padStart(2,'0'))
-        .join('');
-
-    }
-
-  }catch(e){}
-
-  let h1=0xdeadbeef,h2=0x41c6ce57;
-
-  for(let i=0;i<txt.length;i++){
-    const ch=txt.charCodeAt(i);
-    h1=Math.imul(h1^ch,2654435761);
-    h2=Math.imul(h2^ch,1597334677);
-  }
-
-  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
-  h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
-
-  return 'c'+(4294967296*(2097151&h2)+(h1>>>0)).toString(16);
-
-}
-
-async function iniciarCuentas(){
-
-  try{
-
-    const r=await fetch('cuentas.json',{cache:'no-store'});
-
-    if(r.ok){
-
-      const d=await r.json();
-
-      if(Array.isArray(d.cuentas) && d.cuentas.length)
-        cuentas=d.cuentas.map(normalizarCuenta);
-
-    }
-
-  }catch(e){}
-
-  if(!cuentas.length)cuentas=[cuentaPrincipal()];
-
-  /* Siempre se abre la cuenta principal sin elegir (o la del enlace ?cuenta=id) */
-  const pedida=new URLSearchParams(location.search).get('cuenta');
-  const inicial=cuentas.find(c=>c.id===pedida)||cuentas[0];
-
-  if(!inicial.claveEntrar){
-    await abrirCuenta(inicial);
-    return;
-  }
-
-  /* solo si esa cuenta tiene contraseña para entrar, se pide directamente */
-  mostrarSelector();
-  elegirCuenta(inicial.id);
-
-}
-
-async function abrirCuenta(c,inicial){
-
-  if(modoOrden)salirModoOrden();
-
-  cuentaActual=c;
-  categoriaActual='Todos';
-  document.getElementById('searchInput').value='';
-
-  cerrarJuego();
-
-  if(inicial){
-    catalogo=inicial;
-    renderCategorias();
-    renderJuegos();
-  }else{
-    await cargarCatalogo();
-  }
-
-  renderAdmin();
-  actualizarBotonCuentas();
-
-}
-
-function actualizarBotonCuentas(){
-
-  const b=document.getElementById('btn-cuentas');
-
-  b.style.display=cuentas.length>1?'block':'none';
-  b.textContent=cuentaActual
-    ? cuentaActual.avatar+' '+cuentaActual.nombre+' ▾'
-    : '';
-
-  document.getElementById('admin-cuenta').textContent=
-    cuentas.length>1 && cuentaActual ? '· '+cuentaActual.nombre : '';
-
-  document.getElementById('admin-archivo').textContent=
-    cuentaActual ? cuentaActual.archivo : 'juegos.json';
-
-}
-
-function mostrarSelector(){
-
-  const l=document.getElementById('cuentas-lista');
-
-  l.innerHTML='';
-
-  cuentas.forEach(c=>{
-
-    const b=document.createElement('button');
-
-    b.className='cuenta-card';
-    b.innerHTML=
-      '<span class="av">'+escapeHtml(c.avatar)+'</span>'+
-      escapeHtml(c.nombre)+
-      (c.claveEntrar?' 🔒':'');
-    b.onclick=()=>elegirCuenta(c.id);
-
-    l.appendChild(b);
-
-  });
-
-  cancelarClaveCuenta();
-
-  document.getElementById('cuentas-cerrar').style.display=
-    cuentaActual?'inline-block':'none';
-
-  document.getElementById('cuentas-screen').style.display='block';
-
-}
-
-function ocultarSelector(){
-
-  document.getElementById('cuentas-screen').style.display='none';
-
-}
-
-function elegirCuenta(id){
-
-  const c=cuentas.find(x=>x.id===id);
-
-  if(!c)return;
-
-  if(c.claveEntrar){
-
-    cuentaPendiente=c;
-
-    document.getElementById('cuentas-screen').style.display='block';
-    document.getElementById('cuentas-lista').style.display='none';
-    document.getElementById('cuentas-cerrar').style.display='none';
-    document.getElementById('cuentas-clave').style.display='block';
-    document.getElementById('cuentas-clave-titulo').textContent=
-      c.avatar+' Contraseña de '+c.nombre;
-    document.getElementById('cuentas-clave-error').textContent='';
-
-    const i=document.getElementById('cuentas-clave-input');
-    i.value='';
-    i.focus();
-
-    return;
-
-  }
-
-  ocultarSelector();
-  abrirCuenta(c);
-
-}
-
-async function confirmarClaveCuenta(){
-
-  const c=cuentaPendiente;
-
-  if(!c)return;
-
-  const v=document.getElementById('cuentas-clave-input').value;
-
-  if((await hashClave(v,c.sal))===c.claveEntrar){
-
-    cuentaPendiente=null;
-    ocultarSelector();
-    abrirCuenta(c);
-
-  }else{
-
-    document.getElementById('cuentas-clave-error').textContent=
-      'Contraseña incorrecta.';
-
-  }
-
-}
-
-function cancelarClaveCuenta(){
-
-  cuentaPendiente=null;
-
-  document.getElementById('cuentas-clave').style.display='none';
-  document.getElementById('cuentas-lista').style.display='flex';
-  document.getElementById('cuentas-cerrar').style.display=
-    cuentaActual?'inline-block':'none';
-
-}
-
-/* ----- administración de cuentas ----- */
-
-function camposClaves(p,c){
-
-  const usaE=!!(c&&c.claveEntrar);
-  const usaA=c ? (!!c.claveAdmin || !c.adminLibre) : false;
-
-  return `
-    <div class="claves-box">
-
-      <label class="chk">
-        <input type="checkbox" id="${p}UsaEntrar" ${usaE?'checked':''}
-          onchange="document.getElementById('${p}ClaveEntrar').style.display=this.checked?'block':'none'">
-        🔒 Pedir contraseña para entrar a la cuenta
-      </label>
-      <input type="password" id="${p}ClaveEntrar" maxlength="40"
-        placeholder="${usaE?'Déjala vacía para conservar la actual':'Nueva contraseña (mínimo 4)'}"
-        style="display:${usaE?'block':'none'};margin:6px 0 12px">
-
-      <label class="chk">
-        <input type="checkbox" id="${p}UsaAdmin" ${usaA?'checked':''}
-          onchange="document.getElementById('${p}ClaveAdmin').style.display=this.checked?'block':'none'">
-        🛠️ Pedir contraseña para administrar (agregar, editar, borrar)
-      </label>
-      <input type="password" id="${p}ClaveAdmin" maxlength="40"
-        placeholder="${c&&!c.claveAdmin&&!c.adminLibre?'Ahora usa el PIN de siempre; escribe una nueva para cambiarlo':(usaA?'Déjala vacía para conservar la actual':'Nueva contraseña (mínimo 4)')}"
-        style="display:${usaA?'block':'none'};margin:6px 0 12px">
-
-    </div>`;
-
-}
-
-function mostrarCuentas(){
-
-  const e=document.getElementById('editor');
-
-  let filas='';
-
-  cuentas.forEach((c,i)=>{
-
-    filas+=`
-      <div class="cuenta-fila">
-        <span style="font-size:26px">${escapeHtml(c.avatar)}</span>
-        <div class="grow">
-          <b>${escapeHtml(c.nombre)}</b>${c.id===cuentaActual.id?' (abierta)':''}
-          <div class="admin-muted">
-            ${escapeHtml(c.archivo)}
-            ${c.claveEntrar?' · 🔒 entrar':''}
-            ${(c.claveAdmin||!c.adminLibre)?' · 🛠️ admin':''}
-          </div>
-        </div>
-        <button onclick="cerrarAdmin();elegirCuenta('${escapeAttr(c.id)}')">Abrir</button>
-        ${i>0?`<button onclick="eliminarCuenta('${escapeAttr(c.id)}')">🗑️</button>`:''}
-      </div>`;
-
-  });
-
-  e.innerHTML=`
-    <div style="background:#222;padding:14px;border-radius:10px;margin-bottom:15px">
-      <h3>👤 Cuentas</h3>
-      ${filas}
-      <br>
-      <button onclick="mostrarNuevaCuenta()">➕ Nueva cuenta</button>
-      <button onclick="mostrarClavesCuenta()">🔑 Contraseñas de esta cuenta</button>
-      <button onclick="subirCuentasGitHub()">☁️ Guardar cuentas en GitHub</button>
-      <button onclick="cancelarEditor()">Cerrar</button>
-    </div>`;
-
-}
-
-function mostrarNuevaCuenta(){
-
-  const e=document.getElementById('editor');
-
-  e.innerHTML=`
-    <div style="background:#222;padding:14px;border-radius:10px;margin-bottom:15px">
-
-      <h3>➕ Nueva cuenta</h3>
-
-      <div class="form-grid">
-
-        <label>
-          Nombre
-          <input id="nNombre" maxlength="24" placeholder="Ej. María">
-        </label>
-
-        <label>
-          Avatar
-          <select id="nAvatar">
-            ${AVATARES.map(a=>`<option value="${a}">${a}</option>`).join('')}
-          </select>
-        </label>
-
-        <label>
-          Juegos al empezar
-          <select id="nCopiar">
-            <option value="vacio">Sin ningún juego (para agregar los nuevos)</option>
-            <option value="copiar">Copiar los juegos de esta cuenta</option>
-          </select>
-        </label>
-
-      </div>
-
-      <br>
-      ${camposClaves('n',null)}
-      <br>
-
-      <button onclick="crearCuenta()">💾 Crear y abrir</button>
-      <button onclick="mostrarCuentas()">Cancelar</button>
-
-    </div>`;
-
-}
-
-function idCuentaUnico(nombre){
-
-  let base=nombre.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'cuenta';
-
-  let id=base,n=2;
-
-  while(cuentas.some(c=>c.id===id))id=base+'-'+(n++);
-
-  return id;
-
-}
-
-async function crearCuenta(){
-
-  const nombre=document.getElementById('nNombre').value.trim();
-
-  if(!nombre){
-    alert('Escribe un nombre para la cuenta.');
-    return;
-  }
-
-  const usaE=document.getElementById('nUsaEntrar').checked;
-  const usaA=document.getElementById('nUsaAdmin').checked;
-  const cE=document.getElementById('nClaveEntrar').value;
-  const cA=document.getElementById('nClaveAdmin').value;
-
-  if((usaE&&cE.length<4)||(usaA&&cA.length<4)){
-    alert('Las contraseñas deben tener al menos 4 caracteres.');
-    return;
-  }
-
-  const id=idCuentaUnico(nombre);
-  const sal=nuevaSal();
-
-  const c={
-    id,
-    nombre,
-    avatar:document.getElementById('nAvatar').value,
-    archivo:'juegos-'+id+'.json',
-    sal,
-    claveEntrar:usaE?await hashClave(cE,sal):null,
-    claveAdmin:usaA?await hashClave(cA,sal):null,
-    adminLibre:!usaA
-  };
-
-  const copiar=document.getElementById('nCopiar').value==='copiar';
-
-  const base=copiar
-    ? JSON.parse(JSON.stringify(catalogo))
-    : {version:1,categorias:[],juegos:[]};
-
-  cuentas.push(c);
-  cuentasSucias=true;
-
-  await abrirCuenta(c,base);
-
-  mostrarCuentas();
-
-  alert(
-    'Cuenta "'+nombre+'" creada y abierta.\n\n'+
-    'Agrega sus juegos y pulsa ☁️ Actualizar GitHub para que se guarde en todos tus dispositivos.'
-  );
-
-}
-
-function eliminarCuenta(id){
-
-  const c=cuentas.find(x=>x.id===id);
-
-  if(!c||c.id===cuentas[0].id)return;
-
-  if(!confirm(
-    '¿Eliminar la cuenta "'+c.nombre+'"?\n\n'+
-    'Su archivo '+c.archivo+' seguirá en GitHub hasta que lo borres allí.'
-  ))return;
-
-  cuentas=cuentas.filter(x=>x.id!==id);
-  cuentasSucias=true;
-
-  if(cuentaActual.id===id){
-    abrirCuenta(cuentas[0]);
-  }
-
-  mostrarCuentas();
-
-}
-
-function mostrarClavesCuenta(){
-
-  const e=document.getElementById('editor');
-
-  e.innerHTML=`
-    <div style="background:#222;padding:14px;border-radius:10px;margin-bottom:15px">
-      <h3>🔑 Contraseñas de ${escapeHtml(cuentaActual.nombre)}</h3>
-      ${camposClaves('c',cuentaActual)}
-      <br>
-      <button onclick="guardarClavesCuenta()">💾 Guardar</button>
-      <button onclick="mostrarCuentas()">Cancelar</button>
-    </div>`;
-
-}
-
-async function guardarClavesCuenta(){
-
-  const c=cuentaActual;
-
-  const usaE=document.getElementById('cUsaEntrar').checked;
-  const usaA=document.getElementById('cUsaAdmin').checked;
-  const cE=document.getElementById('cClaveEntrar').value;
-  const cA=document.getElementById('cClaveAdmin').value;
-
-  if((cE&&cE.length<4)||(cA&&cA.length<4)){
-    alert('Las contraseñas deben tener al menos 4 caracteres.');
-    return;
-  }
-
-  if(usaE&&!cE&&!c.claveEntrar){
-    alert('Escribe la contraseña para entrar.');
-    return;
-  }
-
-  if(usaA&&!cA&&!c.claveAdmin&&c.adminLibre){
-    alert('Escribe la contraseña de administración.');
-    return;
-  }
-
-  if(!c.sal)c.sal=nuevaSal();
-
-  if(!usaE){
-    c.claveEntrar=null;
-  }else if(cE){
-    c.claveEntrar=await hashClave(cE,c.sal);
-  }
-
-  if(!usaA){
-    c.claveAdmin=null;
-    c.adminLibre=true;
-  }else if(cA){
-    c.claveAdmin=await hashClave(cA,c.sal);
-    c.adminLibre=false;
-  }
-
-  cuentasSucias=true;
-
-  alert(
-    'Contraseñas guardadas en esta pestaña.\n\n'+
-    'Pulsa ☁️ Actualizar GitHub (o "Guardar cuentas en GitHub") para que valgan en todos tus dispositivos.'
-  );
-
-  mostrarCuentas();
-
-}
-
-async function subirCuentasGitHub(){
-
-  const cfg=obtenerConfigGitHub();
-
-  if(!cfg.token){
-    alert('Primero guarda tu token en ☁️ Actualizar GitHub.');
-    return;
-  }
-
-  try{
-
-    await subirArchivoGitHub(
-      {
-        owner:cfg.owner||'luis98andi',
-        repo:cfg.repo||'juegosaludables',
-        branch:cfg.branch||'main',
-        token:cfg.token
-      },
-      'cuentas.json',
-      JSON.stringify(datosCuentas(),null,2),
-      'Actualizar cuentas desde FreshMind Games'
-    );
-
-    cuentasSucias=false;
-
-    alert('✅ cuentas.json actualizado en GitHub.');
-
-  }catch(e){
-
-    alert('❌ '+e.message);
-
-  }
-
-}
-
-iniciarCuentas();
+cargarCatalogo();
 
 </script>
 
