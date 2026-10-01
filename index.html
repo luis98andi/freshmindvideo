@@ -7,13 +7,17 @@
 <script>
 /* Escudo: bloquea ventanas emergentes y cualquier iframe/script inyectado que no sea de YouTube o de tu sitio */
 (function () {
+  try {
+    var _f = window.fetch ? window.fetch.bind(window) : null;
+    if (_f) Object.defineProperty(window, "fetch", { configurable: true, enumerable: true, get: function () { return _f; }, set: function (v) { if (typeof v === "function") _f = v; } });
+  } catch (e) {}
   var OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|i\.ytimg\.com|yt3\.ggpht\.com)\//;
   var SRC_OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|s\.ytimg\.com)\//;
   var abrir = window.open;
   var filtro = function (u) { return OK.test(String(u || "")) ? abrir.apply(window, arguments) : null; };
-  /* Capa extra 1: window.open queda congelado, ningún script puede restaurarlo */
-  try { Object.defineProperty(window, "open", { value: filtro, writable: false, configurable: false }); }
-  catch (e) { window.open = filtro; }
+  /* Capa extra 1: window.open queda congelado (setter vacío para no lanzar TypeError en strict mode), ningún script puede restaurarlo */
+  try { Object.defineProperty(window, "open", { get: function () { return filtro; }, set: function () {}, configurable: false }); }
+  catch (e) { try { window.open = filtro; } catch (x) {} }
   /* Capa extra 2: ningún script (ni anuncio) puede sacar esta página hacia otro sitio */
   try {
     if (window.navigation) navigation.addEventListener("navigate", function (e) {
