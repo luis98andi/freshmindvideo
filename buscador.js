@@ -196,7 +196,14 @@
     jugar: ["juego", "juguete", "juguetes", "diversion"],
     colores: ["color", "pintar", "arcoiris", "amarillo", "azul", "rojo", "verde"],
     numeros: ["contar", "123", "numero"],
-    letras: ["abecedario", "alfabeto", "abc", "vocal", "vocales"]
+    letras: ["abecedario", "alfabeto", "abc", "vocal", "vocales"],
+    flauta: ["musica", "cancion", "canciones", "instrumento", "melodia", "cantar"],
+    guitarra: ["musica", "cancion", "canciones", "instrumento", "melodia", "cantar"],
+    piano: ["musica", "cancion", "canciones", "instrumento", "melodia", "cantar"],
+    violin: ["musica", "cancion", "canciones", "instrumento", "melodia", "cantar"],
+    tambor: ["musica", "cancion", "canciones", "instrumento", "melodia", "cantar", "ritmo"],
+    trompeta: ["musica", "cancion", "canciones", "instrumento", "melodia", "cantar"],
+    instrumento: ["musica", "cancion", "canciones", "melodia", "cantar", "guitarra", "piano", "flauta"]
   };
   var resultadosRelacionados = [];
 
@@ -289,7 +296,7 @@
     } else if (sinClave) {
       partes.push("El buscador necesita la clave de YouTube.");
     } else {
-      partes.push("No encontré videos con esas palabras exactas");
+      partes.push("No encontré nada relacionado con tu búsqueda.");
     }
     if (ocupado) partes.push("(aún preparando: " + hechos + "/" + total + " canales)");
     else if (fallos) partes.push("(" + fallos + " canales no se pudieron cargar)");
