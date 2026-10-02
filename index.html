@@ -364,6 +364,7 @@
     pointer-events: none;
   }
   body.viendo #barra-inferior { display: none; }
+  body.viendo header { display: none !important; }
 
   /* Pantalla de bloqueo de tiempo diario configurado por padres */
   .bloqueo-tiempo {
@@ -1299,7 +1300,9 @@
       if (b.indexOf(id) >= 0) return;
       /* Si estamos en Todos los videos (🎬 Videos) o Reels, sacamos los videos en vivo o programados para que solo estén en 🔴 En vivo */
       if (pestana !== "UULV" && canalActual !== "MIS" && vivos[id]) return;
-      ni.push(id); nt.push(titulos[i] || cacheTitulos[id] || "");
+      var tit = titulos[i] || cacheTitulos[id] || "";
+      if (window.FMV_contienePalabraExcluida && window.FMV_contienePalabraExcluida(tit)) return;
+      ni.push(id); nt.push(tit);
     });
     listaVideos = ni; titulos = nt;
   }

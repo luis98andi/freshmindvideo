@@ -2,7 +2,6 @@
 (function () {
   var API_KEY = "AIzaSyA7R_xoLnmY__-8cuNoP40rHhWyLyLBlbk";
   window.FMV_API_KEY = API_KEY; // la usa index.html para leer los títulos de los videos
-  var PIN_PADRES = "1234"; // cámbialo por el PIN que quieras
   var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache", LS_VID = "fmv_videos", LS_OCULTOS = "fmv_ocultos", LS_VOCULTOS = "fmv_videos_ocultos";
   var LS_BLOQ = "fmv_bloqueados", LS_DET_OCULTOS = "fmv_ocultos_det", bloqBase = [];
   var LS_EXCLUIDAS = "fmv_palabras_excluidas";
@@ -21,7 +20,18 @@
   }
 
   function leer(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } }
-  function guardar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  var PIN_PADRES = leer("fmv_pin_padres", "1234");
+  window.FMV_hayCambiosPadres = false;
+
+  function guardar(k, v) {
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+      if (k !== LS_CACHE && k !== "fmv_historial" && k !== "fmv_pin_padres" && k !== "fmv_github") {
+        window.FMV_hayCambiosPadres = true;
+      }
+    } catch (e) {}
+  }
 
   function obtenerPalabrasExcluidas() {
     var raw = leer(LS_EXCLUIDAS, null);
@@ -1018,6 +1028,89 @@
     });
   }
 
+  function mostrarToast(texto) {
+    var div = document.createElement("div");
+    div.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translate(-50%, 20px);background:rgba(15,23,32,0.95);color:#fff;padding:12px 24px;border-radius:999px;font-size:14px;font-weight:700;box-shadow:0 4px 16px rgba(0,0,0,0.3);z-index:99999;transition:opacity 0.3s, transform 0.3s;opacity:0;pointer-events:none;white-space:nowrap;border:1px solid rgba(255,255,255,0.1);";
+    div.textContent = texto;
+    document.body.appendChild(div);
+    div.offsetHeight; // force reflow
+    div.style.transform = "translate(-50%, 0)";
+    div.style.opacity = "1";
+    setTimeout(function() {
+      div.style.transform = "translate(-50%, 20px)";
+      div.style.opacity = "0";
+      setTimeout(function() { div.remove(); }, 300);
+    }, 4000);
+  }
+
+  var tUltimoGuardado = 0;
+  function guardarGithubAutomatico() {
+    if (!window.FMV_hayCambiosPadres) return;
+    var cfg = leer(LS_GH, null);
+    if (!cfg || !cfg.repo || !cfg.token) return;
+
+    var ahora = Date.now();
+    if (ahora - tUltimoGuardado < 10000) {
+      setTimeout(guardarGithubAutomatico, 10000 - (ahora - tUltimoGuardado));
+      return;
+    }
+    tUltimoGuardado = ahora;
+    window.FMV_hayCambiosPadres = false;
+
+    publicar(cfg, armarJson()).then(function () {
+      mostrarToast("Ya se actualizó el repositorio automáticamente.");
+    }).catch(function (e) {
+      console.error("Error al actualizar automáticamente en GitHub:", e);
+    });
+  }
+
+  function abrirCambiarPin() {
+    var m = modal(
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+        '<h3 style="margin:0">🔑 Cambiar contraseña</h3>' +
+        '<button type="button" data-x style="' + ESTILO_BT + ';background:#5b6b7a">Cerrar</button>' +
+      '</div>' +
+      '<p style="font-size:13.5px;opacity:.8;margin:0 0 16px;line-height:1.4">Ingresa tu contraseña actual y la nueva contraseña para acceder a la zona de padres.</p>' +
+      '<input data-act type="password" placeholder="Contraseña actual" style="' + ESTILO_IN + '">' +
+      '<input data-n1 type="password" placeholder="Nueva contraseña" style="' + ESTILO_IN + '">' +
+      '<input data-n2 type="password" placeholder="Repite la nueva contraseña" style="' + ESTILO_IN + '">' +
+      '<p data-err style="color:#d93025;font-weight:700;margin:8px 0;display:none"></p>' +
+      '<button type="button" data-save style="' + ESTILO_BT + ';width:100%;margin-top:8px">Guardar nueva contraseña</button>',
+      400
+    );
+    var q = function (s) { return m.caja.querySelector(s); };
+    var iact = q("[data-act]"), in1 = q("[data-n1]"), in2 = q("[data-n2]"), err = q("[data-err]"), btn = q("[data-save]");
+    q("[data-x]").addEventListener("click", m.cerrar);
+    
+    btn.addEventListener("click", function () {
+      var pinActual = PIN_PADRES;
+      var vact = iact.value.trim();
+      var vn1 = in1.value.trim();
+      var vn2 = in2.value.trim();
+      
+      if (vact !== pinActual) {
+        err.textContent = "La contraseña actual es incorrecta.";
+        err.style.display = "block";
+        return;
+      }
+      if (!vn1) {
+        err.textContent = "La nueva contraseña no puede estar vacía.";
+        err.style.display = "block";
+        return;
+      }
+      if (vn1 !== vn2) {
+        err.textContent = "La nueva contraseña y su repetición no coinciden.";
+        err.style.display = "block";
+        return;
+      }
+      
+      PIN_PADRES = vn1;
+      guardar("fmv_pin_padres", vn1);
+      m.cerrar();
+      mostrarToast("Contraseña actualizada con éxito.");
+    });
+  }
+
   /* ---------- Panel de padres (se abre desde el botón 🔒 de la barra superior) ---------- */
   function actualizarBotones() { document.body.classList.toggle("padre", esPadre()); }
   function hayOcultos() { return leer(LS_OCULTOS, []).length || leer(LS_VOCULTOS, []).length || leer(LS_BLOQ, []).length; }
@@ -1035,6 +1128,7 @@
     setPadre(false); clearTimeout(tInac);
     [].forEach.call(document.querySelectorAll(".fmv-modal"), function (m) { m.remove(); });
     actualizarBotones(); pintar();
+    guardarGithubAutomatico();
   }
   /* Cierre automático: 15 s sin actividad en la página, o al pasar a segundo plano */
   var tInac = null;
@@ -1158,6 +1252,7 @@
     if (hayOcultos()) fila("↩ Restaurar todo lo que quité", "#e08a00", restaurar);
     fila("🕘 Historial", "#6b4fd0", abrirHistorial);
     fila("👧👦 Cambiar perfil", "#b06a00", function () { if (window.FMV_cambiarPerfil) window.FMV_cambiarPerfil(); });
+    fila("🔑 Cambiar contraseña", "#9333ea", abrirCambiarPin);
     fila("🚪 Salir de padres", "#5b6b7a", salirDePadres);
   }
   window.FMV_abrirPadres = function () { if (esPadre()) abrirPanelPadres(); else pedirPin(abrirPanelPadres); };
