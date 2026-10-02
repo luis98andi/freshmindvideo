@@ -201,6 +201,7 @@
     var palabras = norm(texto).split(/\s+/).filter(Boolean);
     var res = [], resRel = [];
     var exactos = {};
+    var excluidas = (window.FMV_palabrasExcluidas ? window.FMV_palabrasExcluidas() : []).map(norm).filter(Boolean);
     canalesActuales().forEach(function (c) {
       var r = indice[c.id];
       if (!r) return;
@@ -208,6 +209,14 @@
       for (var i = 0; i < r.norm.length; i++) {
         var vid = r.ids[i];
         if (bloq.indexOf(vid) >= 0) continue;
+        var omitirPorExclusion = false;
+        for (var ex = 0; ex < excluidas.length; ex++) {
+          if (r.norm[i].indexOf(excluidas[ex]) >= 0) {
+            omitirPorExclusion = true;
+            break;
+          }
+        }
+        if (omitirPorExclusion) continue;
         var ok = true;
         for (var k = 0; k < palabras.length; k++) {
           if (r.norm[i].indexOf(palabras[k]) < 0) { ok = false; break; }
@@ -236,6 +245,14 @@
         for (var j = 0; j < r.norm.length; j++) {
           var idRel = r.ids[j];
           if (exactos[idRel] || yaRel[idRel] || bloq.indexOf(idRel) >= 0) continue;
+          var omitirRel = false;
+          for (var exr = 0; exr < excluidas.length; exr++) {
+            if (r.norm[j].indexOf(excluidas[exr]) >= 0) {
+              omitirRel = true;
+              break;
+            }
+          }
+          if (omitirRel) continue;
           var coincide = false;
           for (var m = 0; m < terminosRel.length; m++) {
             if (r.norm[j].indexOf(terminosRel[m]) >= 0) { coincide = true; break; }
