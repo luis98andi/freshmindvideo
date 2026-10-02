@@ -1228,12 +1228,21 @@
 
   function quitarVideo(i) {
     var id = listaVideos[i], tit = titulos[i] || cacheTitulos[id] || ("Video " + (i + 1));
-    function proceder() { ejecutarQuitarVideo(i); }
-    if (window.FMV_confirmar) {
-      window.FMV_confirmar("¿Ocultar este video («" + tit + "»)? No volverá a reproducirse.", proceder);
-    } else {
-      proceder();
+    function proceder() {
+      if (window.FMV_confirmar) {
+        window.FMV_confirmar("¿Ocultar este video («" + tit + "»)? No volverá a reproducirse.", function () {
+          ejecutarQuitarVideo(i);
+        });
+      } else {
+        ejecutarQuitarVideo(i);
+      }
     }
+    // Exclusivo para control de padres: si no está autenticado, pide la contraseña
+    if (!document.body.classList.contains("padre") || !(window.FMV_esPadre && window.FMV_esPadre())) {
+      if (window.FMV_pedirPin) window.FMV_pedirPin(proceder);
+      return;
+    }
+    proceder();
   }
 
   var btnOcultarActualEl = document.getElementById("btn-ocultar-actual");
@@ -1258,11 +1267,19 @@
           siguienteVideo();
         }
       }
-      if (window.FMV_confirmar) {
-        window.FMV_confirmar("¿Ocultar este video («" + (curTit || curId) + "»)? No volverá a reproducirse.", doOcultar);
-      } else {
-        doOcultar();
+      function proceder() {
+        if (window.FMV_confirmar) {
+          window.FMV_confirmar("¿Ocultar este video («" + (curTit || curId) + "»)? No volverá a reproducirse.", doOcultar);
+        } else {
+          doOcultar();
+        }
       }
+      // Exclusivo para control de padres con contraseña
+      if (!document.body.classList.contains("padre") || !(window.FMV_esPadre && window.FMV_esPadre())) {
+        if (window.FMV_pedirPin) window.FMV_pedirPin(proceder);
+        return;
+      }
+      proceder();
     });
   }
 

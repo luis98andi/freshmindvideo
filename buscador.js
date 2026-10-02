@@ -324,7 +324,7 @@
     btnOcultar.addEventListener("click", function (ev) {
       ev.stopPropagation();
       ev.preventDefault();
-      function proceder() {
+      function ejecutarOcultar() {
         if (window.FMV_ocultarVideo) {
           window.FMV_ocultarVideo(r.id, r.titulo, r.canal.nombre, "padre");
         } else if (window.FMV_bloquear) {
@@ -342,11 +342,19 @@
           avisar();
         }, 260);
       }
-      if (window.FMV_confirmar) {
-        window.FMV_confirmar("¿Ocultar este video («" + r.titulo + "»)? No volverá a aparecer.", proceder);
-      } else {
-        proceder();
+      function proceder() {
+        if (window.FMV_confirmar) {
+          window.FMV_confirmar("¿Ocultar este video («" + r.titulo + "»)? No volverá a aparecer.", ejecutarOcultar);
+        } else {
+          ejecutarOcultar();
+        }
       }
+      // Exclusivo para control de padres tras poner la contraseña
+      if (!document.body.classList.contains("padre") || !(window.FMV_esPadre && window.FMV_esPadre())) {
+        if (window.FMV_pedirPin) window.FMV_pedirPin(proceder);
+        return;
+      }
+      proceder();
     });
     cont.appendChild(btnOcultar);
 

@@ -247,10 +247,17 @@
         x.style.cssText = "position:absolute;top:6px;right:6px;padding:6px 12px;border:0;border-radius:999px;background:#e11d48;color:#fff;font-size:12.5px;font-weight:800;cursor:pointer;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.35)";
         x.addEventListener("click", function (ev) {
           ev.stopPropagation();
-          confirmarAccion("¿Ocultar este video («" + (v.titulo || v.id) + "»)? No volverá a aparecer.", function () {
-            window.FMV_ocultarVideo(v.id, v.titulo, "⭐ Mis videos", "padre");
-            pintar();
-          });
+          function proceder() {
+            confirmarAccion("¿Ocultar este video («" + (v.titulo || v.id) + "»)? No volverá a aparecer.", function () {
+              window.FMV_ocultarVideo(v.id, v.titulo, "⭐ Mis videos", "padre");
+              pintar();
+            });
+          }
+          if (!esPadre()) {
+            pedirPin(proceder);
+            return;
+          }
+          proceder();
         });
         t.appendChild(x);
         t.appendChild(chipsPerfil(v, function () { return vperf(v); }, function (ps) { var m = leer(LS_VPERF, {}); m[v.id] = ps; guardar(LS_VPERF, m); pintar(); }));
@@ -277,12 +284,19 @@
         x.style.cssText = "position:absolute;top:6px;right:6px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:20px;cursor:pointer;z-index:2";
         x.addEventListener("click", function (e) {
           e.stopPropagation();
-          confirmarAccion("¿Quitar " + c.nombre + "?", function () {
-            if (c.extra) guardar(LS_EXTRA, leer(LS_EXTRA, []).filter(function (o) { return o.id !== c.id; }));
-            else { var oc = leer(LS_OCULTOS, []); oc.push(c.url); guardar(LS_OCULTOS, oc); }
-            todos = todos.filter(function (o) { return o !== c; });
-            pintar(); actualizarBotones();
-          });
+          function proceder() {
+            confirmarAccion("¿Quitar " + c.nombre + "?", function () {
+              if (c.extra) guardar(LS_EXTRA, leer(LS_EXTRA, []).filter(function (o) { return o.id !== c.id; }));
+              else { var oc = leer(LS_OCULTOS, []); oc.push(c.url); guardar(LS_OCULTOS, oc); }
+              todos = todos.filter(function (o) { return o !== c; });
+              pintar(); actualizarBotones();
+            });
+          }
+          if (!esPadre()) {
+            pedirPin(proceder);
+            return;
+          }
+          proceder();
         });
         t.style.position = "relative";
         t.appendChild(x);
@@ -368,6 +382,8 @@
     inp.addEventListener("keydown", function (e) { if (e.key === "Enter") ok(); });
     inp.focus();
   }
+  window.FMV_pedirPin = pedirPin;
+  window.FMV_esPadre = esPadre;
 
   function yaEsta(id) { return todos.some(function (c) { return c.id === id; }); }
 
