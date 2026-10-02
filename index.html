@@ -1209,10 +1209,12 @@
     b.appendChild(img); b.appendChild(mc); b.appendChild(t);
     b.addEventListener("click", function () { irA(i, true); });
     w.appendChild(b);
-    var q = document.createElement("span");
-    q.className = "quitar-video"; q.innerHTML = "🙈 <span>Ocultar</span>"; q.title = "Ocultar este video para siempre";
-    q.addEventListener("click", function (e) { e.stopPropagation(); quitarVideo(i); });
-    w.appendChild(q);
+    if (window.FMV_esPadre && window.FMV_esPadre()) {
+      var q = document.createElement("span");
+      q.className = "quitar-video"; q.innerHTML = "🙈 <span>Ocultar</span>"; q.title = "Ocultar este video para siempre";
+      q.addEventListener("click", function (e) { e.stopPropagation(); quitarVideo(i); });
+      w.appendChild(q);
+    }
     selectorGrid.appendChild(w);
   }
 
@@ -1243,9 +1245,8 @@
         ejecutarQuitarVideo(i);
       }
     }
-    // Exclusivo para control de padres: si no está autenticado, pide la contraseña
+    // Exclusivo para control de padres: solo si está autenticado
     if (!document.body.classList.contains("padre") || !(window.FMV_esPadre && window.FMV_esPadre())) {
-      if (window.FMV_pedirPin) window.FMV_pedirPin(proceder);
       return;
     }
     proceder();
@@ -1282,7 +1283,6 @@
       }
       // Exclusivo para control de padres con contraseña
       if (!document.body.classList.contains("padre") || !(window.FMV_esPadre && window.FMV_esPadre())) {
-        if (window.FMV_pedirPin) window.FMV_pedirPin(proceder);
         return;
       }
       proceder();

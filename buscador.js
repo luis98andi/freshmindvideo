@@ -323,47 +323,44 @@
     });
     cont.appendChild(b);
 
-    var btnOcultar = document.createElement("button");
-    btnOcultar.type = "button";
-    btnOcultar.className = "fmv-btn-ocultar-item";
-    btnOcultar.title = "Ocultar este video para siempre";
-    btnOcultar.innerHTML = "🙈 <span>Ocultar</span>";
-    btnOcultar.addEventListener("click", function (ev) {
-      ev.stopPropagation();
-      ev.preventDefault();
-      function ejecutarOcultar() {
-        if (window.FMV_ocultarVideo) {
-          window.FMV_ocultarVideo(r.id, r.titulo, r.canal.nombre, "padre");
-        } else if (window.FMV_bloquear) {
-          window.FMV_bloquear(r.id, r.titulo, r.canal.nombre, "padre");
-        }
-        cont.style.transition = "transform .25s ease, opacity .25s ease";
-        cont.style.transform = "scale(0.85)";
-        cont.style.opacity = "0";
-        setTimeout(function () {
-          cont.remove();
-          resultados = resultados.filter(function (x) { return x.id !== r.id; });
-          if (resultadosRelacionados) {
-            resultadosRelacionados = resultadosRelacionados.filter(function (x) { return x.id !== r.id; });
+    if (window.FMV_esPadre && window.FMV_esPadre()) {
+      var btnOcultar = document.createElement("button");
+      btnOcultar.type = "button";
+      btnOcultar.className = "fmv-btn-ocultar-item";
+      btnOcultar.title = "Ocultar este video para siempre";
+      btnOcultar.innerHTML = "🙈 <span>Ocultar</span>";
+      btnOcultar.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        ev.preventDefault();
+        function ejecutarOcultar() {
+          if (window.FMV_ocultarVideo) {
+            window.FMV_ocultarVideo(r.id, r.titulo, r.canal.nombre, "padre");
+          } else if (window.FMV_bloquear) {
+            window.FMV_bloquear(r.id, r.titulo, r.canal.nombre, "padre");
           }
-          avisar();
-        }, 260);
-      }
-      function proceder() {
-        if (window.FMV_confirmar) {
-          window.FMV_confirmar("¿Ocultar este video («" + r.titulo + "»)? No volverá a aparecer.", ejecutarOcultar);
-        } else {
-          ejecutarOcultar();
+          cont.style.transition = "transform .25s ease, opacity .25s ease";
+          cont.style.transform = "scale(0.85)";
+          cont.style.opacity = "0";
+          setTimeout(function () {
+            cont.remove();
+            resultados = resultados.filter(function (x) { return x.id !== r.id; });
+            if (resultadosRelacionados) {
+              resultadosRelacionados = resultadosRelacionados.filter(function (x) { return x.id !== r.id; });
+            }
+            avisar();
+          }, 260);
         }
-      }
-      // Exclusivo para control de padres tras poner la contraseña
-      if (!document.body.classList.contains("padre") || !(window.FMV_esPadre && window.FMV_esPadre())) {
-        if (window.FMV_pedirPin) window.FMV_pedirPin(proceder);
-        return;
-      }
-      proceder();
-    });
-    cont.appendChild(btnOcultar);
+        function proceder() {
+          if (window.FMV_confirmar) {
+            window.FMV_confirmar("¿Ocultar este video («" + r.titulo + "»)? No volverá a aparecer.", ejecutarOcultar);
+          } else {
+            ejecutarOcultar();
+          }
+        }
+        proceder();
+      });
+      cont.appendChild(btnOcultar);
+    }
 
     return cont;
   }
@@ -382,6 +379,8 @@
       zona.appendChild(b);
     }
   }
+
+  var mostradosRel = 0;
 
   function pintarResultados() {
     zona.textContent = "";
@@ -405,14 +404,28 @@
       
       var gRel = document.createElement("div");
       gRel.className = "fmv-res";
-      resultadosRelacionados.slice(0, 36).forEach(function (r) {
-        gRel.appendChild(tarjeta(r));
-      });
-
+      
       secRel.appendChild(hRel);
       secRel.appendChild(pRel);
       secRel.appendChild(gRel);
       zona.appendChild(secRel);
+
+      mostradosRel = 0;
+      function agregarMasRel() {
+        var viejoRel = secRel.querySelector(".fmv-mas-rel");
+        if (viejoRel) viejoRel.remove();
+        var hastaRel = Math.min(resultadosRelacionados.length, mostradosRel + POR_PAGINA);
+        for (var i = mostradosRel; i < hastaRel; i++) gRel.appendChild(tarjeta(resultadosRelacionados[i]));
+        mostradosRel = hastaRel;
+        if (mostradosRel < resultadosRelacionados.length) {
+          var bRel = document.createElement("button");
+          bRel.type = "button"; bRel.className = "fmv-mas fmv-mas-rel";
+          bRel.textContent = "Mostrar más relacionados (" + (resultadosRelacionados.length - mostradosRel) + ")";
+          bRel.addEventListener("click", agregarMasRel);
+          secRel.appendChild(bRel);
+        }
+      }
+      agregarMasRel();
     }
   }
 
@@ -450,4 +463,12 @@
   entrada.addEventListener("keydown", function (e) {
     if (e.key === "Enter") { clearTimeout(espera); lanzar(); }
   });
+
+  window.FMV_recargarBuscador = function () {
+    if (textoActual) {
+      calcular(textoActual);
+      pintarResultados();
+    }
+    avisar();
+  };
 })();

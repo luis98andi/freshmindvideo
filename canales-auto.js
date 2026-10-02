@@ -1112,7 +1112,11 @@
   }
 
   /* ---------- Panel de padres (se abre desde el botón 🔒 de la barra superior) ---------- */
-  function actualizarBotones() { document.body.classList.toggle("padre", esPadre()); }
+  function actualizarBotones() {
+    document.body.classList.toggle("padre", esPadre());
+    if (window.FMV_recargarCanalActual) window.FMV_recargarCanalActual();
+    if (window.FMV_recargarBuscador) window.FMV_recargarBuscador();
+  }
   function hayOcultos() { return leer(LS_OCULTOS, []).length || leer(LS_VOCULTOS, []).length || leer(LS_BLOQ, []).length; }
   function restaurar() {
     confirmarAccion("¿Volver a mostrar todos los canales y videos que quitaste?", function () {
@@ -1228,18 +1232,22 @@
 
     var m = modal(
       '<h3 style="margin:0 0 4px">🔒 Zona de padres</h3>' +
-      '<p style="margin:0 0 10px;font-size:14px;opacity:.75">Administra el contenido, tiempos y límites de pantalla de tus hijos.</p>' +
-      '<div style="background:#f4f8fb;padding:10px 14px;border-radius:12px;margin-bottom:12px;font-size:.86rem;display:flex;justify-content:space-around;font-weight:800">' +
+      '<p style="margin:0 0 12px;font-size:14px;opacity:.75">Administra el contenido, tiempos y límites de pantalla de tus hijos.</p>' +
+      '<div style="background:#f4f8fb;padding:10px 14px;border-radius:12px;margin-bottom:14px;font-size:.86rem;display:flex;justify-content:space-around;font-weight:800">' +
       '<span>👧 Hija: <b style="color:#0a6b53">' + usoHija + 'm hoy</b> (Límite: ' + limHija + ')</span>' +
       '<span>👦 Hijo: <b style="color:#0a6b53">' + usoHijo + 'm hoy</b> (Límite: ' + limHijo + ')</span>' +
       '</div>' +
-      '<div data-l style="display:flex;flex-direction:column;gap:10px"></div>',
-      440
+      '<div data-l style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>',
+      620
     );
     var l = m.caja.querySelector("[data-l]");
-    function fila(texto, color, fn) {
+    function fila(texto, color, fn, spans) {
       var b = document.createElement("button"); b.type = "button"; b.textContent = texto;
-      b.style.cssText = ESTILO_BT + ";width:100%;padding:15px 18px;font-size:16px;text-align:left" + (color ? ";background:" + color : "");
+      var styleStr = ESTILO_BT + ";width:100%;padding:12px 14px;font-size:14.5px;text-align:left;display:flex;align-items:center;min-height:54px" + (color ? ";background:" + color : "");
+      if (spans) {
+        styleStr += ";grid-column:span 2";
+      }
+      b.style.cssText = styleStr;
       b.addEventListener("click", function () { m.cerrar(); fn(); });
       l.appendChild(b);
     }
@@ -1253,7 +1261,7 @@
     fila("🕘 Historial", "#6b4fd0", abrirHistorial);
     fila("👧👦 Cambiar perfil", "#b06a00", function () { if (window.FMV_cambiarPerfil) window.FMV_cambiarPerfil(); });
     fila("🔑 Cambiar contraseña", "#9333ea", abrirCambiarPin);
-    fila("🚪 Salir de padres", "#5b6b7a", salirDePadres);
+    fila("🚪 Salir de padres", "#5b6b7a", salirDePadres, true);
   }
   window.FMV_abrirPadres = function () { if (esPadre()) abrirPanelPadres(); else pedirPin(abrirPanelPadres); };
   actualizarBotones(); vigilar();
