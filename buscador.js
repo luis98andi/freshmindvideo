@@ -116,6 +116,33 @@
       });
   }
 
+  function traerPlaylists(c) {
+    if (!window.FMV_API_KEY) return Promise.resolve([]);
+    var url = "https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&maxResults=50&channelId=" +
+      encodeURIComponent(c.id) + "&key=" + encodeURIComponent(window.FMV_API_KEY);
+    return fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.error) return [];
+        var pls = [];
+        (d.items || []).forEach(function (it) {
+          var s = it.snippet;
+          if (!s) return;
+          var title = s.title || "";
+          var desc = s.description || "";
+          if (window.FMV_contienePalabraExcluida && (window.FMV_contienePalabraExcluida(title) || window.FMV_contienePalabraExcluida(desc))) {
+            return;
+          }
+          var thumbs = s.thumbnails || {};
+          var img = (thumbs.medium || thumbs.default || thumbs.high || {}).url || "";
+          var count = it.contentDetails ? it.contentDetails.itemCount : 0;
+          pls.push({ id: it.id, titulo: title, count: count, img: img });
+        });
+        return pls;
+      })
+      .catch(function () { return []; });
+  }
+
   function indexarCanal(c) {
     var lista = "UU" + c.id.slice(2), ids = [], tit = [];
     function sig(token) {
@@ -125,16 +152,23 @@
       });
     }
     return sig("").then(function () {
-      var r = { id: c.id, nombre: c.nombre, t: Date.now(), ids: ids, titulos: tit, norm: tit.map(norm) };
-      indice[c.id] = r;
-      guardarCanal(r);
+      return traerPlaylists(c).then(function (pls) {
+        var r = { id: c.id, nombre: c.nombre, t: Date.now(), ids: ids, titulos: tit, norm: tit.map(norm), playlists: pls };
+        indice[c.id] = r;
+        guardarCanal(r);
+      });
     });
   }
 
   /* Si el canal ya estaba indexado, solo se piden los 50 videos más nuevos */
   function refrescarCanal(c) {
     var r = indice[c.id];
-    return pagina("UU" + c.id.slice(2), "").then(function (p) {
+    return Promise.all([
+      pagina("UU" + c.id.slice(2), ""),
+      traerPlaylists(c)
+    ]).then(function (res) {
+      var p = res[0];
+      var pls = res[1];
       var ya = {};
       r.ids.forEach(function (id) { ya[id] = 1; });
       var nuevos = p.videos.filter(function (v) { return !ya[v.id]; });
@@ -144,6 +178,7 @@
         r.norm = r.titulos.map(norm);
       }
       r.nombre = c.nombre;
+      r.playlists = pls;
       r.t = Date.now();
       guardarCanal(r);
     });
@@ -216,6 +251,29 @@
     canalesActuales().forEach(function (c) {
       var r = indice[c.id];
       if (!r) return;
+
+      // Buscar en las listas de reproducción (playlists) de este canal
+      if (r.playlists && r.playlists.length) {
+        r.playlists.forEach(function (pl) {
+          var tituloNorm = norm(pl.titulo);
+          var omitirPl = false;
+          for (var ex = 0; ex < excluidas.length; ex++) {
+            if (tituloNorm.indexOf(excluidas[ex]) >= 0) {
+              omitirPl = true;
+              break;
+            }
+          }
+          if (omitirPl) return;
+          var ok = true;
+          for (var k = 0; k < palabras.length; k++) {
+            if (tituloNorm.indexOf(palabras[k]) < 0) { ok = false; break; }
+          }
+          if (ok) {
+            res.push({ canal: c, esPlaylist: true, id: pl.id, titulo: pl.titulo, img: pl.img, count: pl.count });
+          }
+        });
+      }
+
       var bloq = window.FMV_bloqueados ? FMV_bloqueados() : [];
       for (var i = 0; i < r.norm.length; i++) {
         var vid = r.ids[i];
@@ -306,6 +364,50 @@
   function tarjeta(r) {
     var cont = document.createElement("div");
     cont.className = "fmv-item-wrapper";
+
+    if (r.esPlaylist) {
+      // Es una tarjeta de lista de reproducción (carpeta)
+      var b = document.createElement("button");
+      b.type = "button";
+      b.style.cssText = "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 3px 10px rgba(20,60,100,.15);cursor:pointer;border:3px solid #6b2fa8;transition:transform 0.15s;padding:0;height:100%";
+      
+      var port = document.createElement("div");
+      port.style.cssText = "aspect-ratio:16/9;position:relative;background:#dfe6ea;width:100%";
+      
+      if (r.img) {
+        var im = document.createElement("img");
+        im.src = r.img;
+        im.alt = "";
+        im.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;";
+        port.appendChild(im);
+      }
+      
+      var tag = document.createElement("span");
+      tag.style.cssText = "position:absolute;bottom:8px;right:8px;background:rgba(107,47,168,0.95);color:#fff;font-weight:800;font-size:11px;padding:3px 8px;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,0.25);";
+      tag.textContent = "📂 " + r.count + " videos";
+      port.appendChild(tag);
+      
+      var info = document.createElement("div");
+      info.style.cssText = "padding:12px 12px 2px;font-weight:800;font-size:14px;color:#1d2b3a;text-align:left;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:36px;box-sizing:content-box;";
+      info.textContent = r.titulo;
+      
+      var canalName = document.createElement("span");
+      canalName.style.cssText = "display:block;padding:0 12px 12px;font-size:.78rem;opacity:.7;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis";
+      canalName.textContent = "En canal: " + r.canal.nombre;
+      
+      b.appendChild(port);
+      b.appendChild(info);
+      b.appendChild(canalName);
+      
+      b.addEventListener("click", function () {
+        window.scrollTo(0, 0);
+        if (typeof window.FMV_abrirPlaylistDesdeBuscador === "function") {
+          window.FMV_abrirPlaylistDesdeBuscador(r.canal.id, r.canal.nombre, r.id, r.titulo);
+        }
+      });
+      cont.appendChild(b);
+      return cont;
+    }
 
     var b = document.createElement("button");
     b.type = "button";

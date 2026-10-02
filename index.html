@@ -1680,6 +1680,8 @@
       }
     }
 
+    var activoActual = (pestana === "LISTAS") ? playlistActivaId : canalActual;
+
     var cache = listaEnCache(canal);
     if (cache) {
       listaVideos = cache.ids.slice();
@@ -1699,7 +1701,7 @@
             (token ? "&pageToken=" + encodeURIComponent(token) : ""))
         .then(function (r) { return r.json(); })
         .then(function (d) {
-          if (canal !== canalActual) return; // cambió de canal mientras cargaba
+          if (canal !== activoActual) return; // cambió de canal o lista mientras cargaba
           if (d.error) {
             var err = new Error(d.error.message || "error");
             err.code = d.error.code;
@@ -1726,7 +1728,7 @@
           else guardarListaCache(canal, listaVideos, titulos);
         })
         .catch(function (err) {
-          if (canal !== canalActual || ids.length) return;
+          if (canal !== activoActual || ids.length) return;
           /* Si la API devolvió 404 (el canal no tiene esa sub-lista), en UULF pasamos a UU; si fue 403/red usamos Plan B con la lista actual */
           if (err && err.code === 404) {
             if (pestana === "UUSH" || pestana === "UULV") {
@@ -1805,9 +1807,9 @@
     pintarPestanas();
     abrirReproductor(canalNombre, null, cargarLista);
   });
-  function iniciarCanal(idCanal, nombreCanal, videoId, pest) {
-    playlistActivaId = null;
-    playlistActivaTitulo = "";
+  function iniciarCanal(idCanal, nombreCanal, videoId, pest, plId, plTitle) {
+    playlistActivaId = plId || null;
+    playlistActivaTitulo = plTitle || "";
     canalUC = idCanal; canalNombre = nombreCanal;
     pestana = videoId ? "UU" : (pest || "UULF");
     guardarSesion({ vista: "canal", uc: idCanal, nombre: nombreCanal, pest: pestana });
@@ -1816,6 +1818,9 @@
     abrirReproductor(nombreCanal, videoId, cargarLista);
   }
   window.FMV_abrirCanal = iniciarCanal;
+  window.FMV_abrirPlaylistDesdeBuscador = function (canalId, canalNombre, plId, plTitle) {
+    iniciarCanal(canalId, canalNombre, null, "LISTAS", plId, plTitle);
+  };
   window.FMV_recargarCanalActual = function () {
     if (!vistaCanal.classList.contains("activo")) return;
     if (canalActual === "MIS") iniciarMisVideos(videoActualId);
