@@ -28,7 +28,7 @@
     return m ? m[1] : "";
   }
 
-  function guardarDetalleOculto(id, titulo, canal, motivo) {
+  function guardarDetalleOculto(id, titulo, canal, motivo, expira) {
     if (!id) return;
     var det = leer(LS_DET_OCULTOS, []).filter(function (x) { return x && x.id !== id; });
     det.unshift({
@@ -36,6 +36,7 @@
       titulo: titulo || "Video (" + id + ")",
       canal: canal || "",
       motivo: motivo || "padre",
+      expira: expira || 0,
       t: Date.now()
     });
     guardar(LS_DET_OCULTOS, det);
@@ -51,32 +52,32 @@
       if (id && unicos.indexOf(id) < 0) unicos.push(id);
     });
     return unicos.map(function (id) {
-      return mapa[id] || { id: id, titulo: "Video (" + id + ")", canal: "", motivo: "padre", t: 0 };
+      return mapa[id] || { id: id, titulo: "Video (" + id + ")", canal: "", motivo: "padre", expira: 0, t: 0 };
     });
   }
 
   window.FMV_esPadre = esPadre;
   window.FMV_misVideos = function () { return misVideos(); };
   window.FMV_bloqueados = function () { return bloqBase.concat(leer(LS_BLOQ, [])).filter(function (x, i, a) { return a.indexOf(x) === i; }); };
-  window.FMV_bloquear = function (id, titulo, canal, motivo) {
+  window.FMV_bloquear = function (id, titulo, canal, motivo, expira) {
     var b = leer(LS_BLOQ, []);
     if (b.indexOf(id) < 0) { b.push(id); guardar(LS_BLOQ, b); }
-    guardarDetalleOculto(id, titulo, canal, motivo || "padre");
+    guardarDetalleOculto(id, titulo, canal, motivo || "padre", expira);
     try { localStorage.removeItem("fmv_listas"); } catch (e) {}
   };
-  window.FMV_quitarPropio = function (id, titulo, motivo) {
+  window.FMV_quitarPropio = function (id, titulo, motivo, expira) {
     var prev = misTodos().filter(function (o) { return o.id === id; })[0];
     guardar(LS_VID, leer(LS_VID, []).filter(function (o) { return o.id !== id; }));
     var ocv = leer(LS_VOCULTOS, []); if (ocv.indexOf(id) < 0) { ocv.push(id); guardar(LS_VOCULTOS, ocv); }
-    guardarDetalleOculto(id, titulo || (prev && prev.titulo) || "", "⭐ Mis videos", motivo || "padre");
+    guardarDetalleOculto(id, titulo || (prev && prev.titulo) || "", "⭐ Mis videos", motivo || "padre", expira);
     pintar(); actualizarBotones();
   };
-  window.FMV_ocultarVideo = function (id, titulo, canal, motivo) {
+  window.FMV_ocultarVideo = function (id, titulo, canal, motivo, expira) {
     if (!id) return;
     if (canal === "MIS" || canal === "⭐ Mis videos") {
-      window.FMV_quitarPropio(id, titulo, motivo || "padre");
+      window.FMV_quitarPropio(id, titulo, motivo || "padre", expira);
     } else {
-      window.FMV_bloquear(id, titulo, canal, motivo || "padre");
+      window.FMV_bloquear(id, titulo, canal, motivo || "padre", expira);
       pintar(); actualizarBotones();
     }
   };
@@ -102,7 +103,7 @@
   }
   function misVideos() { var p = window.FMV_perfil; return misTodos().filter(function (v) { return visibleV(v, p); }); }
   
-  function api(ruta, p) {
+  function apiCompleta(ruta, p) {
     return fetch(BASE + ruta + "?key=" + API_KEY + "&" + p)
       .then(function (r) {
         return r.json().then(function (d) {
@@ -110,7 +111,7 @@
             var mensajeError = (d.error && d.error.message) ? d.error.message : "Error HTTP " + r.status;
             throw new Error(mensajeError);
           }
-          return d.items || [];
+          return d;
         });
       })
       .catch(function (err) {
@@ -119,6 +120,10 @@
         }
         throw err;
       });
+  }
+
+  function api(ruta, p) {
+    return apiCompleta(ruta, p).then(function (d) { return d.items || []; });
   }
 
   /* Corrige IDs malos y pone la foto oficial (caché 7 días) */
@@ -247,7 +252,7 @@
   }
 
   function iniciar() {
-    return fetch("canales.json", { cache: "no-cache" })
+    return fetch("canales.json?_t=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         videosBase = (d && !Array.isArray(d) && Array.isArray(d.videos)) ? d.videos : [];
@@ -418,6 +423,7 @@
     b.addEventListener("click", function () { verVideos(id, nombre); });
     return b;
   }
+  var tokenSiguienteVideos = "", queryVideosActual = "";
   function mostrar(canales, videos) {
     ultimo = [canales, videos];
     pr.textContent = "";
@@ -447,6 +453,40 @@
         fr.appendChild(botonOcultarBusqueda(vid, titulo, dec(it.snippet.channelTitle || "")));
         g2.appendChild(tarjeta(img, titulo, fr));
       });
+      if (tokenSiguienteVideos) {
+        var bMasVideos = document.createElement("button");
+        bMasVideos.type = "button";
+        bMasVideos.textContent = "+ Cargar más videos";
+        bMasVideos.style.cssText = ESTILO_BT + ";display:block;margin:18px auto;background:#2f6fdd;font-size:15px";
+        bMasVideos.addEventListener("click", function () {
+          bMasVideos.disabled = true;
+          bMasVideos.textContent = "Cargando más videos…";
+          apiCompleta("search", "part=snippet&type=video&maxResults=20&safeSearch=strict&videoEmbeddable=true&relevanceLanguage=es&q=" + queryVideosActual + "&pageToken=" + encodeURIComponent(tokenSiguienteVideos))
+            .then(function (res) {
+              tokenSiguienteVideos = res.nextPageToken || "";
+              (res.items || []).forEach(function (it) {
+                var vid = typeof it.id === "string" ? it.id : it.id.videoId, titulo = dec(it.snippet.title), img = foto(it);
+                var ya = misVideos().some(function (o) { return o.id === vid; });
+                var fr = document.createDocumentFragment();
+                fr.appendChild(botonAgregar(ya, function () { agregarVideo(vid, titulo, img); }));
+                fr.appendChild(botonOcultarBusqueda(vid, titulo, dec(it.snippet.channelTitle || "")));
+                g2.appendChild(tarjeta(img, titulo, fr));
+              });
+              if (tokenSiguienteVideos) {
+                bMasVideos.disabled = false;
+                bMasVideos.textContent = "+ Cargar más videos";
+                pr.appendChild(bMasVideos);
+              } else {
+                bMasVideos.remove();
+              }
+            })
+            .catch(function () {
+              bMasVideos.disabled = false;
+              bMasVideos.textContent = "Reintentar cargar más videos";
+            });
+        });
+        pr.appendChild(bMasVideos);
+      }
     }
   }
 
@@ -455,6 +495,7 @@
     var t = pq.value.trim();
     if (!t) return;
     pm.textContent = "Buscando…"; pr.textContent = "";
+    tokenSiguienteVideos = ""; queryVideosActual = "";
     var vid = videoDe(t), id = idDe(t), h = handleDe(t), q = encodeURIComponent(t), p;
     if (vid) p = api("videos", "part=snippet,status&id=" + vid).then(function (v) {
       var ok = v.filter(function (x) { return !x.status || x.status.embeddable !== false; });
@@ -463,10 +504,16 @@
     });
     else if (id) p = api("channels", "part=snippet&id=" + id).then(function (c) { return [c, []]; });
     else if (h) p = api("channels", "part=snippet&forHandle=" + encodeURIComponent("@" + h)).then(function (c) { return [c, []]; });
-    else p = Promise.all([
-      api("search", "part=snippet&type=channel&maxResults=6&safeSearch=strict&relevanceLanguage=es&q=" + q),
-      api("search", "part=snippet&type=video&maxResults=12&safeSearch=strict&videoEmbeddable=true&relevanceLanguage=es&q=" + q)
-    ]);
+    else {
+      queryVideosActual = q;
+      p = Promise.all([
+        api("search", "part=snippet&type=channel&maxResults=6&safeSearch=strict&relevanceLanguage=es&q=" + q),
+        apiCompleta("search", "part=snippet&type=video&maxResults=20&safeSearch=strict&videoEmbeddable=true&relevanceLanguage=es&q=" + q)
+      ]).then(function (r) {
+        tokenSiguienteVideos = r[1].nextPageToken || "";
+        return [r[0], r[1].items || []];
+      });
+    }
     p.then(function (r) { mostrar(r[0], r[1]); }).catch(function (e) { pm.textContent = "No se pudo buscar: " + (e && e.message ? e.message : "error desconocido"); });
   }
   pb.addEventListener("click", ir);
@@ -525,8 +572,15 @@
         sub.style.cssText = "font-size:.78rem;opacity:.8;display:flex;flex-wrap:wrap;gap:6px;align-items:center";
         var badge = document.createElement("span");
         var esAuto = item.motivo === "auto";
-        badge.style.cssText = "padding:2px 8px;border-radius:999px;font-weight:800;font-size:.72rem;color:#fff;background:" + (esAuto ? "#d97706" : "#6b2fa8");
-        badge.textContent = esAuto ? "⚡ Auto (6 veces en 2 min)" : "🔒 Ocultado por padres";
+        var es20 = item.motivo === "20veces";
+        if (es20) {
+          badge.style.cssText = "padding:2px 8px;border-radius:999px;font-weight:800;font-size:.72rem;color:#fff;background:#0284c7";
+          var dias = Math.max(1, Math.ceil(((item.expira || 0) - Date.now()) / (24 * 3600 * 1000)));
+          badge.textContent = "⏳ Visto 20 veces (reaparece en " + dias + " d)";
+        } else {
+          badge.style.cssText = "padding:2px 8px;border-radius:999px;font-weight:800;font-size:.72rem;color:#fff;background:" + (esAuto ? "#d97706" : "#6b2fa8");
+          badge.textContent = esAuto ? "⚡ Auto (6 veces en 2 min)" : "🔒 Ocultado por padres";
+        }
         sub.appendChild(badge);
         if (item.canal) {
           var cn = document.createElement("span");
@@ -603,19 +657,40 @@
     var cab = { "Authorization": "Bearer " + cfg.token, "Accept": "application/vnd.github+json", "Content-Type": "application/json" };
     function intento() {
       return fetch(url + "?ref=" + encodeURIComponent(cfg.rama), { headers: cab, cache: "no-store" })
-        .then(function (r) { if (r.status === 404) return {}; if (!r.ok) throw r.status; return r.json(); })
+        .then(function (r) {
+          if (r.status === 404) return {};
+          if (!r.ok) {
+            return r.json().then(function (err) {
+              throw new Error(err.message || ("Error HTTP " + r.status));
+            }).catch(function (err) {
+              if (err instanceof Error) throw err;
+              throw new Error("Error HTTP " + r.status);
+            });
+          }
+          return r.json();
+        })
         .then(function (a) {
-          var cuerpo = { message: "Actualizar canales y videos", content: b64(texto), branch: cfg.rama };
+          var cuerpo = { message: "Actualizar canales y videos FreshMind", content: b64(texto), branch: cfg.rama };
           if (a.sha) cuerpo.sha = a.sha;
           return fetch(url, { method: "PUT", headers: cab, body: JSON.stringify(cuerpo) });
         })
-        .then(function (r) { if (!r.ok) throw r.status; });
+        .then(function (r) {
+          if (!r.ok) {
+            return r.json().then(function (err) {
+              throw new Error(err.message || ("Error al guardar: " + r.status));
+            }).catch(function (err) {
+              if (err instanceof Error) throw err;
+              throw new Error("Error HTTP " + r.status);
+            });
+          }
+        });
     }
-    return intento().catch(function (s) { if (s === 409 || s === 422) return intento(); throw s; });
+    return intento();
   }
   function errorGh(s) {
-    if (s === 401) return "El token no es válido o venció.";
-    if (s === 403 || s === 404) return "El token no tiene permiso en ese repositorio, o el repositorio, la rama o el archivo están mal escritos.";
+    if (s && s.message) return "Error de GitHub: " + s.message;
+    if (s === 401) return "El token no es válido o venció (genera uno nuevo en GitHub con permiso Contents: Read and write).";
+    if (s === 403 || s === 404) return "El token no tiene permiso en ese repositorio, o el nombre de usuario/repo o rama están mal escritos.";
     return typeof s === "number" ? "GitHub respondió con error " + s + "." : "No hay conexión con GitHub.";
   }
 
@@ -624,11 +699,11 @@
     var m = modal(
       '<h3 style="margin:0 0 8px">Actualizar para todos</h3>' +
       '<details' + (cfg ? '' : ' open') + '><summary style="cursor:pointer;font-weight:700">Datos de GitHub</summary>' +
-      '<input data-a placeholder="usuario/repositorio" style="' + ESTILO_IN + '">' +
+      '<input data-a placeholder="usuario/repositorio (ej: luis98/freshmind)" style="' + ESTILO_IN + '">' +
       '<input data-b placeholder="Rama (main)" style="' + ESTILO_IN + '">' +
       '<input data-c placeholder="Archivo (canales.json)" style="' + ESTILO_IN + '">' +
-      '<input data-t type="password" placeholder="' + (cfg ? 'Token guardado (vacío = conservarlo)' : 'Token de GitHub') + '" style="' + ESTILO_IN + '">' +
-      '<p style="font-size:13px;margin:0;line-height:1.4">Crea un token fine-grained en GitHub, solo para este repositorio, con permiso <b>Contents: Read and write</b>. Se guarda solo en este dispositivo.</p></details>' +
+      '<input data-t type="password" placeholder="' + (cfg ? 'Token guardado (vacío = conservarlo)' : 'Token de GitHub (ghp_...)') + '" style="' + ESTILO_IN + '">' +
+      '<p style="font-size:13px;margin:0;line-height:1.4">Crea un token (Personal Access Token) en GitHub con permiso <b>Contents: Read and write</b> para guardar los canales en tu repositorio.</p></details>' +
       '<p data-s style="margin:10px 0 0;font-weight:600;line-height:1.4"></p>' +
       '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button type="button" data-p style="' + ESTILO_BT + '">Publicar ahora</button><button type="button" data-x style="' + ESTILO_BT + ';background:#5b6b7a">Cerrar</button></div>',
       520
@@ -640,10 +715,10 @@
     bp.addEventListener("click", function () {
       var nuevo = { repo: ia.value.trim(), rama: ib.value.trim() || "main", ruta: ic.value.trim() || "canales.json", token: it.value.trim() || (cfg && cfg.token) || "" };
       if (!/^[\w.-]+\/[\w.-]+$/.test(nuevo.repo) || !nuevo.token) { st.textContent = "Completa usuario/repositorio y el token."; return; }
-      bp.disabled = true; st.textContent = "Publicando…";
+      bp.disabled = true; st.textContent = "Publicando en GitHub…";
       publicar(nuevo, armarJson()).then(function () {
         guardar(LS_GH, nuevo); cfg = nuevo;
-        st.textContent = "✓ Publicado. En uno o dos minutos se verá en todos los dispositivos.";
+        st.innerHTML = "<span style='color:#12a37f'>✓ Guardado con éxito en tu repositorio de GitHub. Todos tus dispositivos verán los cambios al abrir.</span>";
       }).catch(function (e) { st.textContent = errorGh(e); }).then(function () { bp.disabled = false; });
     });
   }
@@ -706,9 +781,72 @@
       box.appendChild(f);
     });
   }
+
+  function abrirConfigTiempos() {
+    var info = window.FMV_obtenerTiempos ? window.FMV_obtenerTiempos() : { hija: { usoSeg: 0, limiteMin: 0 }, hijo: { usoSeg: 0, limiteMin: 0 } };
+    var mt = modal(
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+      '<h3 style="margin:0">⏱ Temporizador y límite de tiempo</h3>' +
+      '<button type="button" data-x style="' + ESTILO_BT + ';background:#5b6b7a">Cerrar</button>' +
+      '</div>' +
+      '<p style="font-size:13.5px;opacity:.8;margin:0 0 16px;line-height:1.4">Configura cuánto tiempo puede ver cada perfil al día. Al terminarse el tiempo, la pantalla se bloquea automáticamente y pide tu contraseña de siempre (<b>1234</b>).</p>' +
+      '<div data-hija style="background:#f4f8fb;padding:14px;border-radius:14px;margin-bottom:12px"></div>' +
+      '<div data-hijo style="background:#f4f8fb;padding:14px;border-radius:14px;margin-bottom:14px"></div>',
+      480
+    );
+    mt.caja.querySelector("[data-x]").addEventListener("click", mt.cerrar);
+    function bloque(id, emoji, nombre, datos, cont) {
+      var usoMin = Math.floor((datos.usoSeg || 0) / 60);
+      var lim = datos.limiteMin || 0;
+      cont.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+        '<div style="font-weight:800;font-size:1.05rem">' + emoji + ' ' + nombre + '</div>' +
+        '<div style="font-size:.85rem;font-weight:800;color:#0a6b53;background:#e6f7f2;padding:3px 10px;border-radius:999px">⏱ Hoy: ' + usoMin + ' min</div>' +
+        '</div>' +
+        '<div style="font-size:.85rem;margin-bottom:8px;opacity:.85">Límite diario: <b>' + (lim > 0 ? (lim + ' minutos') : 'Sin límite') + '</b></div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+        '<button type="button" data-m="15" style="' + ESTILO_BT + ';padding:6px 11px;font-size:13px;background:' + (lim === 15 ? '#12a37f' : '#2f6fdd') + '">15 min</button>' +
+        '<button type="button" data-m="30" style="' + ESTILO_BT + ';padding:6px 11px;font-size:13px;background:' + (lim === 30 ? '#12a37f' : '#2f6fdd') + '">30 min</button>' +
+        '<button type="button" data-m="45" style="' + ESTILO_BT + ';padding:6px 11px;font-size:13px;background:' + (lim === 45 ? '#12a37f' : '#2f6fdd') + '">45 min</button>' +
+        '<button type="button" data-m="60" style="' + ESTILO_BT + ';padding:6px 11px;font-size:13px;background:' + (lim === 60 ? '#12a37f' : '#2f6fdd') + '">60 min</button>' +
+        '<button type="button" data-m="0" style="' + ESTILO_BT + ';padding:6px 11px;font-size:13px;background:' + (lim === 0 ? '#12a37f' : '#6b7280') + '">Sin límite</button>' +
+        '<button type="button" data-r style="' + ESTILO_BT + ';padding:6px 11px;font-size:13px;background:#d97706">Reiniciar hoy</button>' +
+        '</div>';
+      cont.querySelectorAll("[data-m]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var m = parseInt(b.getAttribute("data-m"), 10);
+          if (window.FMV_fijarLimite) window.FMV_fijarLimite(id, m);
+          mt.cerrar();
+          abrirConfigTiempos();
+        });
+      });
+      cont.querySelector("[data-r]").addEventListener("click", function () {
+        if (window.FMV_reiniciarTiempo) window.FMV_reiniciarTiempo(id);
+        mt.cerrar();
+        abrirConfigTiempos();
+      });
+    }
+    bloque("hija", "👧", "Hija", info.hija, mt.caja.querySelector("[data-hija]"));
+    bloque("hijo", "👦", "Hijo", info.hijo, mt.caja.querySelector("[data-hijo]"));
+  }
+
   function abrirPanelPadres() {
     var cantOcultos = obtenerDetallesOcultos().length;
-    var m = modal('<h3 style="margin:0 0 4px">🔒 Zona de padres</h3><p style="margin:0 0 14px;font-size:14px;opacity:.75">Aquí agregas, ocultas y administras el contenido para tus hijos.</p><div data-l style="display:flex;flex-direction:column;gap:10px"></div>', 420);
+    var tiempos = window.FMV_obtenerTiempos ? window.FMV_obtenerTiempos() : { hija: { usoSeg: 0, limiteMin: 0 }, hijo: { usoSeg: 0, limiteMin: 0 } };
+    var usoHija = Math.floor((tiempos.hija.usoSeg || 0) / 60);
+    var usoHijo = Math.floor((tiempos.hijo.usoSeg || 0) / 60);
+    var limHija = tiempos.hija.limiteMin > 0 ? (tiempos.hija.limiteMin + "m") : "∞";
+    var limHijo = tiempos.hijo.limiteMin > 0 ? (tiempos.hijo.limiteMin + "m") : "∞";
+
+    var m = modal(
+      '<h3 style="margin:0 0 4px">🔒 Zona de padres</h3>' +
+      '<p style="margin:0 0 10px;font-size:14px;opacity:.75">Administra el contenido, tiempos y límites de pantalla de tus hijos.</p>' +
+      '<div style="background:#f4f8fb;padding:10px 14px;border-radius:12px;margin-bottom:12px;font-size:.86rem;display:flex;justify-content:space-around;font-weight:800">' +
+      '<span>👧 Hija: <b style="color:#0a6b53">' + usoHija + 'm hoy</b> (Límite: ' + limHija + ')</span>' +
+      '<span>👦 Hijo: <b style="color:#0a6b53">' + usoHijo + 'm hoy</b> (Límite: ' + limHijo + ')</span>' +
+      '</div>' +
+      '<div data-l style="display:flex;flex-direction:column;gap:10px"></div>',
+      440
+    );
     var l = m.caja.querySelector("[data-l]");
     function fila(texto, color, fn) {
       var b = document.createElement("button"); b.type = "button"; b.textContent = texto;
@@ -717,11 +855,12 @@
       l.appendChild(b);
     }
     fila("🔍 Buscar en YouTube y agregar", "", abrirBuscador);
+    fila("⏱ Tiempo de pantalla y temporizador", "#0284c7", abrirConfigTiempos);
     fila("🙈 Videos ocultos" + (cantOcultos ? " (" + cantOcultos + ")" : ""), "#475569", abrirVideosOcultos);
     fila("🌐 Actualizar para todos", "#2f6fdd", abrirActualizar);
     if (hayOcultos()) fila("↩ Restaurar todo lo que quité", "#e08a00", restaurar);
     fila("🕘 Historial", "#6b4fd0", abrirHistorial);
-    fila("👧👦 Cambiar perfil", "#b06a00", function () { if (window.FMV_cambiarPerfil) FMV_cambiarPerfil(); });
+    fila("👧👦 Cambiar perfil", "#b06a00", function () { if (window.FMV_cambiarPerfil) window.FMV_cambiarPerfil(); });
     fila("🚪 Salir de padres", "#5b6b7a", salirDePadres);
   }
   window.FMV_abrirPadres = function () { if (esPadre()) abrirPanelPadres(); else pedirPin(abrirPanelPadres); };

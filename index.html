@@ -42,6 +42,7 @@
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='13' fill='%2312a37f'/%3E%3Cpath d='M19 14v20l17-10z' fill='%23fff'/%3E%3C/svg%3E">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -101,18 +102,20 @@
   .volver:hover { opacity: 0.9; }
   .titulo-canal-activo { font-size: 1.4rem; font-weight: 800; margin: 0; color: var(--texto); }
 
-  .contenedor-reproductor-principal { background: #0f1720; border-radius: 22px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-bottom: 24px; color: #fff; }
+  .contenedor-reproductor-principal {
+    position: relative;
+    background: #0f1720; border-radius: 22px; overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-bottom: 24px; color: #fff;
+  }
   .video-marco-wrapper { position: relative; aspect-ratio: 16 / 9; width: 100%; background: #000; }
   .video-marco-wrapper iframe { width: 100%; height: 100%; border: 0; display: block; pointer-events: none; }
   
-  /* Tapa 100% opaca con la miniatura limpia del video: bloquea anuncios/banners al pausar sin dejar pantalla negra */
+  /* Tapa 100% transparente: muestra exactamente el fotograma donde pausaste con el círculo play en el centro */
   .tapa {
     position: absolute; inset: 0; width: 100%; height: 100%; border: 0; margin: 0; padding: 0;
-    background: #0f1720 center / cover no-repeat; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5;
+    background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5;
   }
-  .tapa::before {
-    content: ""; position: absolute; inset: 0; background: rgba(15, 23, 32, .35);
-  }
+  .tapa::before { display: none; }
   .tapa[hidden] { display: none; }
   .tapa .play-circulo {
     position: relative; z-index: 1;
@@ -153,7 +156,16 @@
     font-weight: 800; font-size: .85rem; padding: 8px 14px; cursor: pointer; white-space: nowrap;
   }
 
-  .controles { display: flex; align-items: center; gap: 4px; padding: 8px 14px; background: #1d2b3a; }
+  .controles {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 10;
+    display: flex; align-items: center; gap: 4px; padding: 28px 14px 10px;
+    background: linear-gradient(transparent, rgba(15, 23, 32, .88) 35%);
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  .contenedor-reproductor-principal.inactivo .controles {
+    opacity: 0; transform: translateY(12px); pointer-events: none;
+  }
+  .contenedor-reproductor-principal.inactivo { cursor: none; }
   .controles button {
     min-width: 40px; min-height: 40px; border: 0; background: none; color: #fff; border-radius: 8px;
     cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
@@ -166,8 +178,22 @@
   /* Selector inferior de todos los videos del canal */
   .seccion-videos-canal h3 { margin: 0 0 12px 0; font-size: 1.1rem; }
   html, body { touch-action: pan-x pan-y; overscroll-behavior: none; }   /* sin zoom con los dedos ni doble toque */
-  .perfil-chip { display: inline-flex; align-items: center; gap: 4px; background: #e6f7f2; color: #0a6b53; font-weight: 800; font-size: .85rem; padding: 5px 11px; border-radius: 999px; }
+  .perfil-chip {
+    display: inline-flex; align-items: center; gap: 6px; background: #e6f7f2; color: #0a6b53;
+    font-weight: 800; font-size: .85rem; padding: 6px 13px; border-radius: 999px;
+    cursor: pointer; border: 1.5px solid rgba(18, 163, 127, .35); transition: transform .15s ease, background .15s ease;
+    user-select: none;
+  }
+  .perfil-chip:hover { background: #d0f2e7; transform: scale(1.05); }
   .perfil-chip[hidden] { display: none; }
+
+  /* Ocultar control de volumen en móviles y tablets táctiles (se usan los botones físicos del celular o PWA) */
+  @media (max-width: 768px), (pointer: coarse) {
+    .vol { display: none !important; }
+  }
+  @media all and (display-mode: standalone) {
+    .vol { display: none !important; }
+  }
   #conmutador { display: flex; gap: 8px; margin: 0 0 18px; }
   #conmutador button { flex: 1; border: 0; border-radius: 999px; padding: 12px 10px; font: inherit; font-weight: 800; font-size: 1rem; cursor: pointer; background: #fff; color: var(--texto); box-shadow: 0 2px 8px rgba(20,60,100,.18); }
   #conmutador button.on { background: var(--acento); color: #fff; }
@@ -276,8 +302,42 @@
   body.viendo #ir-actual.hay { display: block; }
 
   /* ---------- Barra inferior (estilo YouTube Kids) ---------- */
-  #barra-inferior { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; justify-content: center; gap: 6px; background: #fff; border-radius: 24px 24px 0 0; box-shadow: 0 -3px 14px rgba(20, 60, 100, .22); padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); }
+  #barra-inferior {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; display: flex; justify-content: center; gap: 6px;
+    background: #fff; border-radius: 24px 24px 0 0; box-shadow: 0 -3px 14px rgba(20, 60, 100, .22);
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    transition: transform .35s ease, opacity .35s ease;
+  }
+  #barra-inferior.inactiva {
+    transform: translateY(115%);
+    opacity: 0;
+    pointer-events: none;
+  }
   body.viendo #barra-inferior { display: none; }
+
+  /* Pantalla de bloqueo de tiempo diario configurado por padres */
+  .bloqueo-tiempo {
+    position: fixed; inset: 0; z-index: 300; background: rgba(15, 23, 32, .92);
+    backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .bloqueo-tiempo[hidden] { display: none; }
+  .bloqueo-tarjeta {
+    background: #fff; border-radius: 26px; padding: 30px 22px; max-width: 440px; width: 100%;
+    text-align: center; color: var(--texto); box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  }
+  .bloqueo-icono { font-size: 3.2rem; line-height: 1; margin-bottom: 10px; }
+  .bloqueo-tarjeta h2 { margin: 0 0 10px; font-size: 1.55rem; color: #d97706; }
+  .bloqueo-tarjeta p { margin: 0 0 16px; font-size: .95rem; opacity: .85; line-height: 1.4; }
+  .bloqueo-formulario input {
+    width: 100%; max-width: 250px; padding: 12px 14px; border: 2px solid #c9d3da; border-radius: 12px;
+    font-size: 1.2rem; text-align: center; font-family: inherit; outline: none; margin: 0 auto; display: block;
+  }
+  .bloqueo-formulario input:focus { border-color: var(--acento); }
+  .bloqueo-btn {
+    border: 0; background: var(--acento); color: #fff; padding: 11px 18px; border-radius: 999px;
+    font: inherit; font-weight: 800; font-size: .95rem; cursor: pointer; transition: transform .15s ease;
+  }
+  .bloqueo-btn:hover { transform: scale(1.04); }
   #barra-inferior button { flex: 1; max-width: 130px; border: 0; background: none; font: inherit; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 0; color: #5b6b7a; font-size: .74rem; font-weight: 700; cursor: pointer; }
   #barra-inferior button.activo { color: #0f1720; font-weight: 800; }
   #barra-inferior .ico { position: relative; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
@@ -333,7 +393,7 @@
   <!-- VISTA DE CANAL: Reproductor orgánico y lista completa de videos -->
   <div id="vista-canal">
     <div class="barra-navegacion">
-      <button class="volver" id="btn-volver" type="button">← Volver a canales</button>
+      <button class="volver" id="btn-volver" type="button"><span style="font-size:1.25rem">🏠</span> <b>Inicio</b></button>
       <h2 class="titulo-canal-activo" id="titulo-canal-activo"></h2>
     </div>
 
@@ -383,6 +443,24 @@
   </div>
 </main>
 <div id="quien"><h2>¿Quién va a ver?</h2><div><button type="button" data-p="hija"><span>👧</span>Hija</button><button type="button" data-p="hijo"><span>👦</span>Hijo</button></div></div>
+
+<!-- Pantalla de bloqueo cuando el tiempo diario se acaba -->
+<div id="bloqueo-tiempo" class="bloqueo-tiempo" hidden>
+  <div class="bloqueo-tarjeta">
+    <div class="bloqueo-icono">⏳</div>
+    <h2>¡Tiempo terminado por hoy!</h2>
+    <p id="bloqueo-txt">El tiempo configurado para este perfil ha terminado.</p>
+    <div class="bloqueo-formulario">
+      <input type="password" id="bloqueo-pin" inputmode="numeric" placeholder="Ingresa PIN (1234)" maxlength="8">
+      <p id="bloqueo-err" style="color:#d93025;font-weight:800;display:none;margin:4px 0">PIN incorrecto</p>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap">
+        <button type="button" id="bloqueo-btn-entrar" class="bloqueo-btn">Desbloquear (+15 min)</button>
+        <button type="button" id="bloqueo-btn-cambiar" class="bloqueo-btn" style="background:#b06a00">Cambiar de perfil</button>
+        <button type="button" id="bloqueo-btn-padres" class="bloqueo-btn" style="background:#5b6b7a">Zona de padres</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <button type="button" id="ir-actual">◎ Ir al video actual</button>
 
@@ -454,11 +532,7 @@
   var LS_LISTAS = "fmv_listas", LS_ULT = "fmv_ultimo";
 
   function actualizarPortadaTapa() {
-    if (videoActualId) {
-      tapa.style.backgroundImage = 'url("https://i.ytimg.com/vi/' + encodeURIComponent(videoActualId) + '/hqdefault.jpg")';
-    } else {
-      tapa.style.backgroundImage = "none";
-    }
+    tapa.style.backgroundImage = "none";
   }
 
   function silenciarPreventivo() {
@@ -615,19 +689,211 @@
     LS_ULT = "fmv_ultimo_" + p;   // cada perfil recuerda su propio video y minuto
     quienEl.hidden = true;
     var pf = window.FMV_PERFILES[p], chip = document.getElementById("perfil-chip");
-    chip.textContent = pf.e + " " + pf.n; chip.hidden = false;
+    chip.innerHTML = pf.e + " <b>" + pf.n + "</b> <span style='font-size:.72rem;opacity:.7'>⇄</span>";
+    chip.title = "Toca para cambiar de perfil (" + pf.n + ")";
+    chip.hidden = false;
     guardarSesion({ perfil: p });
     if (window.FMV_repintar) FMV_repintar();   // muestra solo los canales de este perfil
+    revisarLimiteActual();
   }
   quienEl.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("button[data-p]");
     if (b) aplicarPerfil(b.getAttribute("data-p"));
+  });
+  document.getElementById("perfil-chip").addEventListener("click", function () {
+    if (window.FMV_cambiarPerfil) window.FMV_cambiarPerfil();
   });
   var sesionInicial = sesion();
   if (sesionInicial.perfil && window.FMV_PERFILES[sesionInicial.perfil]) aplicarPerfil(sesionInicial.perfil);   // tras recargar no vuelve a preguntar
   ["gesturestart", "gesturechange", "gestureend"].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); }, { passive: false }); });
   document.addEventListener("touchmove", function (e) { if (e.touches.length > 1 && e.cancelable) e.preventDefault(); }, { passive: false });
   window.FMV_cambiarPerfil = function () { quienEl.hidden = false; };
+
+  /* ---------- Control de tiempo y temporizador diario por perfil ---------- */
+  var LS_TIEMPO_FECHA = "fmv_tiempo_fecha";
+  var LS_USO = "fmv_uso_"; // fmv_uso_hija, fmv_uso_hijo
+  var LS_LIMITE = "fmv_limite_"; // fmv_limite_hija, fmv_limite_hijo (en minutos)
+  var bloqueadoPorTiempo = false;
+  var bloqueoTiempoEl = document.getElementById("bloqueo-tiempo");
+  var bloqueoTxtEl = document.getElementById("bloqueo-txt");
+  var bloqueoPinEl = document.getElementById("bloqueo-pin");
+  var bloqueoErrEl = document.getElementById("bloqueo-err");
+  var bloqueoBtnEntrar = document.getElementById("bloqueo-btn-entrar");
+  var bloqueoBtnCambiar = document.getElementById("bloqueo-btn-cambiar");
+  var bloqueoBtnPadres = document.getElementById("bloqueo-btn-padres");
+
+  function hoyStr() {
+    var d = new Date();
+    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+  }
+
+  function revisarDiaCambio() {
+    var h = hoyStr();
+    var guardado = localStorage.getItem(LS_TIEMPO_FECHA);
+    if (guardado !== h) {
+      localStorage.setItem(LS_TIEMPO_FECHA, h);
+      localStorage.setItem(LS_USO + "hija", "0");
+      localStorage.setItem(LS_USO + "hijo", "0");
+    }
+  }
+  revisarDiaCambio();
+
+  function obtenerUsoSegundos(p) {
+    revisarDiaCambio();
+    return parseInt(localStorage.getItem(LS_USO + p) || "0", 10) || 0;
+  }
+  function guardarUsoSegundos(p, s) {
+    revisarDiaCambio();
+    localStorage.setItem(LS_USO + p, String(s));
+  }
+  function obtenerLimiteMinutos(p) {
+    return parseInt(localStorage.getItem(LS_LIMITE + p) || "0", 10) || 0;
+  }
+  function fijarLimiteMinutos(p, m) {
+    localStorage.setItem(LS_LIMITE + p, String(m));
+    revisarLimiteActual();
+  }
+
+  window.FMV_obtenerTiempos = function () {
+    return {
+      hija: { usoSeg: obtenerUsoSegundos("hija"), limiteMin: obtenerLimiteMinutos("hija") },
+      hijo: { usoSeg: obtenerUsoSegundos("hijo"), limiteMin: obtenerLimiteMinutos("hijo") }
+    };
+  };
+  window.FMV_fijarLimite = fijarLimiteMinutos;
+  window.FMV_reiniciarTiempo = function (p) {
+    guardarUsoSegundos(p, 0);
+    bloquearPorTiempo(false);
+  };
+  window.FMV_agregarMinutos = function (p, min) {
+    var lim = obtenerLimiteMinutos(p);
+    if (lim > 0) fijarLimiteMinutos(p, lim + min);
+    else {
+      var segActual = obtenerUsoSegundos(p);
+      guardarUsoSegundos(p, Math.max(0, segActual - (min * 60)));
+    }
+    bloquearPorTiempo(false);
+  };
+
+  function bloquearPorTiempo(si) {
+    bloqueadoPorTiempo = si;
+    if (bloqueoTiempoEl) bloqueoTiempoEl.hidden = !si;
+    if (si) {
+      if (listo && jugador && jugador.pauseVideo) jugador.pauseVideo();
+      var pf = (window.FMV_PERFILES || {})[window.FMV_perfil] || { n: "tu cuenta", e: "👦" };
+      if (bloqueoTxtEl) bloqueoTxtEl.textContent = "Has alcanzado el tiempo límite para " + pf.e + " " + pf.n + ".";
+      if (bloqueoPinEl) { bloqueoPinEl.value = ""; bloqueoPinEl.focus(); }
+      if (bloqueoErrEl) bloqueoErrEl.style.display = "none";
+    }
+  }
+
+  function revisarLimiteActual() {
+    var p = window.FMV_perfil;
+    if (!p) return false;
+    var lim = obtenerLimiteMinutos(p);
+    if (lim > 0) {
+      var uso = obtenerUsoSegundos(p);
+      if (uso >= lim * 60) {
+        bloquearPorTiempo(true);
+        return true;
+      }
+    }
+    if (bloqueadoPorTiempo) bloquearPorTiempo(false);
+    return false;
+  }
+
+  setInterval(function () {
+    if (document.hidden) return;
+    var p = window.FMV_perfil;
+    if (!p || bloqueadoPorTiempo) return;
+    var s = obtenerUsoSegundos(p) + 1;
+    guardarUsoSegundos(p, s);
+    revisarLimiteActual();
+  }, 1000);
+
+  function validarPinBloqueo(cb) {
+    if (bloqueoPinEl && bloqueoPinEl.value === "1234") {
+      if (bloqueoErrEl) bloqueoErrEl.style.display = "none";
+      cb();
+    } else {
+      if (bloqueoErrEl) bloqueoErrEl.style.display = "block";
+      if (bloqueoPinEl) { bloqueoPinEl.value = ""; bloqueoPinEl.focus(); }
+    }
+  }
+  if (bloqueoBtnEntrar) {
+    bloqueoBtnEntrar.addEventListener("click", function () {
+      validarPinBloqueo(function () {
+        window.FMV_agregarMinutos(window.FMV_perfil || "hija", 15);
+      });
+    });
+  }
+  if (bloqueoBtnCambiar) {
+    bloqueoBtnCambiar.addEventListener("click", function () {
+      validarPinBloqueo(function () {
+        bloquearPorTiempo(false);
+        if (window.FMV_cambiarPerfil) window.FMV_cambiarPerfil();
+      });
+    });
+  }
+  if (bloqueoBtnPadres) {
+    bloqueoBtnPadres.addEventListener("click", function () {
+      validarPinBloqueo(function () {
+        bloquearPorTiempo(false);
+        if (window.FMV_abrirPadres) window.FMV_abrirPadres();
+      });
+    });
+  }
+  if (bloqueoPinEl) {
+    bloqueoPinEl.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") bloqueoBtnEntrar.click();
+    });
+  }
+
+  /* ---------- 20 reproducciones completas -> Ocultar por 1 semana (luego reaparece) ---------- */
+  var LS_COMPLETADOS = "fmv_completados_v1";
+  var LS_SEMANA = "fmv_ocultos_semana_v1";
+
+  function limpiarExpiradosSemana() {
+    var sem = lsLeer(LS_SEMANA);
+    var ahora = Date.now(), cambio = false;
+    Object.keys(sem).forEach(function (id) {
+      if (ahora >= sem[id]) {
+        delete sem[id];
+        cambio = true;
+        if (window.FMV_desocultarVideo) window.FMV_desocultarVideo(id);
+      }
+    });
+    if (cambio) lsGuardar(LS_SEMANA, sem);
+  }
+
+  function registrarVideoCompletado(id) {
+    if (!id) return;
+    limpiarExpiradosSemana();
+    var comp = lsLeer(LS_COMPLETADOS);
+    var c = (comp[id] || 0) + 1;
+    comp[id] = c;
+    lsGuardar(LS_COMPLETADOS, comp);
+    if (c >= 20) {
+      delete comp[id];
+      lsGuardar(LS_COMPLETADOS, comp);
+      var expira = Date.now() + (7 * 24 * 60 * 60 * 1000); // 1 semana
+      var sem = lsLeer(LS_SEMANA);
+      sem[id] = expira;
+      lsGuardar(LS_SEMANA, sem);
+      var idx = listaVideos.indexOf(id);
+      var tit = (idx >= 0 && titulos[idx]) ? titulos[idx] : ("Video " + id);
+      var nomCanal = canalActual === "MIS" ? "⭐ Mis videos" : (tituloCanalActivo.textContent || "");
+      if (window.FMV_ocultarVideo) {
+        window.FMV_ocultarVideo(id, tit, nomCanal, "20veces", expira);
+      }
+      if (idx >= 0) {
+        listaVideos.splice(idx, 1);
+        titulos.splice(idx, 1);
+      }
+      contadorTotal.textContent = listaVideos.length;
+      construirSelector(0);
+    }
+  }
   /* vivos[id]: 1 = en vivo ahora, 2 = en vivo programado / no disponible por horario */
   var vivos = {}, revisados = {}, itemActual = null, ticksGuardar = 0;
   var posInicio = 0;      // scroll de la pantalla principal, para volver justo donde estabas
@@ -700,6 +966,7 @@
             }
           }
           if (e.data === 0) {
+            registrarVideoCompletado(videoActualId);
             siguienteVideo();
           }
         },
@@ -914,6 +1181,7 @@
   }
 
   function sinBloqueados() {
+    limpiarExpiradosSemana();
     var b = window.FMV_bloqueados ? FMV_bloqueados() : [], ni = [], nt = [];
     /* En la sección 🔴 En vivo, incluimos al inicio los videos en vivo o programados detectados en el canal (como David y Jonatán) */
     if (pestana === "UULV" && canalUC && vivosPorCanal[canalUC]) {
@@ -1409,6 +1677,31 @@
   }
 
   document.getElementById("btn-volver").addEventListener("click", regresarAprincipal);
+
+  /* Inactividad de 3 segundos para ocultar la barra inferior de navegación */
+  var tNavInactivo = null, barraInf = document.getElementById("barra-inferior");
+  function despertarBarra() {
+    clearTimeout(tNavInactivo);
+    if (barraInf) barraInf.classList.remove("inactiva");
+    tNavInactivo = setTimeout(function () {
+      if (barraInf) barraInf.classList.add("inactiva");
+    }, 3000);
+  }
+  var ultMoveX = -1, ultMoveY = -1;
+  function alMoverOInteraccionar(e) {
+    if (e && (e.type === "mousemove" || e.type === "pointermove")) {
+      if (ultMoveX >= 0 && Math.abs(e.clientX - ultMoveX) < 5 && Math.abs(e.clientY - ultMoveY) < 5) {
+        return; // micro-movimiento o evento sintético ignorado
+      }
+      ultMoveX = e.clientX;
+      ultMoveY = e.clientY;
+    }
+    despertarBarra();
+  }
+  ["pointermove", "mousemove", "touchstart", "scroll", "keydown", "click"].forEach(function (ev) {
+    document.addEventListener(ev, alMoverOInteraccionar, { passive: true });
+  });
+  despertarBarra();
   /* ---------- Barra inferior ---------- */
   var NAV = { inicio: "nav-inicio", buscar: "nav-buscar", mis: "nav-mis" };
   function marcarNav(cual) {
@@ -1581,12 +1874,21 @@
   var bPantalla = document.getElementById("b-pantalla"), tOculta = null, irAlSalir = false, yAntes = 0;
   function nativa() { return document.fullscreenElement || document.webkitFullscreenElement; }
   function enPantalla() { return contenedor.classList.contains("en-pantalla"); }
-  function ocultarYa() { if (listo && jugador.getPlayerState() === 1) contenedor.classList.add("inactivo"); }
+  function ocultarYa() {
+    if (listo && jugador && jugador.getPlayerState && jugador.getPlayerState() === 1) {
+      contenedor.classList.add("inactivo");
+    }
+  }
   function programarOcultar() {
     clearTimeout(tOculta);
-    if (enPantalla()) tOculta = setTimeout(ocultarYa, 3000);
+    if (listo && jugador && jugador.getPlayerState && jugador.getPlayerState() === 1) {
+      tOculta = setTimeout(ocultarYa, 3000);
+    }
   }
-  function mostrarControles() { contenedor.classList.remove("inactivo"); programarOcultar(); }
+  function mostrarControles() {
+    contenedor.classList.remove("inactivo");
+    programarOcultar();
+  }
   function activarPantalla(si) {
     var estaba = enPantalla();
     if (si && !estaba) yAntes = window.scrollY;
@@ -1701,17 +2003,31 @@
     if (Date.now() - gSwipe < 500) { e.stopPropagation(); e.preventDefault(); }
   }, true);
 
-  contenedor.addEventListener("pointermove", mostrarControles);
+  var ultPtrX = -1, ultPtrY = -1;
+  function alMoverSobreReproductor(e) {
+    if (e && (e.type === "pointermove" || e.type === "mousemove")) {
+      if (ultPtrX >= 0 && Math.abs(e.clientX - ultPtrX) < 4 && Math.abs(e.clientY - ultPtrY) < 4) return;
+      ultPtrX = e.clientX; ultPtrY = e.clientY;
+    }
+    mostrarControles();
+  }
+  contenedor.addEventListener("pointermove", alMoverSobreReproductor);
+  contenedor.addEventListener("touchstart", function () { mostrarControles(); }, { passive: true });
   document.getElementById("controles").addEventListener("pointerdown", mostrarControles);
   wrapperVideo.addEventListener("click", function (e) {
-    if (!enPantalla()) {
-      if (e.target === tapa || tapa.contains(e.target) || avisoVivo.contains(e.target) || wrapperVideo.classList.contains("libre") || !listo) return;
-      if (jugador.getPlayerState() === 1) jugador.pauseVideo();
-      else { tapa.hidden = true; jugador.playVideo(); }
+    if (e.target === tapa || tapa.contains(e.target) || avisoVivo.contains(e.target) || wrapperVideo.classList.contains("libre") || !listo) return;
+    if (contenedor.classList.contains("inactivo")) {
+      mostrarControles();
       return;
     }
-    if (contenedor.classList.contains("inactivo")) mostrarControles();
-    else { clearTimeout(tOculta); ocultarYa(); }
+    if (jugador && jugador.getPlayerState && jugador.getPlayerState() === 1) {
+      jugador.pauseVideo();
+      mostrarControles();
+    } else if (jugador && jugador.playVideo) {
+      tapa.hidden = true;
+      jugador.playVideo();
+      programarOcultar();
+    }
   });
 
   // Generación de tarjetas con imágenes automáticas basadas en el ID del canal
@@ -1771,7 +2087,7 @@
     return a;
   }
 
-  fetch("canales.json", { cache: "no-cache" })
+  fetch("canales.json?_t=" + Date.now(), { cache: "no-store" })
     .then(function (r) {
       if (!r.ok) throw new Error("No se encontró canales.json");
       return r.json();

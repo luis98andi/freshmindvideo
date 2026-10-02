@@ -170,24 +170,86 @@
     });
   }
 
+  /* ---------- Diccionario de términos relacionados para búsquedas infantiles ---------- */
+  var RELACIONES = {
+    marioneta: ["titere", "titeres", "juguete de mano", "muñeco", "muñecos", "muneco"],
+    titere: ["marioneta", "juguete de mano", "muñeco", "muneco"],
+    titeres: ["marionetas", "juguete de mano", "muñecos"],
+    gato: ["gatito", "gatitos", "miau", "felino", "mascotas"],
+    gatito: ["gato", "miau", "felino"],
+    gatitos: ["gato", "gatos", "miau"],
+    perro: ["perrito", "perritos", "canino", "guau", "cachorro", "mascotas"],
+    perrito: ["perro", "guau", "cachorro"],
+    auto: ["carro", "coche", "vehiculo", "camion", "ruedas"],
+    carro: ["auto", "coche", "camion", "ruedas"],
+    coche: ["auto", "carro", "vehiculo"],
+    dinosaurio: ["dino", "dinos", "rex", "t-rex", "jurasico"],
+    cancion: ["canciones", "musica", "cantar", "ronda", "tema"],
+    musica: ["cancion", "canciones", "melodia", "ritmo"],
+    dormir: ["sueño", "cuna", "nana", "luna", "estrellita", "noche"],
+    comer: ["comida", "fruta", "frutas", "verdura", "verduras", "alimento"],
+    bebe: ["bebes", "nene", "pequeño", "chiquito"],
+    jugar: ["juego", "juguete", "juguetes", "diversion"],
+    colores: ["color", "pintar", "arcoiris", "amarillo", "azul", "rojo", "verde"],
+    numeros: ["contar", "123", "numero"],
+    letras: ["abecedario", "alfabeto", "abc", "vocal", "vocales"]
+  };
+  var resultadosRelacionados = [];
+
   /* ---------- Buscar y mostrar ---------- */
   function calcular(texto) {
     var palabras = norm(texto).split(/\s+/).filter(Boolean);
-    var res = [];
+    var res = [], resRel = [];
+    var exactos = {};
     canalesActuales().forEach(function (c) {
       var r = indice[c.id];
       if (!r) return;
       var bloq = window.FMV_bloqueados ? FMV_bloqueados() : [];
       for (var i = 0; i < r.norm.length; i++) {
-        if (bloq.indexOf(r.ids[i]) >= 0) continue;
+        var vid = r.ids[i];
+        if (bloq.indexOf(vid) >= 0) continue;
         var ok = true;
         for (var k = 0; k < palabras.length; k++) {
           if (r.norm[i].indexOf(palabras[k]) < 0) { ok = false; break; }
         }
-        if (ok) res.push({ canal: c, id: r.ids[i], titulo: r.titulos[i] });
+        if (ok) {
+          exactos[vid] = 1;
+          res.push({ canal: c, id: vid, titulo: r.titulos[i] });
+        }
       }
     });
+
+    // Búsqueda de términos relacionados (sinónimos como marioneta -> juguete de mano, gato -> miau, felino)
+    var terminosRel = [];
+    palabras.forEach(function (p) {
+      if (RELACIONES[p]) {
+        RELACIONES[p].forEach(function (sin) { terminosRel.push(norm(sin)); });
+      }
+    });
+
+    if (terminosRel.length) {
+      var yaRel = {};
+      canalesActuales().forEach(function (c) {
+        var r = indice[c.id];
+        if (!r) return;
+        var bloq = window.FMV_bloqueados ? FMV_bloqueados() : [];
+        for (var j = 0; j < r.norm.length; j++) {
+          var idRel = r.ids[j];
+          if (exactos[idRel] || yaRel[idRel] || bloq.indexOf(idRel) >= 0) continue;
+          var coincide = false;
+          for (var m = 0; m < terminosRel.length; m++) {
+            if (r.norm[j].indexOf(terminosRel[m]) >= 0) { coincide = true; break; }
+          }
+          if (coincide) {
+            yaRel[idRel] = 1;
+            resRel.push({ canal: c, id: idRel, titulo: r.titulos[j], esRelacionado: true });
+          }
+        }
+      });
+    }
+
     resultados = res;
+    resultadosRelacionados = resRel;
   }
 
   function avisar() {
@@ -196,9 +258,18 @@
       estado.textContent = ocupado ? "Preparando el buscador… " + hechos + "/" + total + " canales" : "Escribe lo que quieres ver 🔍";
       return;
     }
-    if (resultados.length) partes.push(resultados.length + " videos encontrados");
-    else if (sinClave) partes.push("El buscador necesita la clave de YouTube.");
-    else partes.push("No encontré videos con esas palabras");
+    var cant = resultados.length;
+    var cantRel = resultadosRelacionados.length;
+    if (cant > 0) {
+      partes.push(cant + " video" + (cant > 1 ? "s" : "") + " encontrados");
+      if (cantRel > 0) partes.push("(+ " + cantRel + " relacionados)");
+    } else if (cantRel > 0) {
+      partes.push(cantRel + " videos relacionados encontrados");
+    } else if (sinClave) {
+      partes.push("El buscador necesita la clave de YouTube.");
+    } else {
+      partes.push("No encontré videos con esas palabras exactas");
+    }
     if (ocupado) partes.push("(aún preparando: " + hechos + "/" + total + " canales)");
     else if (fallos) partes.push("(" + fallos + " canales no se pudieron cargar)");
     estado.textContent = partes.join(" ");
@@ -216,7 +287,7 @@
     b.appendChild(img); b.appendChild(t); b.appendChild(c);
     b.addEventListener("click", function () {
       window.scrollTo(0, 0);
-      if (typeof iniciarCanal === "function") iniciarCanal(r.canal.id, r.canal.nombre, r.id);
+      if (typeof window.FMV_abrirCanal === "function") window.FMV_abrirCanal(r.canal.id, r.canal.nombre, r.id);
     });
     return b;
   }
@@ -243,14 +314,38 @@
     zona.appendChild(g);
     mostrados = 0;
     agregarMas();
+
+    if (resultadosRelacionados && resultadosRelacionados.length) {
+      var secRel = document.createElement("div");
+      secRel.style.cssText = "margin-top:34px;padding-top:22px;border-top:3px dashed rgba(20,60,100,.18)";
+      
+      var hRel = document.createElement("h4");
+      hRel.style.cssText = "margin:0 0 6px;font-size:1.15rem;font-weight:800;color:var(--texto);display:flex;align-items:center;gap:8px";
+      hRel.innerHTML = "<span style='font-size:1.4rem'>💡</span> Videos relacionados a tu búsqueda (coincidencias no exactas)";
+      
+      var pRel = document.createElement("p");
+      pRel.style.cssText = "margin:0 0 16px;font-size:.9rem;opacity:.8;font-weight:600";
+      pRel.textContent = "Estos videos tratan sobre temas parecidos a lo que buscas (por ejemplo títeres, juguetes de mano, canciones o animalitos).";
+      
+      var gRel = document.createElement("div");
+      gRel.className = "fmv-res";
+      resultadosRelacionados.slice(0, 36).forEach(function (r) {
+        gRel.appendChild(tarjeta(r));
+      });
+
+      secRel.appendChild(hRel);
+      secRel.appendChild(pRel);
+      secRel.appendChild(gRel);
+      zona.appendChild(secRel);
+    }
   }
 
   /* Mientras se indexa, vuelve a buscar y solo repinta si cambió la cantidad */
   function refrescar() {
     if (textoActual) {
-      var n = resultados.length;
+      var n = resultados.length + resultadosRelacionados.length;
       calcular(textoActual);
-      if (resultados.length !== n) pintarResultados();
+      if (resultados.length + resultadosRelacionados.length !== n) pintarResultados();
     }
     avisar();
   }
