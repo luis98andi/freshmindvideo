@@ -26,7 +26,11 @@
     ".fmv-res img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000}" +
     ".fmv-res .t{padding:12px 16px 2px;font-size:1rem;font-weight:800;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}" +
     ".fmv-res .c{padding:0 16px 14px;font-size:.78rem;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}" +
-    ".fmv-mas{display:block;margin:18px auto 0;padding:10px 22px;border:0;background:var(--acento);color:#fff;border-radius:999px;cursor:pointer;font-weight:800;font-family:inherit;font-size:15px}";
+    ".fmv-mas{display:block;margin:18px auto 0;padding:10px 22px;border:0;background:var(--acento);color:#fff;border-radius:999px;cursor:pointer;font-weight:800;font-family:inherit;font-size:15px}" +
+    ".fmv-item-wrapper{position:relative;display:flex;flex-direction:column;width:100%}" +
+    ".fmv-btn-ocultar-item{position:absolute;top:8px;right:8px;z-index:10;display:none;align-items:center;gap:4px;background:#e11d48;color:#fff;border:0;border-radius:999px;padding:6px 12px;font-size:12.5px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:transform .15s ease,background .15s ease}" +
+    ".fmv-btn-ocultar-item:hover{transform:scale(1.06);background:#be123c}" +
+    "body.padre .fmv-btn-ocultar-item{display:inline-flex !important}";
   document.head.appendChild(css);
 
   var caja = document.createElement("div");
@@ -293,8 +297,12 @@
   }
 
   function tarjeta(r) {
+    var cont = document.createElement("div");
+    cont.className = "fmv-item-wrapper";
+
     var b = document.createElement("button");
     b.type = "button";
+    b.style.cssText = "width:100%;height:100%";
     var img = document.createElement("img");
     img.src = "https://i.ytimg.com/vi/" + r.id + "/mqdefault.jpg";
     img.alt = "";
@@ -306,7 +314,43 @@
       window.scrollTo(0, 0);
       if (typeof window.FMV_abrirCanal === "function") window.FMV_abrirCanal(r.canal.id, r.canal.nombre, r.id);
     });
-    return b;
+    cont.appendChild(b);
+
+    var btnOcultar = document.createElement("button");
+    btnOcultar.type = "button";
+    btnOcultar.className = "fmv-btn-ocultar-item";
+    btnOcultar.title = "Ocultar este video para siempre";
+    btnOcultar.innerHTML = "🙈 <span>Ocultar</span>";
+    btnOcultar.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      ev.preventDefault();
+      function proceder() {
+        if (window.FMV_ocultarVideo) {
+          window.FMV_ocultarVideo(r.id, r.titulo, r.canal.nombre, "padre");
+        } else if (window.FMV_bloquear) {
+          window.FMV_bloquear(r.id, r.titulo, r.canal.nombre, "padre");
+        }
+        cont.style.transition = "transform .25s ease, opacity .25s ease";
+        cont.style.transform = "scale(0.85)";
+        cont.style.opacity = "0";
+        setTimeout(function () {
+          cont.remove();
+          resultados = resultados.filter(function (x) { return x.id !== r.id; });
+          if (resultadosRelacionados) {
+            resultadosRelacionados = resultadosRelacionados.filter(function (x) { return x.id !== r.id; });
+          }
+          avisar();
+        }, 260);
+      }
+      if (window.FMV_confirmar) {
+        window.FMV_confirmar("¿Ocultar este video («" + r.titulo + "»)? No volverá a aparecer.", proceder);
+      } else {
+        proceder();
+      }
+    });
+    cont.appendChild(btnOcultar);
+
+    return cont;
   }
 
   function agregarMas() {

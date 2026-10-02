@@ -243,14 +243,13 @@
       if (esPadre()) {
         if (!ver) t.style.opacity = ".4";
         t.style.position = "relative";
-        var x = document.createElement("button"); x.textContent = "×"; x.title = "Ocultar / Quitar video";
-        x.style.cssText = "position:absolute;top:6px;right:6px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:20px;cursor:pointer;z-index:2";
+        var x = document.createElement("button"); x.innerHTML = "🙈 Ocultar"; x.title = "Ocultar este video para siempre";
+        x.style.cssText = "position:absolute;top:6px;right:6px;padding:6px 12px;border:0;border-radius:999px;background:#e11d48;color:#fff;font-size:12.5px;font-weight:800;cursor:pointer;z-index:2;box-shadow:0 2px 6px rgba(0,0,0,.35)";
         x.addEventListener("click", function (ev) {
           ev.stopPropagation();
-          confirmarAccion("¿Ocultar este video?", function () {
-            var ps = vperf(v).filter(function (q) { return q !== p; });
-            if (p && ver && ps.length) { var m = leer(LS_VPERF, {}); m[v.id] = ps; guardar(LS_VPERF, m); pintar(); }
-            else window.FMV_quitarPropio(v.id, v.titulo, "padre");
+          confirmarAccion("¿Ocultar este video («" + (v.titulo || v.id) + "»)? No volverá a aparecer.", function () {
+            window.FMV_ocultarVideo(v.id, v.titulo, "⭐ Mis videos", "padre");
+            pintar();
           });
         });
         t.appendChild(x);
@@ -262,7 +261,7 @@
 
   function pintar() {
     var perfil = window.FMV_perfil;
-    window.FMV_CANALES = todos.filter(function (c) { return visibleEn(c, perfil); }); // lo usa el buscador (buscador.js)
+    window.FMV_CANALES = esPadre() ? todos : todos.filter(function (c) { return visibleEn(c, perfil); }); // lo usa el buscador (buscador.js)
     grid.innerHTML = "";
     if (window.FMV_tabVideos) FMV_tabVideos(misVideos().length);
     if (window.FMV_repintarSelector) FMV_repintarSelector();
@@ -1134,6 +1133,7 @@
       b.addEventListener("click", function () { m.cerrar(); fn(); });
       l.appendChild(b);
     }
+    fila("🔎 Buscador general de videos", "#0284c7", function () { if (window.FMV_irBuscar) window.FMV_irBuscar(); });
     fila("🔍 Buscar en YouTube y agregar", "", abrirBuscador);
     fila("🚫 Palabras excluidas (" + obtenerPalabrasExcluidas().length + ")", "#be123c", abrirConfigPalabrasExcluidas);
     fila("⏱ Tiempo de pantalla y temporizador", "#0284c7", abrirConfigTiempos);

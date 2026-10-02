@@ -277,8 +277,38 @@
   .video-marco-wrapper.libre .tapa { display: none !important; }
   .selector-grid .item { position: relative; display: flex; }
   .selector-grid .item > button { width: 100%; }
-  .quitar-video { position: absolute; top: 6px; right: 6px; width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,.78); color: #fff; font-size: 18px; font-weight: 800; display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 2; }
-  body.padre .quitar-video { display: flex; }
+  .quitar-video {
+    position: absolute; top: 8px; right: 8px;
+    padding: 6px 12px; border-radius: 999px;
+    background: #e11d48; color: #fff;
+    font-size: 13px; font-weight: 800;
+    display: none; align-items: center; justify-content: center; gap: 4px;
+    cursor: pointer; z-index: 5;
+    box-shadow: 0 2px 8px rgba(0,0,0,.45);
+    border: 1.5px solid rgba(255,255,255,.3);
+    transition: transform .15s ease, background .15s ease;
+  }
+  .quitar-video:hover { transform: scale(1.06); background: #be123c; }
+  body.padre .quitar-video { display: flex !important; }
+  .btn-ocultar-actual {
+    display: none; align-items: center; gap: 6px;
+    padding: 8px 14px; background: #e11d48; color: #fff; border: 0;
+    border-radius: 999px; font-weight: 800; font-size: .85rem;
+    cursor: pointer; box-shadow: 0 2px 8px rgba(225,29,72,.35);
+    margin-left: auto; transition: transform .15s ease, background .15s ease;
+  }
+  .btn-ocultar-actual:hover { background: #be123c; transform: scale(1.04); }
+  body.padre .btn-ocultar-actual { display: inline-flex !important; }
+  .btn-buscar-cabecera {
+    display: none; align-items: center; gap: 6px;
+    border: 0; border-radius: 999px; padding: 7px 14px;
+    font: inherit; font-weight: 800; font-size: .85rem;
+    cursor: pointer; background: #12a37f; color: #fff;
+    box-shadow: 0 2px 8px rgba(18,163,127,.3);
+    transition: transform .15s ease, background .15s ease;
+  }
+  .btn-buscar-cabecera:hover { transform: scale(1.04); background: #0e8567; }
+  body.padre .btn-buscar-cabecera { display: inline-flex !important; }
   /* Pantalla completa: barra al doble de tamaño */
   .en-pantalla .controles { flex-wrap: wrap; justify-content: center; gap: 6px; padding: 26px 12px 12px; }
   .en-pantalla .controles button { min-width: 46px; min-height: 46px; }
@@ -393,6 +423,7 @@
   </div>
   <div class="der">
     <span class="perfil-chip" id="perfil-chip" hidden></span>
+    <button type="button" id="btn-buscar-cabecera" class="btn-buscar-cabecera" title="Abrir buscador general de videos">🔍 Buscar videos</button>
     <span class="badge-padre">🔒 Modo padres</span>
     <button type="button" id="nav-padres" aria-label="Padres">
       <span class="avatar-padres"><svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg></span>
@@ -415,6 +446,7 @@
     <div class="barra-navegacion">
       <button class="volver" id="btn-volver" type="button"><span style="font-size:1.25rem">🏠</span> <b>Inicio</b></button>
       <h2 class="titulo-canal-activo" id="titulo-canal-activo"></h2>
+      <button type="button" id="btn-ocultar-actual" class="btn-ocultar-actual" title="Ocultar este video para siempre" aria-label="Ocultar video">🙈 Ocultar video</button>
       <button type="button" id="ir-actual" class="btn-ir-actual" title="Ir al video actual" aria-label="Ir al video actual">📍</button>
     </div>
 
@@ -1172,7 +1204,7 @@
     b.addEventListener("click", function () { irA(i, true); });
     w.appendChild(b);
     var q = document.createElement("span");
-    q.className = "quitar-video"; q.textContent = "×"; q.title = "Ocultar video";
+    q.className = "quitar-video"; q.innerHTML = "🙈 <span>Ocultar</span>"; q.title = "Ocultar este video para siempre";
     q.addEventListener("click", function (e) { e.stopPropagation(); quitarVideo(i); });
     w.appendChild(q);
     selectorGrid.appendChild(w);
@@ -1195,11 +1227,43 @@
   }
 
   function quitarVideo(i) {
+    var id = listaVideos[i], tit = titulos[i] || cacheTitulos[id] || ("Video " + (i + 1));
+    function proceder() { ejecutarQuitarVideo(i); }
     if (window.FMV_confirmar) {
-      window.FMV_confirmar("¿Ocultar este video?", function () { ejecutarQuitarVideo(i); });
+      window.FMV_confirmar("¿Ocultar este video («" + tit + "»)? No volverá a reproducirse.", proceder);
     } else {
-      ejecutarQuitarVideo(i);
+      proceder();
     }
+  }
+
+  var btnOcultarActualEl = document.getElementById("btn-ocultar-actual");
+  if (btnOcultarActualEl) {
+    btnOcultarActualEl.addEventListener("click", function () {
+      if (!videoActualId) return;
+      var curId = videoActualId;
+      var curTit = "";
+      if (listaVideos && listaVideos.length && indiceActual >= 0) {
+        curTit = titulos[indiceActual] || cacheTitulos[curId] || "";
+      }
+      var curCanal = canalActual === "MIS" ? "⭐ Mis videos" : (tituloCanalActivo.textContent || "");
+      function doOcultar() {
+        if (window.FMV_ocultarVideo) {
+          window.FMV_ocultarVideo(curId, curTit, curCanal, "padre");
+        } else if (window.FMV_bloquear) {
+          window.FMV_bloquear(curId, curTit, curCanal, "padre");
+        }
+        if (indiceActual >= 0 && indiceActual < listaVideos.length) {
+          ejecutarQuitarVideo(indiceActual);
+        } else {
+          siguienteVideo();
+        }
+      }
+      if (window.FMV_confirmar) {
+        window.FMV_confirmar("¿Ocultar este video («" + (curTit || curId) + "»)? No volverá a reproducirse.", doOcultar);
+      } else {
+        doOcultar();
+      }
+    });
   }
 
   function sinBloqueados() {
@@ -1744,14 +1808,19 @@
   function irInicio() { verMis(false); document.body.classList.remove("modo-buscar"); regresarAprincipal(); window.scrollTo(0, 0); }
   function irBuscar() {
     verMis(false);
+    regresarAprincipal();
     document.body.classList.add("modo-buscar");
-    regresarAprincipal(); window.scrollTo(0, 0);
+    marcarNav("buscar");
+    window.scrollTo(0, 0);
     var i = document.querySelector("#buscador input");
-    if (i) i.focus();
+    if (i) setTimeout(function () { i.focus(); }, 60);
   }
+  window.FMV_irBuscar = irBuscar;
   document.getElementById("logo-inicio").addEventListener("click", irInicio);
   document.getElementById("nav-inicio").addEventListener("click", irInicio);
   document.getElementById("nav-buscar").addEventListener("click", irBuscar);
+  var btnBuscarCab = document.getElementById("btn-buscar-cabecera");
+  if (btnBuscarCab) btnBuscarCab.addEventListener("click", irBuscar);
   document.getElementById("nav-mis").addEventListener("click", function () { irInicio(); verMis(true); });
   document.getElementById("nav-padres").addEventListener("click", function () { if (window.FMV_abrirPadres) FMV_abrirPadres(); });
   window.FMV_alListo = function () {
