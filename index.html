@@ -1189,6 +1189,10 @@
             histId = videoActualId;
             if (window.FMV_historial) FMV_historial(videoActualId, titulos[listaVideos.indexOf(videoActualId)] || "", tituloCanalActivo.textContent, canalUC || "MIS");
           }
+          if (debeAutoreproducir && (e.data === 5 || e.data === 2)) {
+            debeAutoreproducir = false;
+            try { if (jugador.playVideo) jugador.playVideo(); } catch (err) {}
+          }
           if (e.data === 1) {
             if (vigilarAnuncios()) return;
             mostrarCargador(false);
@@ -1255,9 +1259,13 @@
     }, 30);
   }
 
+  var debeAutoreproducir = false;
   /* Si el reproductor quedó con subtítulos forzados, se recrea normal para que el video siguiente arranque sin ellos */
   function cargarVideo(id, seg) {
     mostrarCargador(true);
+    if (seg > 5) {
+      debeAutoreproducir = true;
+    }
     var arg = seg > 5 ? { videoId: id, startSeconds: seg } : id;
     if (modoSubs) recrearJugador(false, function () { jugador.loadVideoById(arg); });
     else jugador.loadVideoById(arg);
