@@ -2375,12 +2375,30 @@
     })();
   }
   bSubs.addEventListener("click", alternarSubs);
+
+  /* Atajos de teclado: Espacio (Pausar/Reanudar) y C (Activar/Desactivar subtítulos) */
   document.addEventListener("keydown", function (e) {
-    if (e.ctrlKey || e.metaKey || e.altKey || (e.key !== "c" && e.key !== "C")) return;
     var t = e.target;
-    if (t && ((t.tagName === "INPUT" && t.type !== "range") || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-    if (!document.body.classList.contains("viendo")) return;
-    e.preventDefault(); alternarSubs();
+    var esInput = t && ((t.tagName === "INPUT" && t.type !== "range") || t.tagName === "TEXTAREA" || t.isContentEditable);
+    if (esInput) return;
+
+    // Tecla Espacio: Pausar / Reanudar
+    if (e.code === "Space" || e.key === " " || e.keyCode === 32) {
+      if (document.body.classList.contains("viendo") || (listo && jugador && videoActualId)) {
+        e.preventDefault();
+        alternarPlayPausa();
+      }
+      return;
+    }
+
+    // Tecla C: Activar / Desactivar subtítulos
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === "c" || e.key === "C" || e.code === "KeyC")) {
+      if (document.body.classList.contains("viendo") || (listo && jugador && videoActualId)) {
+        e.preventDefault();
+        alternarSubs();
+      }
+      return;
+    }
   });
 
   /* ---------- Modo padres: quitar la barrera transparente un momento (para tocar avisos de YouTube) ---------- */
@@ -2556,6 +2574,16 @@
   contenedor.addEventListener("click", function (e) {
     if (Date.now() - gSwipe < 500) { e.stopPropagation(); e.preventDefault(); }
   }, true);
+
+  function alSalirDelReproductor(e) {
+    if (e && e.pointerType === "touch") return;
+    if (listo && jugador && jugador.getPlayerState && jugador.getPlayerState() === 1) {
+      clearTimeout(tOculta);
+      contenedor.classList.add("inactivo");
+    }
+  }
+  contenedor.addEventListener("pointerleave", alSalirDelReproductor);
+  contenedor.addEventListener("mouseleave", alSalirDelReproductor);
 
   var ultPtrX = -1, ultPtrY = -1;
   function alMoverSobreReproductor(e) {
