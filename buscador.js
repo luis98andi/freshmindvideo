@@ -66,11 +66,14 @@
     r.onblocked = function () { fin(null); };
   }
 
+  var cacheVocabulario = null;
+
   function guardarCanal(r) {
     if (!db) return;
     try {
       db.transaction("canales", "readwrite").objectStore("canales")
-        .put({ id: r.id, nombre: r.nombre, t: r.t, ids: r.ids, titulos: r.titulos });
+        .put({ id: r.id, nombre: r.nombre, t: r.t, ids: r.ids, titulos: r.titulos, playlists: r.playlists });
+      cacheVocabulario = null;
     } catch (e) {}
   }
 
@@ -88,8 +91,12 @@
       var q = db.transaction("canales", "readonly").objectStore("canales").getAll();
       q.onsuccess = function () {
         (q.result || []).forEach(function (r) {
-          if (r && r.ids && r.titulos) { r.norm = r.titulos.map(norm); indice[r.id] = r; }
+          if (r && r.ids && r.titulos) {
+            r.norm = r.titulos.map(norm);
+            indice[r.id] = r;
+          }
         });
+        cacheVocabulario = null;
         terminarCarga();
       };
       q.onerror = terminarCarga;
@@ -214,17 +221,21 @@
     marioneta: ["titere", "titeres", "juguete de mano", "muñeco", "muñecos", "muneco"],
     titere: ["marioneta", "juguete de mano", "muñeco", "muneco"],
     titeres: ["marionetas", "juguete de mano", "muñecos"],
-    gato: ["gatito", "gatitos", "miau", "felino", "mascotas"],
-    gatito: ["gato", "miau", "felino"],
-    gatitos: ["gato", "gatos", "miau"],
-    perro: ["perrito", "perritos", "canino", "guau", "cachorro", "mascotas"],
-    perrito: ["perro", "guau", "cachorro"],
+    gato: ["gatos", "gata", "gatas", "gatito", "gatitos", "gatita", "gatitas", "miau", "felino", "mascotas"],
+    gatos: ["gato", "gata", "gatitos", "gatito", "miau", "felino"],
+    gatito: ["gato", "gatos", "gatitos", "miau", "felino"],
+    gatitos: ["gato", "gatos", "gatito", "miau", "felino"],
+    perro: ["perros", "perra", "perras", "perrito", "perritos", "perrita", "perritas", "canino", "guau", "cachorro", "cachorros", "mascotas"],
+    perros: ["perro", "perrito", "perritos", "cachorro", "guau"],
+    perrito: ["perro", "perros", "perritos", "guau", "cachorro"],
+    perritos: ["perro", "perros", "perrito", "guau", "cachorros"],
     auto: ["carro", "coche", "vehiculo", "camion", "ruedas"],
     carro: ["auto", "coche", "camion", "ruedas"],
     coche: ["auto", "carro", "vehiculo"],
     dinosaurio: ["dino", "dinos", "rex", "t-rex", "jurasico"],
-    cancion: ["canciones", "musica", "cantar", "ronda", "tema"],
-    musica: ["cancion", "canciones", "melodia", "ritmo"],
+    cancion: ["canciones", "cancioncita", "cancioncitas", "musica", "cantar", "ronda", "tema"],
+    canciones: ["cancion", "musica", "cantar", "ronda"],
+    musica: ["cancion", "canciones", "melodia", "ritmo", "instrumento"],
     dormir: ["sueño", "cuna", "nana", "luna", "estrellita", "noche"],
     comer: ["comida", "fruta", "frutas", "verdura", "verduras", "alimento"],
     bebe: ["bebes", "nene", "pequeño", "chiquito"],
@@ -240,7 +251,54 @@
     trompeta: ["musica", "cancion", "canciones", "instrumento", "melodia", "cantar"],
     instrumento: ["musica", "cancion", "canciones", "melodia", "cantar", "guitarra", "piano", "flauta"]
   };
-  var resultadosRelacionados = [];
+
+  function generarVariantes(palabra) {
+    var p = norm(palabra);
+    var vars = [p];
+    if (RELACIONES[p]) {
+      RELACIONES[p].forEach(function (s) {
+        var sn = norm(s);
+        if (vars.indexOf(sn) < 0) vars.push(sn);
+      });
+    }
+    if (p.endsWith("es") && p.length > 3) {
+      var s1 = p.slice(0, -2);
+      if (vars.indexOf(s1) < 0) vars.push(s1);
+    } else if (p.endsWith("s") && p.length > 2) {
+      var s2 = p.slice(0, -1);
+      if (vars.indexOf(s2) < 0) vars.push(s2);
+    }
+    if (p.endsWith("ito") || p.endsWith("ita")) {
+      var sBaseO = p.slice(0, -3) + "o";
+      var sBaseA = p.slice(0, -3) + "a";
+      if (vars.indexOf(sBaseO) < 0) vars.push(sBaseO);
+      if (vars.indexOf(sBaseA) < 0) vars.push(sBaseA);
+    } else if (p.endsWith("itos") || p.endsWith("itas")) {
+      var sBaseOs = p.slice(0, -4) + "os";
+      var sBaseAs = p.slice(0, -4) + "as";
+      var sBaseO2 = p.slice(0, -4) + "o";
+      var sBaseA2 = p.slice(0, -4) + "a";
+      if (vars.indexOf(sBaseOs) < 0) vars.push(sBaseOs);
+      if (vars.indexOf(sBaseAs) < 0) vars.push(sBaseAs);
+      if (vars.indexOf(sBaseO2) < 0) vars.push(sBaseO2);
+      if (vars.indexOf(sBaseA2) < 0) vars.push(sBaseA2);
+    } else if (p.endsWith("o")) {
+      var sDimO = p.slice(0, -1) + "ito";
+      var sDimOs = p.slice(0, -1) + "itos";
+      var sPlurO = p + "s";
+      if (vars.indexOf(sDimO) < 0) vars.push(sDimO);
+      if (vars.indexOf(sDimOs) < 0) vars.push(sDimOs);
+      if (vars.indexOf(sPlurO) < 0) vars.push(sPlurO);
+    } else if (p.endsWith("a")) {
+      var sDimA = p.slice(0, -1) + "ita";
+      var sDimAs = p.slice(0, -1) + "itas";
+      var sPlurA = p + "s";
+      if (vars.indexOf(sDimA) < 0) vars.push(sDimA);
+      if (vars.indexOf(sDimAs) < 0) vars.push(sDimAs);
+      if (vars.indexOf(sPlurA) < 0) vars.push(sPlurA);
+    }
+    return vars;
+  }
 
   /* ---------- Corrector ortográfico ligero (Distancia de Levenshtein) ---------- */
   function distancia(a, b) {
@@ -268,6 +326,7 @@
   }
 
   function obtenerVocabulario() {
+    if (cacheVocabulario) return cacheVocabulario;
     var voc = {};
     canalesActuales().forEach(function (c) {
       var r = indice[c.id];
@@ -283,6 +342,7 @@
         });
       }
     });
+    cacheVocabulario = voc;
     return voc;
   }
 
@@ -291,6 +351,7 @@
     var lim = w.length <= 4 ? 1 : 2;
     for (var v in voc) {
       if (v === w) return w;
+      if (Math.abs(v.length - w.length) > lim) continue;
       var d = distancia(w, v);
       if (d <= lim) {
         if (d < mejorDist || (d === mejorDist && voc[v] > mejorFreq)) {
@@ -306,9 +367,17 @@
   /* ---------- Buscar y mostrar ---------- */
   function calcular(texto) {
     var palabras = norm(texto).split(/\s+/).filter(Boolean);
-    var res = [], resRel = [];
-    var exactos = {};
+    if (!palabras.length) {
+      resultados = [];
+      sugerenciaActual = "";
+      return;
+    }
+
+    var variantesPorPalabra = palabras.map(generarVariantes);
+    var resPlaylists = [], resVideos = [];
+    var yaIds = {};
     var excluidas = (window.FMV_palabrasExcluidas ? window.FMV_palabrasExcluidas() : []).map(norm).filter(Boolean);
+
     canalesActuales().forEach(function (c) {
       var r = indice[c.id];
       if (!r) return;
@@ -325,12 +394,24 @@
             }
           }
           if (omitirPl) return;
+
+          var palabrasPl = palabras.filter(function (p) {
+            return ["lista", "listas", "reproduccion", "reproducciones", "de", "la", "el", "un", "para", "los", "las", "con", "en", "del", "mi", "mis", "canal", "canales"].indexOf(p) < 0;
+          });
+          if (palabrasPl.length === 0) palabrasPl = palabras;
+
           var ok = true;
-          for (var k = 0; k < palabras.length; k++) {
-            if (tituloNorm.indexOf(palabras[k]) < 0) { ok = false; break; }
+          for (var k = 0; k < palabrasPl.length; k++) {
+            var vars = generarVariantes(palabrasPl[k]);
+            var matchVar = false;
+            for (var v = 0; v < vars.length; v++) {
+              if (tituloNorm.indexOf(vars[v]) >= 0) { matchVar = true; break; }
+            }
+            if (!matchVar) { ok = false; break; }
           }
-          if (ok) {
-            res.push({ canal: c, esPlaylist: true, id: pl.id, titulo: pl.titulo, img: pl.img, count: pl.count });
+          if (ok && !yaIds[pl.id]) {
+            yaIds[pl.id] = 1;
+            resPlaylists.push({ canal: c, esPlaylist: true, id: pl.id, titulo: pl.titulo, img: pl.img, count: pl.count });
           }
         });
       }
@@ -338,7 +419,7 @@
       var bloq = window.FMV_bloqueados ? FMV_bloqueados() : [];
       for (var i = 0; i < r.norm.length; i++) {
         var vid = r.ids[i];
-        if (bloq.indexOf(vid) >= 0) continue;
+        if (bloq.indexOf(vid) >= 0 || yaIds[vid]) continue;
         var omitirPorExclusion = false;
         for (var ex = 0; ex < excluidas.length; ex++) {
           if (r.norm[i].indexOf(excluidas[ex]) >= 0) {
@@ -347,58 +428,40 @@
           }
         }
         if (omitirPorExclusion) continue;
-        var ok = true;
-        for (var k = 0; k < palabras.length; k++) {
-          if (r.norm[i].indexOf(palabras[k]) < 0) { ok = false; break; }
-        }
-        if (ok) {
-          exactos[vid] = 1;
-          res.push({ canal: c, id: vid, titulo: r.titulos[i] });
-        }
-      }
-    });
 
-    // Búsqueda de términos relacionados (sinónimos como marioneta -> juguete de mano, gato -> miau, felino)
-    var terminosRel = [];
-    palabras.forEach(function (p) {
-      if (RELACIONES[p]) {
-        RELACIONES[p].forEach(function (sin) { terminosRel.push(norm(sin)); });
-      }
-    });
+        var tNorm = r.norm[i];
+        var matchTotal = true;
+        var score = 0;
 
-    if (terminosRel.length) {
-      var yaRel = {};
-      canalesActuales().forEach(function (c) {
-        var r = indice[c.id];
-        if (!r) return;
-        var bloq = window.FMV_bloqueados ? FMV_bloqueados() : [];
-        for (var j = 0; j < r.norm.length; j++) {
-          var idRel = r.ids[j];
-          if (exactos[idRel] || yaRel[idRel] || bloq.indexOf(idRel) >= 0) continue;
-          var omitirRel = false;
-          for (var exr = 0; exr < excluidas.length; exr++) {
-            if (r.norm[j].indexOf(excluidas[exr]) >= 0) {
-              omitirRel = true;
+        for (var k = 0; k < variantesPorPalabra.length; k++) {
+          var vars = variantesPorPalabra[k];
+          var matchPalabra = false;
+          for (var v = 0; v < vars.length; v++) {
+            var idx = tNorm.indexOf(vars[v]);
+            if (idx >= 0) {
+              matchPalabra = true;
+              score += (v === 0 ? 10 : 3); // Más puntaje a coincidencia directa
+              if (idx === 0) score += 5;   // Comienza con la palabra
               break;
             }
           }
-          if (omitirRel) continue;
-          var coincide = false;
-          for (var m = 0; m < terminosRel.length; m++) {
-            if (r.norm[j].indexOf(terminosRel[m]) >= 0) { coincide = true; break; }
-          }
-          if (coincide) {
-            yaRel[idRel] = 1;
-            resRel.push({ canal: c, id: idRel, titulo: r.titulos[j], esRelacionado: true });
+          if (!matchPalabra) {
+            matchTotal = false;
+            break;
           }
         }
-      });
-    }
 
-    resultados = res;
-    resultadosRelacionados = resRel;
+        if (matchTotal) {
+          yaIds[vid] = 1;
+          resVideos.push({ canal: c, id: vid, titulo: r.titulos[i], score: score });
+        }
+      }
+    });
 
-    // Calcular sugerencia de corrección si no hay resultados exactos
+    resVideos.sort(function (a, b) { return b.score - a.score; });
+    resultados = resPlaylists.concat(resVideos);
+
+    // Calcular sugerencia de corrección si no hay resultados
     sugerenciaActual = "";
     if (resultados.length === 0) {
       var voc = obtenerVocabulario();
@@ -421,16 +484,12 @@
       return;
     }
     var cant = resultados.length;
-    var cantRel = resultadosRelacionados.length;
     if (cant > 0) {
       partes.push(cant + " video" + (cant > 1 ? "s" : "") + " encontrados");
-      if (cantRel > 0) partes.push("(+ " + cantRel + " relacionados)");
-    } else if (cantRel > 0) {
-      partes.push(cantRel + " videos relacionados encontrados");
     } else if (sinClave) {
       partes.push("El buscador necesita la clave de YouTube.");
     } else {
-      partes.push("No encontré nada relacionado con tu búsqueda.");
+      partes.push("No encontré nada con tu búsqueda.");
     }
     if (ocupado) partes.push("(aún preparando: " + hechos + "/" + total + " canales)");
     else if (fallos) partes.push("(" + fallos + " canales no se pudieron cargar)");
@@ -442,9 +501,10 @@
     if (resultados.length === 0 && sugerenciaActual && sugerenciaActual !== norm(textoActual)) {
       var sBox = document.createElement("p");
       sBox.className = "sug-box";
-      sBox.style.cssText = "text-align:center;font-size:1rem;margin:10px 0 0;font-weight:700;color:var(--texto);opacity:.95";
-      sBox.innerHTML = '¿Quizás quisiste decir: <span style="color:var(--acento);cursor:pointer;text-decoration:underline" data-sug>' + sugerenciaActual + '</span>?';
-      sBox.querySelector("[data-sug]").addEventListener("click", function () {
+      sBox.style.cssText = "margin:8px 0 0;font-size:15px;color:#4a5568;font-weight:700;text-align:center;";
+      sBox.innerHTML = '¿Quisiste decir: <button type="button" style="background:none;border:0;color:var(--acento);font-weight:800;font-size:inherit;cursor:pointer;text-decoration:underline;padding:0;font-family:inherit;">' + sugerenciaActual + '</button>?';
+      var btn = sBox.querySelector("button");
+      btn.addEventListener("click", function () {
         entrada.value = sugerenciaActual;
         lanzar();
       });
@@ -573,8 +633,6 @@
     }
   }
 
-  var mostradosRel = 0;
-
   function pintarResultados() {
     zona.textContent = "";
     var g = document.createElement("div");
@@ -582,52 +640,14 @@
     zona.appendChild(g);
     mostrados = 0;
     agregarMas();
-
-    if (resultadosRelacionados && resultadosRelacionados.length) {
-      var secRel = document.createElement("div");
-      secRel.style.cssText = "margin-top:34px;padding-top:22px;border-top:3px dashed rgba(20,60,100,.18)";
-      
-      var hRel = document.createElement("h4");
-      hRel.style.cssText = "margin:0 0 6px;font-size:1.15rem;font-weight:800;color:var(--texto);display:flex;align-items:center;gap:8px";
-      hRel.innerHTML = "<span style='font-size:1.4rem'>💡</span> Videos relacionados a tu búsqueda (coincidencias no exactas)";
-      
-      var pRel = document.createElement("p");
-      pRel.style.cssText = "margin:0 0 16px;font-size:.9rem;opacity:.8;font-weight:600";
-      pRel.textContent = "Estos videos tratan sobre temas parecidos a lo que buscas (por ejemplo títeres, juguetes de mano, canciones o animalitos).";
-      
-      var gRel = document.createElement("div");
-      gRel.className = "fmv-res";
-      
-      secRel.appendChild(hRel);
-      secRel.appendChild(pRel);
-      secRel.appendChild(gRel);
-      zona.appendChild(secRel);
-
-      mostradosRel = 0;
-      function agregarMasRel() {
-        var viejoRel = secRel.querySelector(".fmv-mas-rel");
-        if (viejoRel) viejoRel.remove();
-        var hastaRel = Math.min(resultadosRelacionados.length, mostradosRel + POR_PAGINA);
-        for (var i = mostradosRel; i < hastaRel; i++) gRel.appendChild(tarjeta(resultadosRelacionados[i]));
-        mostradosRel = hastaRel;
-        if (mostradosRel < resultadosRelacionados.length) {
-          var bRel = document.createElement("button");
-          bRel.type = "button"; bRel.className = "fmv-mas fmv-mas-rel";
-          bRel.textContent = "Mostrar más relacionados (" + (resultadosRelacionados.length - mostradosRel) + ")";
-          bRel.addEventListener("click", agregarMasRel);
-          secRel.appendChild(bRel);
-        }
-      }
-      agregarMasRel();
-    }
   }
 
   /* Mientras se indexa, vuelve a buscar y solo repinta si cambió la cantidad */
   function refrescar() {
     if (textoActual) {
-      var n = resultados.length + resultadosRelacionados.length;
+      var n = resultados.length;
       calcular(textoActual);
-      if (resultados.length + resultadosRelacionados.length !== n) pintarResultados();
+      if (resultados.length !== n) pintarResultados();
     }
     avisar();
   }
@@ -658,6 +678,7 @@
   });
 
   window.FMV_recargarBuscador = function () {
+    cacheVocabulario = null;
     if (textoActual) {
       calcular(textoActual);
       pintarResultados();
