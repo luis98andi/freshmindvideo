@@ -3,7 +3,7 @@
   var ID_OK = /^UC[\w-]{22}$/;
   var TOPE = 2000;          // máximo de videos por canal en el índice
   var DOS_DIAS = 1728e5;    // cada cuánto se revisan videos nuevos
-  var POR_PAGINA = 16;      // resultados que se muestran cada vez (reducido para activar el botón de paginación de forma más ágil)
+  var POR_PAGINA = 48;      // resultados que se muestran cada vez
 
   var vista = document.getElementById("vista-principal");
   var cuadricula = document.getElementById("cuadricula");
@@ -575,10 +575,8 @@
     return cont;
   }
 
-  var secExact = null;
-
   function agregarMas() {
-    var g = secExact.querySelector(".fmv-res"), viejo = secExact.querySelector(".fmv-mas");
+    var g = zona.querySelector(".fmv-res"), viejo = zona.querySelector(".fmv-mas");
     if (viejo) viejo.remove();
     var hasta = Math.min(resultados.length, mostrados + POR_PAGINA);
     for (var i = mostrados; i < hasta; i++) g.appendChild(tarjeta(resultados[i]));
@@ -588,7 +586,7 @@
       b.type = "button"; b.className = "fmv-mas";
       b.textContent = "Mostrar más (" + (resultados.length - mostrados) + ")";
       b.addEventListener("click", agregarMas);
-      secExact.appendChild(b);
+      zona.appendChild(b);
     }
   }
 
@@ -596,12 +594,9 @@
 
   function pintarResultados() {
     zona.textContent = "";
-    secExact = document.createElement("div");
-    secExact.id = "fmv-sec-exactas";
     var g = document.createElement("div");
     g.className = "fmv-res";
-    secExact.appendChild(g);
-    zona.appendChild(secExact);
+    zona.appendChild(g);
     mostrados = 0;
     agregarMas();
 
