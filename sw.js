@@ -1,7 +1,7 @@
 /* FreshMindVideo - service worker
    Red primero: siempre intenta traer la versión nueva; solo usa lo guardado si no hay internet.
    Solo toca archivos de este mismo sitio (nunca YouTube, la API ni GitHub). */
-var VERSION = "fmv-v13";
+var VERSION = "fmv-v17";
 var BASICOS = [
   "./",
   "index.html",
