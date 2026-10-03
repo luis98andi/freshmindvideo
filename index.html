@@ -196,8 +196,34 @@
   .controles input[type=range] { flex: 1; min-width: 60px; accent-color: var(--acento); }
   .tiempo { min-width: 92px; text-align: center; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 
-  /* Selector inferior de todos los videos del canal */
+  /* Selector inferior de todos los videos del canal en formato rueda / lista playlist */
+  .seccion-videos-canal {
+    position: relative;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 24px;
+    padding: 18px 16px;
+    box-shadow: 0 4px 18px rgba(20, 60, 100, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+  }
   .seccion-videos-canal h3 { margin: 0 0 12px 0; font-size: 1.1rem; }
+  .selector-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+    gap: 16px;
+    max-height: 540px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 4px 18px;
+    overscroll-behavior: contain;
+  }
+  .selector-grid::-webkit-scrollbar { width: 8px; }
+  .selector-grid::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); border-radius: 999px; }
+  .selector-grid::-webkit-scrollbar-thumb { background: rgba(18, 163, 127, 0.45); border-radius: 999px; }
+  .selector-grid::-webkit-scrollbar-thumb:hover { background: var(--acento); }
   html, body { touch-action: pan-x pan-y; overscroll-behavior: none; }   /* sin zoom con los dedos ni doble toque */
   .perfil-chip {
     display: inline-flex; align-items: center; justify-content: center;
@@ -211,12 +237,43 @@
   .perfil-chip:hover { background: #d0f2e7; transform: scale(1.12); }
   .perfil-chip[hidden] { display: none; }
 
-  /* Ocultar control de volumen en móviles y tablets táctiles (se usan los botones físicos del celular o PWA) */
-  @media (max-width: 768px), (pointer: coarse) {
-    .vol { display: none !important; }
+  /* Control de volumen protegido por toque de 3 segundos (disponible en todos los dispositivos) */
+  .vol { position: relative; display: inline-flex; align-items: center; }
+  .vol-panel {
+    position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) scale(0.92);
+    background: rgba(15, 23, 32, 0.96); padding: 12px 14px; border-radius: 16px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    display: none; flex-direction: column; align-items: center; gap: 8px; z-index: 30;
+    border: 1.5px solid rgba(255,255,255,0.15); opacity: 0; pointer-events: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
   }
-  @media all and (display-mode: standalone) {
-    .vol { display: none !important; }
+  .vol-panel.abierto { display: flex; opacity: 1; pointer-events: auto; transform: translateX(-50%) scale(1); }
+  .vol-panel input[type=range] { width: 110px; accent-color: var(--acento); cursor: pointer; }
+  .vol-bloqueo-aviso {
+    position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%);
+    background: rgba(15, 23, 32, 0.94); color: #fff; font-size: 11.5px; font-weight: 800;
+    padding: 6px 12px; border-radius: 999px; white-space: nowrap; pointer-events: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35); z-index: 35; border: 1.5px solid #f59e0b;
+    opacity: 0; transform-origin: bottom center; transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .vol-bloqueo-aviso.visible { opacity: 1; transform: translateX(-50%) translateY(-2px); }
+  
+  /* Aro de progreso de 3 segundos alrededor del botón de sonido */
+  #b-sonido { position: relative; user-select: none; -webkit-user-select: none; }
+  .vol-progreso-aro {
+    position: absolute; inset: 1px; border-radius: 8px; pointer-events: none;
+    border: 3px solid transparent; opacity: 0;
+  }
+  #b-sonido.presionando .vol-progreso-aro {
+    opacity: 1;
+    animation: giroProgresoVol 3s linear forwards;
+  }
+  @keyframes giroProgresoVol {
+    0% { transform: rotate(0deg); border-top-color: #f59e0b; border-right-color: transparent; border-bottom-color: transparent; border-left-color: transparent; }
+    25% { border-right-color: #f59e0b; }
+    50% { border-bottom-color: #f59e0b; }
+    75% { border-left-color: #f59e0b; }
+    100% { transform: rotate(360deg); border-color: #12a37f; }
   }
   #conmutador { display: flex; gap: 8px; margin: 0 0 18px; }
   #conmutador button { flex: 1; border: 0; border-radius: 999px; padding: 12px 10px; font: inherit; font-weight: 800; font-size: 1rem; cursor: pointer; background: #fff; color: var(--texto); box-shadow: 0 2px 8px rgba(20,60,100,.18); }
@@ -339,18 +396,32 @@
   .seccion-videos-canal h3 { font-size: 1.15rem; }
   #selector-mensaje { font-weight: 700; }
 
-  /* Contador y EN VIVO sobre el video */
-  .marca-video { position: absolute; top: 10px; right: 10px; z-index: 6; display: flex; gap: 6px; pointer-events: none; font-weight: 800; font-size: .85rem; }
+  /* Contador y EN VIVO sobre el video: sincronizado con la barra de controles para ocultarse al mismo tiempo */
+  .marca-video {
+    position: absolute; top: 10px; right: 10px; z-index: 6;
+    display: flex; gap: 6px; pointer-events: none; font-weight: 800; font-size: .85rem;
+    transition: opacity .35s ease, transform .35s ease;
+  }
   .marca-video[hidden] { display: none; }
   .marca-video span { background: rgba(0,0,0,.65); color: #fff; padding: 3px 10px; border-radius: 999px; font-variant-numeric: tabular-nums; }
   .marca-video span[hidden] { display: none; }
   .marca-video .vivo, .selector-grid .vivo { background: #e62117; color: #fff; }
   .marca-video .vivo.prog, .selector-grid .vivo.prog { background: #d97706; color: #fff; }
+  .contenedor-reproductor-principal.inactivo .marca-video {
+    opacity: 0; transform: translateY(-8px); pointer-events: none;
+  }
+  .en-pantalla.inactivo .marca-video {
+    opacity: 0; transform: translateY(-8px); pointer-events: none;
+  }
   .selector-grid .marcas { position: absolute; top: 4px; left: 4px; display: flex; gap: 4px; z-index: 1; flex-wrap: wrap; max-width: calc(100% - 40px); }
   .selector-grid .marcas .num { position: static; }
   .selector-grid .vivo { font-size: .7rem; font-weight: 800; padding: 1px 6px; border-radius: 4px; }
-  /* Video que se esta reproduciendo, marcado dentro de la lista (sin cambiar el orden) */
-  .selector-grid .item.actual > button { outline: 4px solid var(--acento); }
+  /* Video que se esta reproduciendo, marcado dentro de la lista con efecto playlist YouTube */
+  .selector-grid .item.actual > button {
+    outline: 4px solid var(--acento);
+    box-shadow: 0 0 0 5px rgba(18, 163, 127, 0.3), 0 8px 22px rgba(20, 60, 100, 0.35);
+    transform: translateY(-3px);
+  }
   .selector-grid .item.actual .titulo::before { content: "▶ Reproduciendo · "; color: var(--acento); }
 
   /* ---------- Barra inferior (estilo YouTube Kids) ---------- */
@@ -481,7 +552,18 @@
         <button type="button" id="b-siguiente" aria-label="Video siguiente"></button>
         <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
         <span class="tiempo" id="tiempo">0:00 / 0:00</span>
-        <div class="vol"><div class="vol-panel" id="vol-panel"><input type="range" id="volumen" min="0" max="100" value="100" aria-label="Volumen"></div><button type="button" id="b-sonido" aria-label="Volumen"></button></div>
+        <div class="vol" id="vol-contenedor">
+          <div class="vol-panel" id="vol-panel">
+            <div style="font-size:12px;font-weight:800;color:#fff;display:flex;align-items:center;gap:4px">
+              <span>🔊</span> <span id="vol-porcentaje">100%</span>
+            </div>
+            <input type="range" id="volumen" min="0" max="100" value="100" aria-label="Volumen">
+          </div>
+          <div id="vol-aviso" class="vol-bloqueo-aviso">Mantén 3s para ajustar volumen</div>
+          <button type="button" id="b-sonido" aria-label="Volumen">
+            <div class="vol-progreso-aro"></div>
+          </button>
+        </div>
         <button type="button" id="b-subs" aria-label="Subtítulos" aria-pressed="false"></button>
         <button type="button" id="b-libre" aria-label="Padres: quitar la barrera del video un momento" title="Padres: tocar el aviso de YouTube"></button>
         <button type="button" id="b-pantalla" aria-label="Pantalla completa"></button>
@@ -605,18 +687,18 @@
   }
 
   function restaurarSonidoReal() {
-    if (!mudoPorAnuncio || !listo || !jugador) return;
+    if (!listo || !jugador) return;
     mudoPorAnuncio = false;
     try {
+      if (jugador.unMute) jugador.unMute();
       var v = +volumen.value;
-      if (v > 0) {
-        if (jugador.unMute) jugador.unMute();
-        if (jugador.setVolume) jugador.setVolume(v);
-      }
+      if (isNaN(v) || v <= 0) v = 100;
+      if (jugador.setVolume) jugador.setVolume(v);
     } catch (e) {}
+    pintarSonido();
   }
 
-  /* Capa 5: Muestra "Cargando video…" al cargar de verdad, y si demora en estado -1 por publicidad pasa a "Eliminando publicidad…" en silencio */
+  /* Capa 5: Muestra "Cargando video…" al cargar de verdad sin silenciar innecesariamente en móviles */
   function mostrarCargador(si, texto) {
     clearTimeout(tCargador);
     clearTimeout(tTextoAnuncio);
@@ -626,16 +708,7 @@
       tapa.hidden = true;
       avisoVivo.hidden = true;
       actualizarPortadaTapa();
-      silenciarPreventivo();
-      /* Si tras 1.3s sigue en estado -1 (YouTube reproduciendo los 5s de publicidad antes de soltar el video), muestra "Eliminando publicidad…" y asegura silencio */
-      tTextoAnuncio = setTimeout(function () {
-        if (cargadorVideo.hidden || !listo || !jugador || !jugador.getPlayerState) return;
-        var st = jugador.getPlayerState();
-        if ((st === -1 || st === 3) && vivos[videoActualId] !== 2) {
-          silenciarPreventivo();
-          cargadorTxt.textContent = "Eliminando publicidad…";
-        }
-      }, 1300);
+      // En móviles no silenciamos durante la carga normal para evitar que el navegador bloquee el audio
       /* Respaldo solo si el navegador bloqueó el autoplay (estado 5 / 2) o si es un en vivo programado */
       tCargador = setTimeout(function () {
         if (!listo || !jugador || !jugador.getPlayerState) return;
@@ -674,15 +747,7 @@
         }
         return true;
       }
-      /* Si mientras aún no llega al estado 1 (estado -1 o 3) YouTube retiene el arranque por los 5s de anuncio, mantener silenciado y cubierto */
-      if (st === -1 || st === 3) {
-        if (vivos[videoActualId] !== 2) {
-          silenciarPreventivo();
-          cargadorVideo.hidden = false;
-          tapa.hidden = true;
-        }
-      }
-      /* Cuando ya está reproduciendo nuestro video real, restaurar sonido si se silenció por anuncio */
+      /* Cuando ya está reproduciendo nuestro video real (st === 1), asegurar sonido activo */
       if (st === 1 && (!vd.video_id || vd.video_id === videoActualId)) {
         restaurarSonidoReal();
       }
@@ -990,6 +1055,7 @@
           if (e.data === 1) {
             if (vigilarAnuncios()) return;
             mostrarCargador(false);
+            restaurarSonidoReal();
             tapa.hidden = true;
             avisoVivo.hidden = true;
             errores = 0;
@@ -1450,16 +1516,32 @@
       mvVivo.textContent = estadoVivo === 2 ? "⏳ EN VIVO · PROGRAMADO" : "● EN VIVO";
     }
   }
-  function marcarActual() {
+  function marcarActual(autoScroll) {
     var k = listaVideos.indexOf(videoActualId);
     var el = k >= 0 ? selectorGrid.children[k] : null;
     if (itemActual && itemActual !== el) itemActual.classList.remove("actual");
     if (el) el.classList.add("actual");
     itemActual = el;
     irActual.classList.toggle("hay", !!el);
+    // Efecto rueda/playlist: recorre la lista dejando el video actual al frente/arriba y los anteriores arriba en el contenedor
+    if (el && autoScroll !== false) {
+      try {
+        var topPos = el.offsetTop - selectorGrid.offsetTop;
+        selectorGrid.scrollTo({ top: Math.max(0, topPos - 8), behavior: "smooth" });
+      } catch (e) {
+        try { el.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (err) {}
+      }
+    }
   }
   function irAlVideoActual() {
-    if (itemActual) itemActual.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (itemActual) {
+      try {
+        var topPos = itemActual.offsetTop - selectorGrid.offsetTop;
+        selectorGrid.scrollTo({ top: Math.max(0, topPos - 8), behavior: "smooth" });
+      } catch (e) {
+        try { itemActual.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (err) {}
+      }
+    }
   }
   irActual.addEventListener("click", irAlVideoActual);
   function pintarVivos() {
@@ -2020,17 +2102,62 @@
     if (listo) jugador.playVideo();
   });
   var volPanel = document.getElementById("vol-panel"), tVol = null;
+  var volAviso = document.getElementById("vol-aviso");
+  var volPorcentaje = document.getElementById("vol-porcentaje");
+  var tHoldVol = null, holdStartTime = 0, tAvisoVol = null;
+
   function cerrarVol() { volPanel.classList.remove("abierto"); }
   function pintarSonido() {
     if (!listo) return;
-    bSonido.innerHTML = (jugador.isMuted() || !jugador.getVolume()) ? ICONOS.mudo : ICONOS.sonido;
+    bSonido.innerHTML = '<div class="vol-progreso-aro"></div>' + ((jugador.isMuted && jugador.isMuted()) || !jugador.getVolume || !jugador.getVolume() ? ICONOS.mudo : ICONOS.sonido);
   }
+
+  function mostrarAvisoVol(txt, dur) {
+    if (!volAviso) return;
+    volAviso.textContent = txt || "Mantén 3s para ajustar volumen";
+    volAviso.classList.add("visible");
+    clearTimeout(tAvisoVol);
+    tAvisoVol = setTimeout(function () { volAviso.classList.remove("visible"); }, dur || 2200);
+  }
+
+  function iniciarHoldVol(e) {
+    clearTimeout(tHoldVol);
+    bSonido.classList.add("presionando");
+    holdStartTime = Date.now();
+    mostrarAvisoVol("Mantén presionado 3s...", 3200);
+    tHoldVol = setTimeout(function () {
+      bSonido.classList.remove("presionando");
+      volPanel.classList.add("abierto");
+      mostrarAvisoVol("🔊 ¡Volumen desbloqueado!", 2200);
+      try { if (navigator.vibrate) navigator.vibrate(60); } catch (x) {}
+      clearTimeout(tVol);
+      tVol = setTimeout(cerrarVol, 6000);
+    }, 3000);
+  }
+
+  function cancelarHoldVol(e) {
+    if (tHoldVol) {
+      clearTimeout(tHoldVol);
+      tHoldVol = null;
+      bSonido.classList.remove("presionando");
+      if (Date.now() - holdStartTime < 2800 && !volPanel.classList.contains("abierto")) {
+        mostrarAvisoVol("🔒 Mantén presionado 3s para desbloquear", 2000);
+      }
+    }
+  }
+
+  bSonido.addEventListener("pointerdown", iniciarHoldVol);
+  bSonido.addEventListener("pointerup", cancelarHoldVol);
+  bSonido.addEventListener("pointerleave", cancelarHoldVol);
+  bSonido.addEventListener("pointercancel", cancelarHoldVol);
+  bSonido.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   bSonido.addEventListener("click", function (e) {
     e.stopPropagation();
-    volPanel.classList.toggle("abierto");
-    clearTimeout(tVol);
-    if (volPanel.classList.contains("abierto")) tVol = setTimeout(cerrarVol, 4000);
+    if (!volPanel.classList.contains("abierto")) {
+      mostrarAvisoVol("🔒 Mantén presionado 3s para desbloquear", 2000);
+    }
   });
+
   volPanel.addEventListener("click", function (e) { e.stopPropagation(); });
   document.addEventListener("click", cerrarVol);
   rango.addEventListener("input", function () { arrastrando = true; });
@@ -2045,17 +2172,18 @@
     arrastrando = false;
   });
 
-  /* ---------- Volumen (en iPhone/iPad el volumen se maneja con los botones del equipo) ---------- */
+  /* ---------- Volumen (desbloqueado con toque sostenido de 3s) ---------- */
   var volumen = document.getElementById("volumen"), moviendoVol = false;
   volumen.addEventListener("input", function () {
     if (!listo) return;
     moviendoVol = true; clearTimeout(tVol);
     var v = +volumen.value;
+    if (volPorcentaje) volPorcentaje.textContent = v + "%";
     jugador.setVolume(v);
     if (v === 0) jugador.mute(); else if (jugador.isMuted()) jugador.unMute();
     pintarSonido();
   });
-  volumen.addEventListener("change", function () { moviendoVol = false; tVol = setTimeout(cerrarVol, 3000); });
+  volumen.addEventListener("change", function () { moviendoVol = false; tVol = setTimeout(cerrarVol, 4000); });
 
   /* ---------- Subtítulos (función interna de YouTube, solo si el video los tiene) ---------- */
   var bSubs = document.getElementById("b-subs"), subsOn = false, videoConSubs = null;
