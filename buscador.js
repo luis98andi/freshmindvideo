@@ -66,11 +66,14 @@
     r.onblocked = function () { fin(null); };
   }
 
+  var cacheVocabulario = null;
+
   function guardarCanal(r) {
     if (!db) return;
     try {
       db.transaction("canales", "readwrite").objectStore("canales")
-        .put({ id: r.id, nombre: r.nombre, t: r.t, ids: r.ids, titulos: r.titulos });
+        .put({ id: r.id, nombre: r.nombre, t: r.t, ids: r.ids, titulos: r.titulos, playlists: r.playlists });
+      cacheVocabulario = null;
     } catch (e) {}
   }
 
@@ -88,8 +91,12 @@
       var q = db.transaction("canales", "readonly").objectStore("canales").getAll();
       q.onsuccess = function () {
         (q.result || []).forEach(function (r) {
-          if (r && r.ids && r.titulos) { r.norm = r.titulos.map(norm); indice[r.id] = r; }
+          if (r && r.ids && r.titulos) {
+            r.norm = r.titulos.map(norm);
+            indice[r.id] = r;
+          }
         });
+        cacheVocabulario = null;
         terminarCarga();
       };
       q.onerror = terminarCarga;
@@ -268,6 +275,7 @@
   }
 
   function obtenerVocabulario() {
+    if (cacheVocabulario) return cacheVocabulario;
     var voc = {};
     canalesActuales().forEach(function (c) {
       var r = indice[c.id];
@@ -283,6 +291,7 @@
         });
       }
     });
+    cacheVocabulario = voc;
     return voc;
   }
 
@@ -291,6 +300,7 @@
     var lim = w.length <= 4 ? 1 : 2;
     for (var v in voc) {
       if (v === w) return w;
+      if (Math.abs(v.length - w.length) > lim) continue;
       var d = distancia(w, v);
       if (d <= lim) {
         if (d < mejorDist || (d === mejorDist && voc[v] > mejorFreq)) {
@@ -325,9 +335,16 @@
             }
           }
           if (omitirPl) return;
+
+          // Filtrar stop-words genéricas que el usuario usa al buscar listas, p.ej. "lista de cuna" -> buscar "cuna"
+          var palabrasPl = palabras.filter(function (p) {
+            return ["lista", "listas", "reproduccion", "reproducciones", "de", "la", "el", "un", "para", "los", "las", "con", "en", "del", "mi", "mis", "canal", "canales"].indexOf(p) < 0;
+          });
+          if (palabrasPl.length === 0) palabrasPl = palabras;
+
           var ok = true;
-          for (var k = 0; k < palabras.length; k++) {
-            if (tituloNorm.indexOf(palabras[k]) < 0) { ok = false; break; }
+          for (var k = 0; k < palabrasPl.length; k++) {
+            if (tituloNorm.indexOf(palabrasPl[k]) < 0) { ok = false; break; }
           }
           if (ok) {
             res.push({ canal: c, esPlaylist: true, id: pl.id, titulo: pl.titulo, img: pl.img, count: pl.count });
@@ -658,6 +675,7 @@
   });
 
   window.FMV_recargarBuscador = function () {
+    cacheVocabulario = null;
     if (textoActual) {
       calcular(textoActual);
       pintarResultados();
