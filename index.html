@@ -772,27 +772,60 @@
     }
   }
 
-  /* Capa 4: Escudo Anti-Anuncios en el reproductor (detecta publicidad, la silencia mostrando "Eliminando publicidad…" y la salta) */
-  function vigilarAnuncios() {
-    if (!listo || !videoActualId || !jugador || !jugador.getVideoData) return false;
+  /* Capa 4: Escudo Anti-Anuncios en el reproductor (detecta publicidad, la silencia al instante, muestra "Eliminando publicidad…" y la salta) */
+  function esPublicidadDetectada() {
+    if (!listo || !videoActualId || !jugador) return false;
     try {
-      var vd = jugador.getVideoData() || {};
+      var vd = (jugador.getVideoData && jugador.getVideoData()) || {};
+      if (vd.video_id && vd.video_id !== videoActualId) return true;
+      if (jugador.getAdState && jugador.getAdState() > 0) return true;
+      if (jugador.isAdPlaying && jugador.isAdPlaying()) return true;
+      if (vd.author && /advertis|sponsored|anuncio|publicidad/i.test(vd.author)) return true;
+    } catch (e) {}
+    return false;
+  }
+
+  function vigilarAnuncios() {
+    if (!listo || !videoActualId || !jugador) return false;
+    try {
       var st = jugador.getPlayerState ? jugador.getPlayerState() : -1;
-      /* Si el reproductor está reproduciendo un ID que NO es nuestro videoActualId, es un anuncio pre-roll o mid-roll */
-      if (st === 1 && vd.video_id && vd.video_id.length === 11 && vd.video_id !== videoActualId) {
+      var esAd = esPublicidadDetectada();
+
+      if (esAd) {
         cargadorTxt.textContent = "Eliminando publicidad…";
         cargadorVideo.hidden = false;
         tapa.hidden = true;
         silenciarPreventivo();
+
+        // 1. Acelerar velocidad al máximo para pasarlo en milisegundos
+        try { if (jugador.setPlaybackRate) jugador.setPlaybackRate(16); } catch (e) {}
+        // 2. Intentar llamar al skip nativo si está disponible
+        try { if (jugador.skipAd) jugador.skipAd(); } catch (e) {}
+        // 3. Intentar saltar al final del anuncio
+        try {
+          var durAd = jugador.getDuration ? jugador.getDuration() : 0;
+          if (durAd > 0 && jugador.seekTo) jugador.seekTo(durAd + 1, true);
+        } catch (e) {}
+
+        // 4. Si el anuncio persiste, forzar la recarga directa del video real
         var ahora = Date.now();
-        if (ahora - ultimoSaltoAnuncio > 1500) {
+        if (ahora - ultimoSaltoAnuncio > 1200) {
           ultimoSaltoAnuncio = ahora;
-          jugador.loadVideoById(videoActualId);
+          try {
+            if (jugador.loadVideoById) {
+              jugador.loadVideoById(videoActualId);
+            }
+          } catch (e) {}
         }
         return true;
       }
-      /* Cuando ya está reproduciendo nuestro video real (st === 1), asegurar sonido activo */
-      if (st === 1 && (!vd.video_id || vd.video_id === videoActualId)) {
+
+      /* Cuando ya está reproduciendo nuestro video real (st === 1), asegurar velocidad y sonido activos */
+      if (st === 1) {
+        try { if (jugador.getPlaybackRate && jugador.getPlaybackRate() !== 1) jugador.setPlaybackRate(1); } catch (e) {}
+        if (cargadorVideo && !cargadorVideo.hidden && cargadorTxt.textContent === "Eliminando publicidad…") {
+          cargadorVideo.hidden = true;
+        }
         restaurarSonidoReal();
       }
     } catch (e) {}
@@ -2067,7 +2100,7 @@
     if (videoInicial) prepararPrimero(); // viene del buscador: dejarlo listo de inmediato
 
     if (!temporizador) {
-      temporizador = setInterval(actualizarCronometro, 500);
+      temporizador = setInterval(actualizarCronometro, 250);
     }
   }
 
