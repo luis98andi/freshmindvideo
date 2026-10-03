@@ -1278,16 +1278,14 @@
     }, 30);
   }
 
-  var debeAutoreproducir = false;
+  var debeAutoreproducir = true;
   /* Si el reproductor quedó con subtítulos forzados, se recrea normal para que el video siguiente arranque sin ellos */
   function cargarVideo(id, seg) {
     mostrarCargador(true);
-    if (seg > 5) {
-      debeAutoreproducir = true;
-    }
+    debeAutoreproducir = true;
     var arg = seg > 5 ? { videoId: id, startSeconds: seg } : id;
-    if (modoSubs) recrearJugador(false, function () { jugador.loadVideoById(arg); });
-    else jugador.loadVideoById(arg);
+    if (modoSubs) recrearJugador(false, function () { jugador.loadVideoById(arg); try { jugador.playVideo(); } catch(e){} });
+    else { jugador.loadVideoById(arg); try { jugador.playVideo(); } catch(e){} }
   }
 
   function cargarApi(cb) {
@@ -2189,22 +2187,15 @@
     }
   }
 
-  var ultimoIntentoPlay = 0;
-  function verificarReproduccionActiva() {
+  function verificarEstadoCargando() {
     if (!listo || !videoActualId || !jugador || !jugador.getPlayerState) return;
     try {
       var st = jugador.getPlayerState();
       if (st === 3 || st === -1 || st === 5) {
         cargadorTxt.textContent = "Video cargando…";
         cargadorVideo.hidden = false;
-      } else if (st === 1) {
+      } else if (st === 1 || st === 2) {
         mostrarCargador(false);
-      } else if (st === 2) {
-        var ahora = Date.now();
-        if (ahora - ultimoIntentoPlay > 1200) {
-          ultimoIntentoPlay = ahora;
-          try { jugador.playVideo(); } catch (e) {}
-        }
       }
     } catch (e) {}
   }
@@ -2212,7 +2203,7 @@
   function actualizarCronometro() {
     if (wrapperVideo.classList.contains("libre") && !document.body.classList.contains("padre")) bloquearOtraVez();
     if (vigilarAnuncios()) return;
-    verificarReproduccionActiva();
+    verificarEstadoCargando();
     pintarMarca();
     if (!listo || !jugador.getDuration) return;
     var dur = jugador.getDuration() || 0, t = jugador.getCurrentTime() || 0;
@@ -2799,7 +2790,7 @@
   /* App instalable: registra el service worker (solo funciona en https, como GitHub Pages) */
   if ("serviceWorker" in navigator) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
 </script>
-<script src="canales-auto.js?v=5"></script>
-<script src="buscador.js?v=5"></script>
+<script src="canales-auto.js?v=6"></script>
+<script src="buscador.js?v=6"></script>
 </body>
 </html>
