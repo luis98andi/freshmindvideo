@@ -12,7 +12,7 @@
   var indice = {};          // id de canal -> { id, nombre, t, ids, titulos, norm }
   var db = null, cargado = false, pendiente = false;
   var ocupado = false, hechos = 0, total = 0, fallos = 0, sinClave = false;
-  var textoActual = "", resultados = [], mostrados = 0, espera = null;
+  var textoActual = "", resultados = [], mostrados = 0, espera = null, sugerenciaActual = "";
 
   /* ---------- Estilos y caja de búsqueda ---------- */
   var css = document.createElement("style");
@@ -191,7 +191,7 @@
     var ahora = Date.now();
     var pend = canalesActuales().filter(function (c) {
       var r = indice[c.id];
-      return !r || ahora - r.t > DOS_DIAS;
+      return !r || !r.playlists || ahora - r.t > DOS_DIAS;
     });
     if (!pend.length) return;
     ocupado = true; total = pend.length; hechos = 0; fallos = 0;
@@ -241,6 +241,67 @@
     instrumento: ["musica", "cancion", "canciones", "melodia", "cantar", "guitarra", "piano", "flauta"]
   };
   var resultadosRelacionados = [];
+
+  /* ---------- Corrector ortográfico ligero (Distancia de Levenshtein) ---------- */
+  function distancia(a, b) {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+    var matrix = [];
+    for (var i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (var j = 0; j <= a.length; j++) matrix[0][j] = j;
+    for (var i = 1; i <= b.length; i++) {
+      for (var j = 1; j <= a.length; j++) {
+        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1, // sustitución
+            Math.min(
+              matrix[i][j - 1] + 1, // inserción
+              matrix[i - 1][j] + 1  // eliminación
+            )
+          );
+        }
+      }
+    }
+    return matrix[b.length][a.length];
+  }
+
+  function obtenerVocabulario() {
+    var voc = {};
+    canalesActuales().forEach(function (c) {
+      var r = indice[c.id];
+      if (!r) return;
+      (r.titulos || []).forEach(function (t) {
+        var palabras = norm(t).split(/\W+/).filter(function (w) { return w.length > 2; });
+        palabras.forEach(function (w) { voc[w] = (voc[w] || 0) + 1; });
+      });
+      if (r.playlists) {
+        r.playlists.forEach(function (pl) {
+          var palabras = norm(pl.titulo).split(/\W+/).filter(function (w) { return w.length > 2; });
+          palabras.forEach(function (w) { voc[w] = (voc[w] || 0) + 1; });
+        });
+      }
+    });
+    return voc;
+  }
+
+  function corregirPalabra(w, voc) {
+    var mejor = null, mejorDist = 99, mejorFreq = 0;
+    var lim = w.length <= 4 ? 1 : 2;
+    for (var v in voc) {
+      if (v === w) return w;
+      var d = distancia(w, v);
+      if (d <= lim) {
+        if (d < mejorDist || (d === mejorDist && voc[v] > mejorFreq)) {
+          mejorDist = d;
+          mejorFreq = voc[v];
+          mejor = v;
+        }
+      }
+    }
+    return mejor || w;
+  }
 
   /* ---------- Buscar y mostrar ---------- */
   function calcular(texto) {
@@ -336,12 +397,27 @@
 
     resultados = res;
     resultadosRelacionados = resRel;
+
+    // Calcular sugerencia de corrección si no hay resultados exactos
+    sugerenciaActual = "";
+    if (resultados.length === 0) {
+      var voc = obtenerVocabulario();
+      var palabrasCorregidas = palabras.map(function (w) {
+        return corregirPalabra(w, voc);
+      });
+      var textoCorregido = palabrasCorregidas.join(" ");
+      if (textoCorregido !== palabras.join(" ")) {
+        sugerenciaActual = textoCorregido;
+      }
+    }
   }
 
   function avisar() {
     var partes = [];
     if (!textoActual) {
       estado.textContent = ocupado ? "Preparando el buscador… " + hechos + "/" + total + " canales" : "Escribe lo que quieres ver 🔍";
+      var sugEl = caja.querySelector(".sug-box");
+      if (sugEl) sugEl.remove();
       return;
     }
     var cant = resultados.length;
@@ -359,6 +435,21 @@
     if (ocupado) partes.push("(aún preparando: " + hechos + "/" + total + " canales)");
     else if (fallos) partes.push("(" + fallos + " canales no se pudieron cargar)");
     estado.textContent = partes.join(" ");
+
+    var sugEl = caja.querySelector(".sug-box");
+    if (sugEl) sugEl.remove();
+
+    if (resultados.length === 0 && sugerenciaActual && sugerenciaActual !== norm(textoActual)) {
+      var sBox = document.createElement("p");
+      sBox.className = "sug-box";
+      sBox.style.cssText = "text-align:center;font-size:1rem;margin:10px 0 0;font-weight:700;color:var(--texto);opacity:.95";
+      sBox.innerHTML = '¿Quizás quisiste decir: <span style="color:var(--acento);cursor:pointer;text-decoration:underline" data-sug>' + sugerenciaActual + '</span>?';
+      sBox.querySelector("[data-sug]").addEventListener("click", function () {
+        entrada.value = sugerenciaActual;
+        lanzar();
+      });
+      caja.appendChild(sBox);
+    }
   }
 
   function tarjeta(r) {

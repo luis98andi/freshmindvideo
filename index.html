@@ -147,7 +147,9 @@
 
   /* Logo cargador al inicio cuando el reproductor/video está en negro cargando */
   .cargador-video {
-    position: absolute; inset: 0; z-index: 6; background: #0f1720;
+    position: absolute; inset: 0; z-index: 6; 
+    background: rgba(15, 23, 32, 0.82); 
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
     color: #fff; font-weight: 800; font-size: .95rem; pointer-events: none;
   }
@@ -1799,7 +1801,15 @@
   }
   pestanasEl.addEventListener("click", function (e) {
     var p = e.target.getAttribute && e.target.getAttribute("data-p");
-    if (!p || !canalUC || p === pestana) return;
+    if (!p || !canalUC) return;
+    if (p === pestana) {
+      if (p === "LISTAS" && playlistActivaId) {
+        playlistActivaId = null;
+        playlistActivaTitulo = "";
+        cargarLista();
+      }
+      return;
+    }
     playlistActivaId = null;
     playlistActivaTitulo = "";
     pestana = p; canalActual = p + canalUC.slice(2);
