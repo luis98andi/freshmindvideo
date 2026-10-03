@@ -2429,13 +2429,21 @@
   document.addEventListener("webkitfullscreenchange", cambioNativo);
   document.addEventListener("keydown", function (e) { if (e.key === "Escape" && enPantalla() && !nativa()) salirPantalla(); });
   bPantalla.addEventListener("click", function () { if (enPantalla()) salirPantalla(); else entrarPantalla(); });
-  /* Deslizar el dedo hacia abajo en pantalla completa (en todo el video y también sobre la barra de controles):
-     sale de pantalla completa y va al video actual de la lista */
-  var gx = 0, gy = 0, gt = 0, gOk = false, gDx = 0, gSwipe = 0;
+  /* Gestos táctiles dentro del reproductor de video:
+     - En pantalla completa: deslizar el dedo hacia ARRIBA sale de pantalla completa.
+     - En modo normal: deslizar el dedo hacia ABAJO entra a pantalla completa. */
+  var gx = 0, gy = 0, gt = 0, gOk = false, gDx = 0, gSwipe = 0, gEstabaEnPantalla = false;
   contenedor.addEventListener("touchstart", function (e) {
-    gOk = enPantalla() && e.touches.length === 1;
-    if (!gOk) return;
-    gx = e.touches[0].clientX; gy = e.touches[0].clientY; gt = Date.now(); gDx = 0;
+    if (e.touches.length !== 1 || contenedor.classList.contains("mini-popup")) {
+      gOk = false;
+      return;
+    }
+    gOk = true;
+    gEstabaEnPantalla = enPantalla();
+    gx = e.touches[0].clientX;
+    gy = e.touches[0].clientY;
+    gt = Date.now();
+    gDx = 0;
   }, { passive: true });
   contenedor.addEventListener("touchmove", function (e) {
     if (!gOk) return;
@@ -2445,10 +2453,26 @@
   contenedor.addEventListener("touchend", function (e) {
     if (!gOk) return;
     gOk = false;
-    var t = e.changedTouches[0], dy = t.clientY - gy, dx = Math.abs(t.clientX - gx);
-    if (dy < 80 || dy < Math.max(dx, gDx) * 1.8 || Date.now() - gt > 900) return;
-    gSwipe = Date.now();
-    salirPantalla();
+    if (Date.now() - gt > 900) return;
+    var t = e.changedTouches[0];
+    var dy = t.clientY - gy;
+    var dx = Math.abs(t.clientX - gx);
+    var maxHorizontal = Math.max(dx, gDx);
+
+    // 1) En pantalla completa: Deslizar hacia ARRIBA (dy negativo <= -65) sale de pantalla completa
+    if (gEstabaEnPantalla) {
+      if (dy <= -65 && Math.abs(dy) >= maxHorizontal * 1.4) {
+        gSwipe = Date.now();
+        salirPantalla();
+      }
+    }
+    // 2) En modo normal dentro del reproductor: Deslizar hacia ABAJO (dy positivo >= 65) entra a pantalla completa
+    else {
+      if (dy >= 65 && dy >= maxHorizontal * 1.4) {
+        gSwipe = Date.now();
+        entrarPantalla();
+      }
+    }
   }, { passive: true });
   contenedor.addEventListener("click", function (e) {
     if (Date.now() - gSwipe < 500) { e.stopPropagation(); e.preventDefault(); }
