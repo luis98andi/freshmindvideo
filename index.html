@@ -692,7 +692,7 @@
     <h2>¡Tiempo terminado por hoy!</h2>
     <p id="bloqueo-txt">El tiempo configurado para este perfil ha terminado.</p>
     <div class="bloqueo-formulario">
-      <input type="password" id="bloqueo-pin" inputmode="numeric" placeholder="Ingresa PIN (1234)" maxlength="8">
+      <input type="password" id="bloqueo-pin" inputmode="numeric" placeholder="Ingresa PIN" maxlength="8">
       <p id="bloqueo-err" style="color:#d93025;font-weight:800;display:none;margin:4px 0">PIN incorrecto</p>
       <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap">
         <button type="button" id="bloqueo-btn-entrar" class="bloqueo-btn">Desbloquear (+15 min)</button>
@@ -1086,7 +1086,7 @@
     }
     return (hash >>> 0).toString(16);
   }
-  var DEFAULT_PIN_HASH = "85848e02"; // hash for "1234"
+  var DEFAULT_PIN_HASH = "85848e02";
   function validarPinBloqueo(cb) {
     var val = bloqueoPinEl ? bloqueoPinEl.value.trim() : "";
     var storedHash = localStorage.getItem("fmv_pin_hash") || DEFAULT_PIN_HASH;
@@ -2802,7 +2802,7 @@
   /* App instalable: registra el service worker (solo funciona en https, como GitHub Pages) */
   if ("serviceWorker" in navigator) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
 </script>
-<script src="canales-auto.js?v=8"></script>
-<script src="buscador.js?v=8"></script>
+<script src="canales-auto.js?v=9"></script>
+<script src="buscador.js?v=9"></script>
 </body>
 </html>
