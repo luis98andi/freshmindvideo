@@ -5,26 +5,56 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.googleapis.com https://api.github.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'none'; media-src 'none'; worker-src 'self'; manifest-src 'self';">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>
-/* Escudo: bloquea ventanas emergentes y cualquier iframe/script inyectado que no sea de YouTube o de tu sitio */
+/* Escudo Avanzado Brave & AdGuard AdBlock: bloquea ventanas emergentes, scripts publicitarios, fetch/XHR de anuncios y auto-clics en saltar anuncios */
 (function () {
   try {
     var _f = window.fetch ? window.fetch.bind(window) : null;
-    if (_f) Object.defineProperty(window, "fetch", { configurable: true, enumerable: true, get: function () { return _f; }, set: function (v) { if (typeof v === "function") _f = v; } });
+    if (_f) {
+      window.fetch = function (url, opts) {
+        var s = String(url || "");
+        if (/pagead|ptracking|googleads|doubleclick|stats\/ads|adformat/i.test(s)) {
+          return Promise.resolve(new Response('{"ad_signals":0}', { status: 200 }));
+        }
+        return _f(url, opts);
+      };
+    }
   } catch (e) {}
+
+  try {
+    var _open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function (method, url) {
+      var s = String(url || "");
+      if (/pagead|ptracking|googleads|doubleclick|stats\/ads|adformat/i.test(s)) {
+        this._isAdReq = true;
+      }
+      return _open.apply(this, arguments);
+    };
+    var _send = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function () {
+      if (this._isAdReq) {
+        try { Object.defineProperty(this, 'readyState', { value: 4 }); } catch (e) {}
+        try { Object.defineProperty(this, 'status', { value: 200 }); } catch (e) {}
+        try { Object.defineProperty(this, 'responseText', { value: '{}' }); } catch (e) {}
+        if (typeof this.onload === 'function') this.onload();
+        return;
+      }
+      return _send.apply(this, arguments);
+    };
+  } catch (e) {}
+
   var OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|i\.ytimg\.com|yt3\.ggpht\.com)\//;
   var SRC_OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|s\.ytimg\.com)\//;
   var abrir = window.open;
   var filtro = function (u) { return OK.test(String(u || "")) ? abrir.apply(window, arguments) : null; };
-  /* Capa extra 1: window.open queda congelado (setter vacío para no lanzar TypeError en strict mode), ningún script puede restaurarlo */
   try { Object.defineProperty(window, "open", { get: function () { return filtro; }, set: function () {}, configurable: false }); }
   catch (e) { try { window.open = filtro; } catch (x) {} }
-  /* Capa extra 2: ningún script (ni anuncio) puede sacar esta página hacia otro sitio */
+
   try {
     if (window.navigation) navigation.addEventListener("navigate", function (e) {
       try { if (e.cancelable && new URL(e.destination.url).origin !== location.origin) e.preventDefault(); } catch (x) {}
     });
   } catch (e) {}
-  /* Capa extra 3: cualquier enlace externo que aparezca en la página se anula */
+
   document.addEventListener("click", function (e) {
     var a = e.target && e.target.closest && e.target.closest("a[href]");
     if (a && a.origin && a.origin !== location.origin) { e.preventDefault(); e.stopPropagation(); }
@@ -33,11 +63,27 @@
   new MutationObserver(function (ms) {
     ms.forEach(function (m) {
       m.addedNodes.forEach(function (n) {
-        if (n.nodeType !== 1 || !/^(IFRAME|SCRIPT|EMBED|OBJECT)$/.test(n.tagName) || !n.src) return;
-        if (n.src.indexOf(location.origin) !== 0 && !SRC_OK.test(n.src)) n.remove();
+        if (n.nodeType !== 1) return;
+        var tag = n.tagName;
+        if (/^(IFRAME|SCRIPT|EMBED|OBJECT)$/.test(tag) && n.src) {
+          if (n.src.indexOf(location.origin) !== 0 && !SRC_OK.test(n.src)) n.remove();
+        }
+        // Auto-clic en botones de saltar anuncio de YouTube
+        if (n.classList && (n.classList.contains("ytp-ad-skip-button") || n.classList.contains("ytp-ad-overlay-close") || n.classList.contains("ytp-ad-skip-button-container"))) {
+          try { n.click(); } catch (x) {}
+        }
       });
     });
   }).observe(document.documentElement, { childList: true, subtree: true });
+
+  setInterval(function () {
+    try {
+      var skip = document.querySelector(".ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-ad-overlay-close");
+      if (skip) skip.click();
+      var adElems = document.querySelectorAll(".ad-showing, .video-ads, ytd-ad-slot-renderer");
+      adElems.forEach(function (el) { el.style.display = "none"; });
+    } catch (e) {}
+  }, 300);
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -201,8 +247,8 @@
 
   .controles {
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 10;
-    display: flex; align-items: center; gap: 4px; padding: 28px 14px 10px;
-    background: linear-gradient(transparent, rgba(15, 23, 32, .88) 35%);
+    display: flex; align-items: center; gap: 4px; padding: 12px 12px 8px;
+    background: linear-gradient(transparent, rgba(15, 23, 32, .88) 40%);
     transition: opacity .35s ease, transform .35s ease;
   }
   .contenedor-reproductor-principal.inactivo .controles {
@@ -216,7 +262,7 @@
   .controles button:hover { background: rgba(255, 255, 255, .12); }
   .controles svg { width: 22px; height: 22px; fill: currentColor; }
   .controles input[type=range] { flex: 1; min-width: 60px; accent-color: var(--acento); }
-  .tiempo { min-width: 92px; text-align: center; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  .tiempo { min-width: 84px; text-align: center; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
 
   /* Selector inferior de todos los videos del canal en formato rueda / lista playlist */
   .seccion-videos-canal {
@@ -342,9 +388,11 @@
   .en-pantalla.inactivo .controles { opacity: 0; pointer-events: none; }
   .en-pantalla.inactivo { cursor: none; }
   @media (max-width: 600px) {
-    .controles { flex-wrap: wrap; }
-    #rango { order: -1; flex: 1 1 calc(100% - 100px); }
-    .tiempo { order: -1; }
+    .controles { flex-wrap: wrap; padding: 6px 8px 6px; gap: 2px; }
+    #rango { order: -1; flex: 1 1 100%; margin: 0 2px 2px 2px; height: 3px; }
+    .tiempo { order: 0; font-size: 0.75rem; min-width: 72px; }
+    .controles button { min-width: 36px; min-height: 36px; font-size: 1.1rem; }
+    .controles svg { width: 18px; height: 18px; }
   }
   @media (max-width: 360px) { .cuadricula { grid-template-columns: 1fr; } }
   .vol { position: relative; display: flex; }
@@ -1490,7 +1538,6 @@
     cargarVideo(nuevoId);
     pintarMarca();
     detectarOrientacion(videoActualId, function () {});
-    aplicarOrientacion();
     if (subir) window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -2220,11 +2267,14 @@
       actualizarIconoCentro(false);
       clearTimeout(tOculta);
       contenedor.classList.remove("inactivo");
+      tapa.hidden = false;
     } else {
       if (jugador.playVideo) jugador.playVideo();
       bPlay.innerHTML = ICONOS.pausa;
       actualizarIconoCentro(true);
-      mostrarControles();
+      tapa.hidden = true;
+      contenedor.classList.add("inactivo");
+      clearTimeout(tOculta);
     }
   }
 
