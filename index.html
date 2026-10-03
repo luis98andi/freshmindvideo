@@ -2145,14 +2145,14 @@
 
   document.getElementById("btn-volver").addEventListener("click", irInicio);
 
-  /* Inactividad de 3 segundos para ocultar la barra inferior de navegación */
+  /* Inactividad de 1 segundo para ocultar la barra inferior de navegación */
   var tNavInactivo = null, barraInf = document.getElementById("barra-inferior");
   function despertarBarra() {
     clearTimeout(tNavInactivo);
     if (barraInf) barraInf.classList.remove("inactiva");
     tNavInactivo = setTimeout(function () {
       if (barraInf) barraInf.classList.add("inactiva");
-    }, 2500);
+    }, 1000);
   }
   var ultMoveX = -1, ultMoveY = -1;
   function alMoverOInteraccionar(e) {
@@ -2411,7 +2411,7 @@
   function programarOcultar() {
     clearTimeout(tOculta);
     if (listo && jugador && jugador.getPlayerState && jugador.getPlayerState() === 1) {
-      tOculta = setTimeout(ocultarYa, 2500);
+      tOculta = setTimeout(ocultarYa, 1000);
     }
   }
   function mostrarControles() {
@@ -2574,7 +2574,7 @@
     if (e.target.closest && (e.target.closest("#aviso-vivo") || e.target.closest(".play-circulo")) || wrapperVideo.classList.contains("libre") || !listo) return;
     /* Al tocar en cualquier zona fuera del icono verde:
        Alterna entre ocultar y volver a mostrar la barra de navegación de reproducción.
-       Mantiene intacto el temporizador de 2.5s de desvanecimiento cuando se muestra. */
+       Mantiene el temporizador de 1s de desvanecimiento cuando se muestra. */
     if (contenedor.classList.contains("inactivo")) {
       mostrarControles();
     } else {
