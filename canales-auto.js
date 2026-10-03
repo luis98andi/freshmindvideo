@@ -21,7 +21,7 @@
 
   function leer(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } }
 
-  var PIN_PADRES = leer("fmv_pin_padres", "1234");
+  var PIN_PADRES = leer("fmv_pin_padres", "85848e02");
   window.FMV_hayCambiosPadres = false;
 
   function guardar(k, v) {
@@ -1182,7 +1182,7 @@
       '<h3 style="margin:0">⏱ Temporizador y límite de tiempo</h3>' +
       '<button type="button" data-x style="' + ESTILO_BT + ';background:#5b6b7a">Cerrar</button>' +
       '</div>' +
-      '<p style="font-size:13.5px;opacity:.8;margin:0 0 16px;line-height:1.4">Configura cuánto tiempo puede ver cada perfil al día. Al terminarse el tiempo, la pantalla se bloquea automáticamente y pide tu contraseña de siempre (<b>1234</b>).</p>' +
+      '<p style="font-size:13.5px;opacity:.8;margin:0 0 16px;line-height:1.4">Configura cuánto tiempo puede ver cada perfil al día. Al terminarse el tiempo, la pantalla se bloquea automáticamente y pide tu contraseña de siempre.</p>' +
       '<div data-hija style="background:#f4f8fb;padding:14px;border-radius:14px;margin-bottom:12px"></div>' +
       '<div data-hijo style="background:#f4f8fb;padding:14px;border-radius:14px;margin-bottom:14px"></div>',
       480
