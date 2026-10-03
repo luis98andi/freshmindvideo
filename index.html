@@ -1219,7 +1219,7 @@
             tapa.hidden = false;
             avisoVivo.hidden = true;
             errores = 0;
-            mostrarControles();
+            ocultarYa();
             if (videoConSubs !== videoActualId) { videoConSubs = videoActualId; aplicarSubs(); }
           } else if (e.data === 2) {
             mostrarCargador(false);
@@ -2187,15 +2187,27 @@
     }
   }
 
+  var tCargaTimer = null;
   function verificarEstadoCargando() {
     if (!listo || !videoActualId || !jugador || !jugador.getPlayerState) return;
     try {
       var st = jugador.getPlayerState();
-      if (st === 3 || st === -1 || st === 5) {
-        cargadorTxt.textContent = "Video cargando…";
-        cargadorVideo.hidden = false;
-      } else if (st === 1 || st === 2) {
+      if (st === 1 || st === 2) {
+        if (tCargaTimer) { clearTimeout(tCargaTimer); tCargaTimer = null; }
         mostrarCargador(false);
+      } else if (st === 3 || st === -1 || st === 5) {
+        if (!tCargaTimer && cargadorVideo.hidden) {
+          tCargaTimer = setTimeout(function () {
+            tCargaTimer = null;
+            if (jugador && jugador.getPlayerState) {
+              var currSt = jugador.getPlayerState();
+              if (currSt === 3 || currSt === -1 || currSt === 5) {
+                cargadorTxt.textContent = "Video cargando…";
+                cargadorVideo.hidden = false;
+              }
+            }
+          }, 450);
+        }
       }
     } catch (e) {}
   }
@@ -2790,7 +2802,7 @@
   /* App instalable: registra el service worker (solo funciona en https, como GitHub Pages) */
   if ("serviceWorker" in navigator) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
 </script>
-<script src="canales-auto.js?v=6"></script>
-<script src="buscador.js?v=6"></script>
+<script src="canales-auto.js?v=8"></script>
+<script src="buscador.js?v=8"></script>
 </body>
 </html>
