@@ -145,9 +145,34 @@
   .tarjeta:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
 
   /* Diseños de tarjetas personalizables */
-  body.card-circle .tarjeta { border-radius: 50% !important; aspect-ratio: 1 / 1; }
-  body.card-circle .tarjeta .media { border-radius: 50%; aspect-ratio: 1 / 1; }
-  body.card-circle .tarjeta .nombre { display: none; }
+  body.card-circle .cuadricula { gap: 20px 14px; }
+  body.card-circle .tarjeta {
+    border-radius: 20px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-align: center;
+    padding: 4px;
+  }
+  body.card-circle .tarjeta:hover {
+    transform: translateY(-4px);
+    box-shadow: none !important;
+  }
+  body.card-circle .tarjeta .media {
+    border-radius: 50% !important;
+    aspect-ratio: 1 / 1;
+    width: min(100%, 150px);
+    margin: 0 auto;
+    overflow: hidden;
+    box-shadow: 0 4px 14px rgba(20, 60, 100, .22);
+    border: 3px solid #fff;
+  }
+  body.card-circle .tarjeta .nombre {
+    display: block !important;
+    text-align: center;
+    padding: 10px 4px 2px;
+    font-size: .95rem;
+    font-weight: 800;
+  }
   body.card-square .tarjeta { border-radius: 0px !important; }
   body.card-modern .tarjeta { border-radius: 14px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.18); }
   .media { aspect-ratio: var(--proporcion); background: #dfe6ea; position: relative; }
@@ -1186,8 +1211,7 @@
   var modoSubs = false;      // true: este reproductor se creó con subtítulos forzados
   var alEstarListo = null;   // qué hacer cuando el reproductor nuevo esté listo
   function crearJugador(conSubs, despues) {
-    var vars = { controls: 0, fs: 0, rel: 0, disablekb: 1, iv_load_policy: 3, playsinline: 1, cc_load_policy: conSubs ? 1 : 0 };
-    if (conSubs) vars.cc_lang_pref = "es";
+    var vars = { controls: 0, fs: 0, rel: 0, disablekb: 1, iv_load_policy: 3, playsinline: 1, hl: "es", cc_lang_pref: "es", cc_load_policy: conSubs ? 1 : 0 };
     if (location.protocol.indexOf("http") === 0) vars.origin = location.origin;
     modoSubs = conSubs;
     alEstarListo = despues || null;
@@ -1207,6 +1231,7 @@
           if (e.data === 1 && videoActualId && histId !== videoActualId) {
             histId = videoActualId;
             if (window.FMV_historial) FMV_historial(videoActualId, titulos[listaVideos.indexOf(videoActualId)] || "", tituloCanalActivo.textContent, canalUC || "MIS");
+            if (window.FMV_registrarEventoLogro) window.FMV_registrarEventoLogro("video_visto", { canalId: canalUC, titulo: titulos[listaVideos.indexOf(videoActualId)] || "" });
           }
           if (debeAutoreproducir && (e.data === 5 || e.data === 2)) {
             debeAutoreproducir = false;
@@ -2340,6 +2365,9 @@
     }
   }
 
+  window.FMV_pausarVideo = function () { if (listo && jugador && jugador.pauseVideo) try { jugador.pauseVideo(); } catch (e) {} };
+  window.FMV_reanudarVideo = function () { if (listo && jugador && jugador.playVideo) try { jugador.playVideo(); } catch (e) {} };
+
   // Controles del reproductor
   bAnterior.addEventListener("click", anteriorVideo);
   bSiguiente.addEventListener("click", siguienteVideo);
@@ -2802,7 +2830,13 @@
   /* App instalable: registra el service worker (solo funciona en https, como GitHub Pages) */
   if ("serviceWorker" in navigator) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
 </script>
-<script src="canales-auto.js?v=12"></script>
-<script src="buscador.js?v=12"></script>
+<script src="logros-premios.js?v=13"></script>
+<script src="filtro-azul.js?v=13"></script>
+<script src="horarios-rutina.js?v=13"></script>
+<script src="pausas-activas.js?v=13"></script>
+<script src="reportes-padres.js?v=13"></script>
+<script src="busqueda-voz.js?v=13"></script>
+<script src="canales-auto.js?v=13"></script>
+<script src="buscador.js?v=13"></script>
 </body>
 </html>

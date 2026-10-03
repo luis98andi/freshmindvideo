@@ -671,7 +671,7 @@
         bMasVideos.addEventListener("click", function () {
           bMasVideos.disabled = true;
           bMasVideos.textContent = "Cargando más videos…";
-          apiCompleta("search", "part=snippet&type=video&maxResults=20&safeSearch=strict&videoEmbeddable=true&relevanceLanguage=es&q=" + queryVideosActual + "&pageToken=" + encodeURIComponent(tokenSiguienteVideos))
+          apiCompleta("search", "part=snippet&type=video&maxResults=25&safeSearch=moderate&videoEmbeddable=true&q=" + queryVideosActual + "&pageToken=" + encodeURIComponent(tokenSiguienteVideos))
             .then(function (res) {
               tokenSiguienteVideos = res.nextPageToken || "";
               var masItems = (res.items || []).filter(function (it) {
@@ -723,8 +723,8 @@
     else {
       queryVideosActual = q;
       p = Promise.all([
-        api("search", "part=snippet&type=channel&maxResults=6&safeSearch=strict&relevanceLanguage=es&q=" + q),
-        apiCompleta("search", "part=snippet&type=video&maxResults=20&safeSearch=strict&videoEmbeddable=true&relevanceLanguage=es&q=" + q)
+        api("search", "part=snippet&type=channel&maxResults=6&safeSearch=moderate&q=" + q),
+        apiCompleta("search", "part=snippet&type=video&maxResults=25&safeSearch=moderate&videoEmbeddable=true&q=" + q)
       ]).then(function (r) {
         tokenSiguienteVideos = r[1].nextPageToken || "";
         return [r[0], r[1].items || []];
@@ -1277,11 +1277,58 @@
       });
     }
 
+    function abrirManualPadres() {
+      var mm = modal(
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="font-size:26px">📖</span>' +
+        '<h2 style="margin:0;font-size:1.35rem">Manual y Guía para Padres</h2>' +
+        '</div>' +
+        '<button type="button" data-x style="' + ESTILO_BT + ';background:#5b6b7a;padding:6px 14px;border-radius:999px">Cerrar</button>' +
+        '</div>' +
+        '<div style="max-height:72vh;overflow-y:auto;padding-right:6px;font-size:14.5px;line-height:1.55;color:#334155">' +
+
+        '<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;padding:12px 14px;margin-bottom:14px">' +
+        '<b style="color:#166534">🌟 ¡Bienvenido a FreshMindVideo!</b>' +
+        '<p style="margin:4px 0 0;font-size:13px;color:#15803d">Un entorno web infantil sin distracciones, sin comentarios, sin anuncios invasivos y con control total para ti como padre o madre.</p>' +
+        '</div>' +
+
+        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">🔒 1. Acceso y Contraseña</h4>' +
+        '<p style="margin:0 0 10px">Toda la configuración está resguardada por tu PIN. Para mayor seguridad, el PIN se guarda encriptado mediante hash en este dispositivo y nunca queda visible en la pantalla. Puedes cambiarlo en cualquier momento desde <b>«🔑 Cambiar contraseña»</b>.</p>' +
+
+        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">🔍 2. Búsqueda y Agregar Contenido</h4>' +
+        '<p style="margin:0 0 10px">En <b>«🔍 Buscar en YouTube y agregar»</b> puedes buscar canales o videos escribiendo palabras clave o pegando el enlace de YouTube directamente. Además, puedes ocultar videos puntuales con el botón rojo <b>«🙈 Ocultar video»</b> si no deseas que tus hijos los vean.</p>' +
+
+        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">⏱️ 3. Tiempo de Pantalla y Rutinas</h4>' +
+        '<p style="margin:0 0 10px">Puedes definir un límite de minutos diarios para <b>👧 Hija</b> y <b>👦 Hijo</b>. Al terminarse el tiempo, la app se bloquea sola. También puedes programar una <b>«⏰ Rutina de Descanso»</b> para bloquear la app a la hora de dormir o hacer deberes escolares.</p>' +
+
+        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">🌙 4. Filtro de Luz Azul y Pausas Activas</h4>' +
+        '<p style="margin:0 0 10px">El <b>«🌙 Filtro de Luz Azul»</b> atenúa los brillos molestos con un tono ámbar cálido para proteger los ojos en la noche. Con las <b>«👀 Pausas Activas»</b>, la app recuerda cada 20-25 minutos parpadear y descansar la vista por 20 segundos.</p>' +
+
+        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">🏆 5. Premios y Medallas Infantiles</h4>' +
+        '<p style="margin:0 0 10px">Los niños ganan trofeos virtuales al descubrir videos de arte, ciencia o música y al respetar el límite de tiempo. Pueden ver su vitrina tocando el botón <b>🏆 Premios</b> arriba.</p>' +
+
+        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">📱 6. Cómo instalar en Celulares y Tablets</h4>' +
+        '<p style="margin:0 0 6px"><b>En Android:</b> Abre en Chrome, toca los tres puntos `⋮` y elige <i>«Instalar aplicación»</i>.</p>' +
+        '<p style="margin:0 0 10px"><b>En iPhone/iPad:</b> Abre en Safari, toca el botón de compartir y elige <i>«Agregar a pantalla de inicio»</i>.</p>' +
+
+        '</div>',
+        560
+      );
+      mm.caja.querySelector("[data-x]").addEventListener("click", mm.cerrar);
+    }
+
+    fila("📖 Manual y Guía para Padres", "#0d9488", abrirManualPadres, true);
     fila("🔎 Buscador general de videos", "#0284c7", function () { if (window.FMV_irBuscar) window.FMV_irBuscar(); });
     fila("🔍 Buscar en YouTube y agregar", "", abrirBuscador);
     fila("🎨 Estilo de tarjetas", "#10b981", abrirEstiloTarjetas);
     fila("🚫 Palabras excluidas (" + obtenerPalabrasExcluidas().length + ")", "#be123c", abrirConfigPalabrasExcluidas);
     fila("⏱ Tiempo de pantalla y temporizador", "#0284c7", abrirConfigTiempos);
+    fila("🌙 Filtro de Luz Azul", "#d97706", function () { if (window.FMV_abrirFiltroAzul) window.FMV_abrirFiltroAzul(); });
+    fila("⏰ Horarios y Rutina de Descanso", "#0891b2", function () { if (window.FMV_abrirHorarios) window.FMV_abrirHorarios(); });
+    fila("👀 Pausas Activas (Vista)", "#0369a1", function () { if (window.FMV_abrirPausasActivas) window.FMV_abrirPausasActivas(); });
+    fila("📊 Reportes y Estadísticas", "#4f46e5", function () { if (window.FMV_abrirReportes) window.FMV_abrirReportes(); });
+    fila("🏆 Logros y Medallas de Niños", "#f59e0b", function () { if (window.FMV_abrirLogros) window.FMV_abrirLogros(); });
     fila("🙈 Videos ocultos" + (cantOcultos ? " (" + cantOcultos + ")" : ""), "#475569", abrirVideosOcultos);
     fila("🌐 Actualizar para todos", "#2f6fdd", abrirActualizar);
     if (hayOcultos()) fila("↩ Restaurar todo lo que quité", "#e08a00", restaurar);

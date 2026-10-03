@@ -1,8 +1,23 @@
 /* FreshMindVideo - service worker
    Red primero: siempre intenta traer la versión nueva; solo usa lo guardado si no hay internet.
    Solo toca archivos de este mismo sitio (nunca YouTube, la API ni GitHub). */
-var VERSION = "fmv-v12";
-var BASICOS = ["./", "index.html", "canales-auto.js", "buscador.js", "manifest.json", "icon-192.png", "icon-512.png"];
+var VERSION = "fmv-v13";
+var BASICOS = [
+  "./",
+  "index.html",
+  "canales-auto.js",
+  "buscador.js",
+  "logros-premios.js",
+  "filtro-azul.js",
+  "horarios-rutina.js",
+  "pausas-activas.js",
+  "reportes-padres.js",
+  "busqueda-voz.js",
+  "stickers-premios.svg",
+  "manifest.json",
+  "icon-192.png",
+  "icon-512.png"
+];
 
 self.addEventListener("install", function (e) {
   e.waitUntil(
