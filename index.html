@@ -678,6 +678,7 @@
       if (st === -1 || st === 3) {
         if (vivos[videoActualId] !== 2) {
           silenciarPreventivo();
+          cargadorTxt.textContent = "Eliminando publicidad…";
           cargadorVideo.hidden = false;
           tapa.hidden = true;
         }
@@ -1800,7 +1801,8 @@
     });
   }
   pestanasEl.addEventListener("click", function (e) {
-    var p = e.target.getAttribute && e.target.getAttribute("data-p");
+    var btn = e.target.closest("[data-p]");
+    var p = btn && btn.getAttribute("data-p");
     if (!p || !canalUC) return;
     if (p === pestana) {
       if (p === "LISTAS" && playlistActivaId) {
