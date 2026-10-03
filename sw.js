@@ -1,7 +1,7 @@
 /* FreshMindVideo - service worker
    Red primero: siempre intenta traer la versión nueva; solo usa lo guardado si no hay internet.
    Solo toca archivos de este mismo sitio (nunca YouTube, la API ni GitHub). */
-var VERSION = "fmv-v6";
+var VERSION = "fmv-v8";
 var BASICOS = ["./", "index.html", "canales-auto.js", "buscador.js", "manifest.json", "icon-192.png", "icon-512.png"];
 
 self.addEventListener("install", function (e) {
