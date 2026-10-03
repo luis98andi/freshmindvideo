@@ -764,14 +764,14 @@
     try {
       var vd = jugador.getVideoData() || {};
       var st = jugador.getPlayerState ? jugador.getPlayerState() : -1;
-      /* Si el reproductor está corriendo un ID que NO es nuestro videoActualId, es un anuncio pre-roll o mid-roll */
-      if (vd.video_id && vd.video_id !== videoActualId) {
+      /* Si el reproductor está reproduciendo un ID que NO es nuestro videoActualId, es un anuncio pre-roll o mid-roll */
+      if (st === 1 && vd.video_id && vd.video_id.length === 11 && vd.video_id !== videoActualId) {
         cargadorTxt.textContent = "Eliminando publicidad…";
         cargadorVideo.hidden = false;
         tapa.hidden = true;
         silenciarPreventivo();
         var ahora = Date.now();
-        if (ahora - ultimoSaltoAnuncio > 1200) {
+        if (ahora - ultimoSaltoAnuncio > 1500) {
           ultimoSaltoAnuncio = ahora;
           jugador.loadVideoById(videoActualId);
         }
@@ -1090,16 +1090,9 @@
             avisoVivo.hidden = true;
             errores = 0;
             mostrarControles();
-            /* Si está arrancando cerca del segundo 0, cuenta como reproducción de este video para el límite de 6 seguidas en 2 min */
-            var segActual = 0;
-            try { segActual = jugador.getCurrentTime() || 0; } catch (err) {}
-            if (segActual < 6) {
-              if (registrarReproduccionSeguida(videoActualId)) return;
-            }
             if (videoConSubs !== videoActualId) { videoConSubs = videoActualId; aplicarSubs(); }
           } else if (e.data === 2) {
             mostrarCargador(false);
-            actualizarPortadaTapa();
             tapa.hidden = false;
             clearTimeout(tOculta);
             contenedor.classList.remove("inactivo");
@@ -1111,9 +1104,10 @@
             } else if (vivos[videoActualId] === 2) {
               avisoVivo.hidden = false;
             } else {
-              actualizarPortadaTapa();
               tapa.hidden = false;
             }
+            clearTimeout(tOculta);
+            contenedor.classList.remove("inactivo");
           } else if (e.data === -1) {
             if (vivos[videoActualId] === 2) {
               mostrarCargador(false);
@@ -2359,66 +2353,70 @@
   }
   var orientacion = lsLeer("fmv_orient");   // se recuerda: solo se guardan resultados seguros
   function guardarOrient(id, o) {
+    if (!id || !o) return;
     orientacion[id] = o;
     var k = Object.keys(orientacion);
     if (k.length > 400) k.slice(0, 100).forEach(function (x) { delete orientacion[x]; });
     lsGuardar("fmv_orient", orientacion);
   }
-  /* Respaldo: analiza la miniatura (los videos verticales traen franjas negras a los lados) */
-  function orientPorMiniatura(id, cb) {
-    var im = new Image();
-    im.crossOrigin = "anonymous";
-    im.onload = function () {
-      try {
-        var c = document.createElement("canvas"); c.width = 64; c.height = 36;
-        var g = c.getContext("2d"); g.drawImage(im, 0, 0, 64, 36);
-        var d = g.getImageData(0, 0, 64, 36).data;
-        var brillo = function (x0, x1) {
-          var s = 0, n = 0;
-          for (var y = 0; y < 36; y++) for (var x = x0; x < x1; x++) { var k = (y * 64 + x) * 4; s += d[k] + d[k + 1] + d[k + 2]; n += 3; }
-          return s / n;
-        };
-        var lados = (brillo(0, 10) + brillo(54, 64)) / 2, centro = brillo(20, 44);
-        cb((lados < 10 && centro > lados + 20) ? "v" : "h");
-      } catch (e) { cb(null); }
-    };
-    im.onerror = function () { cb(null); };
-    im.src = "https://i.ytimg.com/vi/" + id + "/mqdefault.jpg";
+  function obtenerOrientacion(id) {
+    if (!id) return "h";
+    if (orientacion[id]) return orientacion[id];
+    if (pestana === "UUSH") return "v";
+    var idx = listaVideos.indexOf(id);
+    var t = (idx >= 0 && titulos[idx] ? titulos[idx] : "").toLowerCase();
+    if (/#shorts?\b|#reels?\b|#tiktok\b|\bshorts\b|\breels\b/i.test(t)) return "v";
+    return "h"; // Por defecto todo video estándar de YouTube es horizontal
   }
-  /* 1) oEmbed de YouTube da el tamaño real del video (vertical: alto > ancho); 2) miniatura; 3) "#shorts" en el título */
   function detectarOrientacion(id, cb) {
-    if (orientacion[id]) { cb(orientacion[id]); return; }
-    var fin_ = false;
-    function fin(o, seguro) { if (fin_) return; fin_ = true; if (o && seguro) guardarOrient(id, o); cb(o); }
-    function porTitulo() { var t = (titulos[listaVideos.indexOf(id)] || "").toLowerCase(); return /#shorts?\b/.test(t) ? "v" : null; }
-    function miniatura() { orientPorMiniatura(id, function (o) { fin(o || porTitulo(), false); }); }
+    if (!id) { if (cb) cb("h"); return; }
+    if (orientacion[id]) { if (cb) cb(orientacion[id]); return; }
+    if (pestana === "UUSH") { guardarOrient(id, "v"); if (cb) cb("v"); return; }
+    var idx = listaVideos.indexOf(id);
+    var t = (idx >= 0 && titulos[idx] ? titulos[idx] : "").toLowerCase();
+    if (/#shorts?\b|#reels?\b|#tiktok\b|\bshorts\b|\breels\b/i.test(t)) {
+      guardarOrient(id, "v");
+      if (cb) cb("v");
+      return;
+    }
     var ctl = window.AbortController ? new AbortController() : null;
-    var tm = setTimeout(function () { if (ctl) ctl.abort(); }, 4000);
+    var tm = setTimeout(function () { if (ctl) ctl.abort(); }, 3500);
     fetch("https://www.youtube.com/oembed?format=json&url=" + encodeURIComponent("https://www.youtube.com/watch?v=" + id), ctl ? { signal: ctl.signal } : {})
       .then(function (r) { return r.json(); })
       .then(function (d) {
         clearTimeout(tm);
-        if (d && d.width && d.height) fin(d.height > d.width ? "v" : "h", true); else miniatura();
+        var res = (d && d.height && d.width && d.height > d.width) ? "v" : "h";
+        guardarOrient(id, res);
+        if (cb) cb(res);
+        if (enPantalla() && id === videoActualId) aplicarOrientacion();
       })
-      .catch(function () { clearTimeout(tm); miniatura(); });
+      .catch(function () {
+        clearTimeout(tm);
+        guardarOrient(id, "h");
+        if (cb) cb("h");
+      });
   }
   function aplicarOrientacion() {
-    if (!enPantalla() || !videoActualId || !screen.orientation) return;
-    var id = videoActualId;
-    detectarOrientacion(id, function (o) {
-      if (!enPantalla() || id !== videoActualId) return;
-      try {
-        if (o === "v") screen.orientation.lock("portrait").catch(function () {});
-        else if (o === "h") screen.orientation.lock("landscape").catch(function () {});
-        else screen.orientation.unlock();          // si no se pudo saber, no forzar nada
-      } catch (e) {}
-    });
+    if (!videoActualId || !screen.orientation || !screen.orientation.lock) return;
+    var o = obtenerOrientacion(videoActualId);
+    try {
+      if (o === "v") {
+        screen.orientation.lock("portrait").catch(function () {});
+      } else {
+        screen.orientation.lock("landscape").catch(function () {});
+      }
+    } catch (e) {}
   }
   function entrarPantalla() {
+    aplicarOrientacion();
     var rf = contenedor.requestFullscreen || contenedor.webkitRequestFullscreen;
     if (!rf) { activarPantalla(true); return; } // iPhone: pantalla completa simulada
     var p = rf.call(contenedor);
-    if (p && p.catch) p.catch(function () { activarPantalla(true); });
+    if (p && p.then) {
+      p.then(function () { aplicarOrientacion(); }).catch(function () { activarPantalla(true); });
+    } else {
+      activarPantalla(true);
+    }
   }
   function salirPantalla() {
     if (nativa()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
@@ -2478,7 +2476,7 @@
     if (Date.now() - gSwipe < 500) { e.stopPropagation(); e.preventDefault(); }
   }, true);
 
-  var ultPtrX = -1, ultPtrY = -1;
+  var ultPtrX = -1, ultPtrY = -1, controlesEstabanInactivos = false;
   function alMoverSobreReproductor(e) {
     if (e && (e.type === "pointermove" || e.type === "mousemove")) {
       if (ultPtrX >= 0 && Math.abs(e.clientX - ultPtrX) < 4 && Math.abs(e.clientY - ultPtrY) < 4) return;
@@ -2487,11 +2485,18 @@
     mostrarControles();
   }
   contenedor.addEventListener("pointermove", alMoverSobreReproductor);
-  contenedor.addEventListener("touchstart", function () { mostrarControles(); }, { passive: true });
+  contenedor.addEventListener("touchstart", function () {
+    controlesEstabanInactivos = contenedor.classList.contains("inactivo");
+    mostrarControles();
+  }, { passive: true });
+  contenedor.addEventListener("touchmove", function () {
+    mostrarControles();
+  }, { passive: true });
   document.getElementById("controles").addEventListener("pointerdown", mostrarControles);
   wrapperVideo.addEventListener("click", function (e) {
     if (e.target === tapa || tapa.contains(e.target) || avisoVivo.contains(e.target) || wrapperVideo.classList.contains("libre") || !listo) return;
-    if (contenedor.classList.contains("inactivo")) {
+    if (controlesEstabanInactivos || contenedor.classList.contains("inactivo")) {
+      controlesEstabanInactivos = false;
       mostrarControles();
       return;
     }
@@ -2501,7 +2506,7 @@
     } else if (jugador && jugador.playVideo) {
       tapa.hidden = true;
       jugador.playVideo();
-      programarOcultar();
+      mostrarControles();
     }
   });
 
