@@ -21,7 +21,7 @@
 
   function leer(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } }
 
-  var PIN_PADRES = leer("fmv_pin_padres", "85848e02");
+  var PIN_PADRES = leer("fmv_pin_padres", "1234");
   window.FMV_hayCambiosPadres = false;
 
   function guardar(k, v) {
