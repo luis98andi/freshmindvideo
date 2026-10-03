@@ -1251,8 +1251,35 @@
       b.addEventListener("click", function () { m.cerrar(); fn(); });
       l.appendChild(b);
     }
+    function abrirEstiloTarjetas() {
+      var formaActual = localStorage.getItem("fmv_card_shape") || "rounded";
+      var mt = modal(
+        '<h3 style="margin:0 0 4px">🎨 Estilo y Forma de Tarjetas</h3>' +
+        '<p style="margin:0 0 16px;font-size:14px;opacity:.75">Elige cómo se ven las tarjetas de los canales en la pantalla principal.</p>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+        '<button type="button" data-shape="rounded" style="' + ESTILO_BT + ';padding:14px;background:' + (formaActual === 'rounded' ? '#10b981' : '#2f6fdd') + '">🔵 Redondeado (Clásico)</button>' +
+        '<button type="button" data-shape="circle" style="' + ESTILO_BT + ';padding:14px;background:' + (formaActual === 'circle' ? '#10b981' : '#2f6fdd') + '">⚪ Círculo / Avatar</button>' +
+        '<button type="button" data-shape="square" style="' + ESTILO_BT + ';padding:14px;background:' + (formaActual === 'square' ? '#10b981' : '#2f6fdd') + '">◼ Cuadrado</button>' +
+        '<button type="button" data-shape="modern" style="' + ESTILO_BT + ';padding:14px;background:' + (formaActual === 'modern' ? '#10b981' : '#2f6fdd') + '">🌟 Moderno (Sombra)</button>' +
+        '</div>',
+        500
+      );
+      mt.caja.querySelectorAll("[data-shape]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var sh = btn.getAttribute("data-shape");
+          localStorage.setItem("fmv_card_shape", sh);
+          document.body.classList.remove("card-circle", "card-square", "card-modern");
+          if (sh !== "rounded") {
+            document.body.classList.add("card-" + sh);
+          }
+          mt.cerrar();
+        });
+      });
+    }
+
     fila("🔎 Buscador general de videos", "#0284c7", function () { if (window.FMV_irBuscar) window.FMV_irBuscar(); });
     fila("🔍 Buscar en YouTube y agregar", "", abrirBuscador);
+    fila("🎨 Estilo de tarjetas", "#10b981", abrirEstiloTarjetas);
     fila("🚫 Palabras excluidas (" + obtenerPalabrasExcluidas().length + ")", "#be123c", abrirConfigPalabrasExcluidas);
     fila("⏱ Tiempo de pantalla y temporizador", "#0284c7", abrirConfigTiempos);
     fila("🙈 Videos ocultos" + (cantOcultos ? " (" + cantOcultos + ")" : ""), "#475569", abrirVideosOcultos);
@@ -1264,6 +1291,14 @@
     fila("🚪 Salir de padres", "#5b6b7a", salirDePadres, true);
   }
   window.FMV_abrirPadres = function () { if (esPadre()) abrirPanelPadres(); else pedirPin(abrirPanelPadres); };
+  function aplicarFormaTarjetas() {
+    var sh = localStorage.getItem("fmv_card_shape") || "rounded";
+    document.body.classList.remove("card-circle", "card-square", "card-modern");
+    if (sh !== "rounded") {
+      document.body.classList.add("card-" + sh);
+    }
+  }
+  aplicarFormaTarjetas();
   actualizarBotones(); vigilar();
 
   var n = 0, w = setInterval(function () {

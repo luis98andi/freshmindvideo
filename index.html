@@ -143,6 +143,13 @@
   }
   .tarjeta:hover { transform: translateY(-3px); box-shadow: 0 8px 18px rgba(20, 60, 100, .26); }
   .tarjeta:focus-visible { outline: 3px solid var(--acento); outline-offset: 2px; }
+
+  /* Diseños de tarjetas personalizables */
+  body.card-circle .tarjeta { border-radius: 50% !important; aspect-ratio: 1 / 1; }
+  body.card-circle .tarjeta .media { border-radius: 50%; aspect-ratio: 1 / 1; }
+  body.card-circle .tarjeta .nombre { display: none; }
+  body.card-square .tarjeta { border-radius: 0px !important; }
+  body.card-modern .tarjeta { border-radius: 14px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.18); }
   .media { aspect-ratio: var(--proporcion); background: #dfe6ea; position: relative; }
   .media img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .inicial { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 3.2rem; font-weight: 800; color: rgba(29, 43, 58, .75); }
@@ -1071,9 +1078,21 @@
     revisarLimiteActual();
   }, 1000);
 
+  function simpleHash(str) {
+    var hash = 2166136261 >>> 0;
+    for (var i = 0; i < str.length; i++) {
+      hash ^= str.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16);
+  }
+  var DEFAULT_PIN_HASH = "85848e02"; // hash for "1234"
   function validarPinBloqueo(cb) {
-    if (bloqueoPinEl && bloqueoPinEl.value === "1234") {
+    var val = bloqueoPinEl ? bloqueoPinEl.value.trim() : "";
+    var storedHash = localStorage.getItem("fmv_pin_hash") || DEFAULT_PIN_HASH;
+    if (simpleHash(val) === storedHash) {
       if (bloqueoErrEl) bloqueoErrEl.style.display = "none";
+      if (bloqueoPinEl) bloqueoPinEl.value = "";
       cb();
     } else {
       if (bloqueoErrEl) bloqueoErrEl.style.display = "block";
@@ -2170,9 +2189,30 @@
     }
   }
 
+  var ultimoIntentoPlay = 0;
+  function verificarReproduccionActiva() {
+    if (!listo || !videoActualId || !jugador || !jugador.getPlayerState) return;
+    try {
+      var st = jugador.getPlayerState();
+      if (st === 3 || st === -1 || st === 5) {
+        cargadorTxt.textContent = "Video cargando…";
+        cargadorVideo.hidden = false;
+      } else if (st === 1) {
+        mostrarCargador(false);
+      } else if (st === 2) {
+        var ahora = Date.now();
+        if (ahora - ultimoIntentoPlay > 1200) {
+          ultimoIntentoPlay = ahora;
+          try { jugador.playVideo(); } catch (e) {}
+        }
+      }
+    } catch (e) {}
+  }
+
   function actualizarCronometro() {
     if (wrapperVideo.classList.contains("libre") && !document.body.classList.contains("padre")) bloquearOtraVez();
     if (vigilarAnuncios()) return;
+    verificarReproduccionActiva();
     pintarMarca();
     if (!listo || !jugador.getDuration) return;
     var dur = jugador.getDuration() || 0, t = jugador.getCurrentTime() || 0;
@@ -2759,7 +2799,7 @@
   /* App instalable: registra el service worker (solo funciona en https, como GitHub Pages) */
   if ("serviceWorker" in navigator) window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
 </script>
-<script src="canales-auto.js?v=3"></script>
-<script src="buscador.js?v=3"></script>
+<script src="canales-auto.js?v=5"></script>
+<script src="buscador.js?v=5"></script>
 </body>
 </html>
