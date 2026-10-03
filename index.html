@@ -107,24 +107,41 @@
     font-size: 1.35rem; font-weight: 800; margin: 0; color: var(--texto);
     flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .btn-ir-actual {
-    margin-left: auto; flex: none;
-    width: 44px; height: 44px; border-radius: 50%;
-    border: 2.5px solid #f59e0b; /* filo dorado */
-    background: #fff; color: #1d2b3a;
-    font-size: 1.35rem; cursor: pointer; display: none;
-    align-items: center; justify-content: center;
-    box-shadow: 0 3px 10px rgba(20, 60, 100, .2);
-    transition: transform .15s ease, background .15s ease;
-    user-select: none;
-  }
-  .btn-ir-actual:hover { transform: scale(1.12); background: #fdf8e6; }
-  body.viendo #ir-actual.hay { display: inline-flex; }
 
+  .reproductor-area { position: relative; margin-bottom: 24px; }
   .contenedor-reproductor-principal {
     position: relative;
     background: #0f1720; border-radius: 22px; overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.15); margin-bottom: 24px; color: #fff;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15); color: #fff;
+    transition: width .25s ease, height .25s ease, border-radius .25s ease, box-shadow .25s ease;
+  }
+  /* Reproductor flotante tipo popup al deslizar hacia abajo para explorar otros videos */
+  .contenedor-reproductor-principal.mini-popup {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: min(320px, calc(100vw - 36px));
+    z-index: 1000;
+    border-radius: 16px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55), 0 0 0 3px #12a37f;
+    animation: popMiniEntrada 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+    overflow: hidden;
+  }
+  @media (max-width: 600px) {
+    .contenedor-reproductor-principal.mini-popup {
+      bottom: 16px;
+      right: 16px;
+      width: min(240px, calc(100vw - 32px));
+      border-radius: 12px;
+    }
+  }
+  /* En el popup flotante solo se muestra la pantallita del video pura, sin botones ni barras */
+  .contenedor-reproductor-principal.mini-popup .controles { display: none !important; }
+  .contenedor-reproductor-principal.mini-popup .marca-video { display: none !important; }
+  @keyframes popMiniEntrada {
+    from { transform: translateY(30px) scale(0.85); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
   }
   .video-marco-wrapper { position: relative; aspect-ratio: 16 / 9; width: 100%; background: #000; }
   .video-marco-wrapper iframe { width: 100%; height: 100%; border: 0; display: block; pointer-events: none; }
@@ -530,32 +547,32 @@
       <button class="volver" id="btn-volver" type="button"><span style="font-size:1.25rem">🏠</span> <b>Inicio</b></button>
       <h2 class="titulo-canal-activo" id="titulo-canal-activo"></h2>
       <button type="button" id="btn-ocultar-actual" class="btn-ocultar-actual" title="Ocultar este video para siempre" aria-label="Ocultar video">🙈 Ocultar video</button>
-      <button type="button" id="ir-actual" class="btn-ir-actual" title="Ir al video actual" aria-label="Ir al video actual">📍</button>
     </div>
 
-    <div class="contenedor-reproductor-principal" id="contenedor-reproductor">
-      <div class="video-marco-wrapper">
-        <div id="marco"></div>
-        <!-- Logo cargador mientras el reproductor/video está en negro al inicio -->
-        <div id="cargador-video" class="cargador-video">
-          <div class="cargador-logo">
-            <div class="cargador-aro"></div>
-            <svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#12a37f"/><path d="M19 14v20l17-10z" fill="#fff"/></svg>
+    <div class="reproductor-area" id="reproductor-area">
+      <div class="contenedor-reproductor-principal" id="contenedor-reproductor">
+        <div class="video-marco-wrapper">
+          <div id="marco"></div>
+          <!-- Logo cargador mientras el reproductor/video está en negro al inicio -->
+          <div id="cargador-video" class="cargador-video">
+            <div class="cargador-logo">
+              <div class="cargador-aro"></div>
+              <svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#12a37f"/><path d="M19 14v20l17-10z" fill="#fff"/></svg>
+            </div>
+            <span id="cargador-txt">Cargando video…</span>
           </div>
-          <span id="cargador-txt">Cargando video…</span>
+          <!-- Tapa translúcida de Play/Pausa: no oscurece en negro sólido ni tapa imágenes de en vivo programado -->
+          <button type="button" id="tapa" class="tapa" aria-label="Reproducir" hidden>
+            <span class="play-circulo"><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg></span>
+          </button>
+          <!-- Aviso cuando un video En Vivo está programado por horario y no transmite en este momento -->
+          <div id="aviso-vivo" class="aviso-vivo" hidden>
+            <span id="aviso-vivo-txt">⏳ Este video en vivo tiene horario programado y no está disponible por el momento.</span>
+            <button type="button" id="aviso-vivo-sig">Siguiente video →</button>
+          </div>
+          <div class="marca-video" id="marca-video" hidden><span id="mv-num"></span><span class="vivo" id="mv-vivo" hidden>● EN VIVO</span></div>
         </div>
-        <!-- Tapa translúcida de Play/Pausa: no oscurece en negro sólido ni tapa imágenes de en vivo programado -->
-        <button type="button" id="tapa" class="tapa" aria-label="Reproducir" hidden>
-          <span class="play-circulo"><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg></span>
-        </button>
-        <!-- Aviso cuando un video En Vivo está programado por horario y no transmite en este momento -->
-        <div id="aviso-vivo" class="aviso-vivo" hidden>
-          <span id="aviso-vivo-txt">⏳ Este video en vivo tiene horario programado y no está disponible por el momento.</span>
-          <button type="button" id="aviso-vivo-sig">Siguiente video →</button>
-        </div>
-        <div class="marca-video" id="marca-video" hidden><span id="mv-num"></span><span class="vivo" id="mv-vivo" hidden>● EN VIVO</span></div>
-      </div>
-      <div class="controles" id="controles">
+        <div class="controles" id="controles">
         <button type="button" id="b-anterior" aria-label="Video anterior"></button>
         <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
         <button type="button" id="b-siguiente" aria-label="Video siguiente"></button>
@@ -578,6 +595,7 @@
         <button type="button" id="b-pantalla" aria-label="Pantalla completa"></button>
       </div>
     </div>
+  </div>
 
     <div class="seccion-videos-canal">
       <div class="fila-titulo">
@@ -650,6 +668,9 @@
   var selectorGrid = document.getElementById("selector-grid");
   var selectorMensaje = document.getElementById("selector-mensaje");
   var contadorTotal = document.getElementById("contador-total");
+  var contenedor = document.getElementById("contenedor-reproductor");
+  var reproductorArea = document.getElementById("reproductor-area");
+  function enPantalla() { return contenedor && contenedor.classList.contains("en-pantalla"); }
 
   var bPlay = document.getElementById("b-play");
   var bSonido = document.getElementById("b-sonido");
@@ -1421,7 +1442,7 @@
     indiceActual = i;
     videoActualId = nuevoId;
     nuevoVideoSubs(); bloquearOtraVez();
-    marcarActual(); guardarUltimo(0);
+    marcarActual(subir); guardarUltimo(0);
     cargarVideo(nuevoId);
     pintarMarca();
     detectarOrientacion(videoActualId, function () {});
@@ -1443,11 +1464,17 @@
     if (!videoActualId) return;
     var k = listaVideos.indexOf(videoActualId);
     if (k >= 0) indiceActual = k;
-    marcarActual(); pintarMarca();
+    marcarActual(false); pintarMarca();
   }
 
-  /* Saca de la sección 🎬 Videos cualquier video que resulte ser En Vivo o Programado (pasa a 🔴 En vivo) */
+  /* Saca de la sección 🎬 Videos cualquier video que resulte ser En Vivo o Programado de forma suave y sin titilar */
+  var tDepurarVivos = null;
   function depurarVivosEnListaNormal() {
+    if (pestana === "UULV" || canalActual === "MIS") return;
+    clearTimeout(tDepurarVivos);
+    tDepurarVivos = setTimeout(ejecutarDepurarVivos, 200);
+  }
+  function ejecutarDepurarVivos() {
     if (pestana === "UULV" || canalActual === "MIS") return;
     var habiaActual = false, idxAntes = indiceActual;
     var ni = [], nt = [], cambio = false;
@@ -1479,7 +1506,8 @@
 
   /* ---------- Marcas: contador 52/500, EN VIVO y video actual ---------- */
   var marcaVideo = document.getElementById("marca-video"), mvNum = document.getElementById("mv-num"), mvVivo = document.getElementById("mv-vivo");
-  var irActual = document.getElementById("ir-actual");
+  var miniPopupExpandir = document.getElementById("mini-popup-expandir");
+
   function pintarMarca() {
     var n = listaVideos.length;
     var estadoVivo = (videoActualId && (vivos[videoActualId] || (pestana === "UULV" ? 1 : 0))) || 0;
@@ -1525,15 +1553,15 @@
       mvVivo.textContent = estadoVivo === 2 ? "⏳ EN VIVO · PROGRAMADO" : "● EN VIVO";
     }
   }
+
   function marcarActual(autoScroll) {
     var k = listaVideos.indexOf(videoActualId);
     var el = k >= 0 ? selectorGrid.children[k] : null;
     if (itemActual && itemActual !== el) itemActual.classList.remove("actual");
     if (el) el.classList.add("actual");
     itemActual = el;
-    irActual.classList.toggle("hay", !!el);
-    // Efecto rueda/playlist: recorre la lista dejando el video actual al frente/arriba y los anteriores arriba en el contenedor
-    if (el && autoScroll !== false) {
+    // Solo desplaza automáticamente la lista en la carga inicial o cambio voluntario de video, nunca durante reproducción continua para no interrumpir al usuario
+    if (el && autoScroll === true) {
       try {
         var topPos = el.offsetTop - selectorGrid.offsetTop;
         selectorGrid.scrollTo({ top: Math.max(0, topPos - 8), behavior: "smooth" });
@@ -1542,41 +1570,43 @@
       }
     }
   }
-  function irAlVideoActual() {
-    var k = listaVideos.indexOf(videoActualId);
-    var el = k >= 0 ? selectorGrid.children[k] : itemActual;
-    if (el) {
-      if (itemActual && itemActual !== el) itemActual.classList.remove("actual");
-      el.classList.add("actual");
-      itemActual = el;
 
-      // 1. Desplaza el contenedor interno de videos para situar el video
-      try {
-        var topPos = el.offsetTop - selectorGrid.offsetTop;
-        selectorGrid.scrollTo({ top: Math.max(0, topPos - 8), behavior: "smooth" });
-      } catch (e) {}
-
-      // 2. Desplaza la página completa hacia abajo hasta la tarjeta y la lista de videos
-      try {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      } catch (e) {
-        var secc = document.querySelector(".seccion-videos-canal");
-        if (secc) secc.scrollIntoView({ behavior: "smooth", block: "start" });
+  /* Mini-reproductor flotante (PiP / Popup): cuando el usuario desliza hacia abajo para explorar videos, el reproductor se convierte en un popup flotante */
+  var reproductorArea = document.getElementById("reproductor-area");
+  function verificarMiniPlayer() {
+    if (!vistaCanal.classList.contains("activo") || enPantalla()) {
+      if (contenedor.classList.contains("mini-popup")) {
+        contenedor.classList.remove("mini-popup");
+        if (reproductorArea) reproductorArea.style.minHeight = "";
       }
-
-      // 3. Efecto de destello visual momentáneo para identificarlo al instante
-      el.classList.remove("resaltando");
-      void el.offsetWidth;
-      el.classList.add("resaltando");
-      setTimeout(function () {
-        if (el) el.classList.remove("resaltando");
-      }, 2500);
-    } else {
-      var secc = document.querySelector(".seccion-videos-canal");
-      if (secc) secc.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (!reproductorArea) return;
+    var rect = reproductorArea.getBoundingClientRect();
+    if (rect.bottom < 50 && window.scrollY > 100) {
+      if (!contenedor.classList.contains("mini-popup")) {
+        reproductorArea.style.minHeight = rect.height + "px";
+        contenedor.classList.add("mini-popup");
+      }
+    } else if (rect.top > -30 || window.scrollY < 40) {
+      if (contenedor.classList.contains("mini-popup")) {
+        contenedor.classList.remove("mini-popup");
+        reproductorArea.style.minHeight = "";
+      }
     }
   }
-  irActual.addEventListener("click", irAlVideoActual);
+  window.addEventListener("scroll", verificarMiniPlayer, { passive: true });
+
+  /* Al hacer clic en el popup flotante, regresa suavemente al inicio y restablece el reproductor normal */
+  contenedor.addEventListener("click", function (e) {
+    if (contenedor.classList.contains("mini-popup")) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      contenedor.classList.remove("mini-popup");
+      if (reproductorArea) reproductorArea.style.minHeight = "";
+    }
+  });
   function pintarVivos() {
     var hijos = selectorGrid.children;
     for (var i = 0; i < hijos.length && i < listaVideos.length; i++) {
@@ -2032,6 +2062,8 @@
     mostrarCargador(false);
     tapa.hidden = true;
     avisoVivo.hidden = true;
+    contenedor.classList.remove("mini-popup");
+    if (reproductorArea) reproductorArea.style.minHeight = "";
     document.body.classList.remove("viendo");
     document.body.classList.remove("modo-buscar");
     marcarNav("inicio");
@@ -2294,10 +2326,8 @@
   });
 
   /* ---------- Pantalla completa con nuestros propios controles ---------- */
-  var contenedor = document.getElementById("contenedor-reproductor");
   var bPantalla = document.getElementById("b-pantalla"), tOculta = null, irAlSalir = false, yAntes = 0;
   function nativa() { return document.fullscreenElement || document.webkitFullscreenElement; }
-  function enPantalla() { return contenedor.classList.contains("en-pantalla"); }
   function ocultarYa() {
     if (listo && jugador && jugador.getPlayerState && jugador.getPlayerState() === 1) {
       contenedor.classList.add("inactivo");
@@ -2324,8 +2354,7 @@
     if (si) { programarOcultar(); aplicarOrientacion(); }
     else {
       try { screen.orientation.unlock(); } catch (e) {}
-      if (irAlSalir) { irAlSalir = false; setTimeout(irAlVideoActual, 250); }   // deja que el diseño se acomode y luego baja al video
-      else if (estaba) { var y = yAntes; requestAnimationFrame(function () { window.scrollTo(0, y); }); setTimeout(function () { window.scrollTo(0, y); }, 150); }
+      if (estaba) { var y = yAntes; requestAnimationFrame(function () { window.scrollTo(0, y); }); setTimeout(function () { window.scrollTo(0, y); }, 150); }
     }
   }
   var orientacion = lsLeer("fmv_orient");   // se recuerda: solo se guardan resultados seguros
@@ -2419,9 +2448,7 @@
     var t = e.changedTouches[0], dy = t.clientY - gy, dx = Math.abs(t.clientX - gx);
     if (dy < 80 || dy < Math.max(dx, gDx) * 1.8 || Date.now() - gt > 900) return;
     gSwipe = Date.now();
-    irAlSalir = true;
     salirPantalla();
-    setTimeout(function () { if (irAlSalir) { irAlSalir = false; irAlVideoActual(); } }, 800);
   }, { passive: true });
   contenedor.addEventListener("click", function (e) {
     if (Date.now() - gSwipe < 500) { e.stopPropagation(); e.preventDefault(); }
