@@ -419,10 +419,19 @@
   /* Video que se esta reproduciendo, marcado dentro de la lista con efecto playlist YouTube */
   .selector-grid .item.actual > button {
     outline: 4px solid var(--acento);
-    box-shadow: 0 0 0 5px rgba(18, 163, 127, 0.3), 0 8px 22px rgba(20, 60, 100, 0.35);
+    box-shadow: 0 0 0 5px rgba(18, 163, 127, 0.35), 0 8px 22px rgba(20, 60, 100, 0.35);
     transform: translateY(-3px);
   }
-  .selector-grid .item.actual .titulo::before { content: "▶ Reproduciendo · "; color: var(--acento); }
+  .selector-grid .item.actual .titulo::before { content: "▶ Reproduciendo · "; color: var(--acento); font-weight: 900; }
+  
+  /* Destello y resalte cuando el usuario toca '📍 Ir al actual' */
+  .selector-grid .item.resaltando > button {
+    animation: fmv-pulso-actual 1.2s ease-in-out infinite alternate;
+  }
+  @keyframes fmv-pulso-actual {
+    0% { outline-color: #f59e0b; box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.65), 0 10px 25px rgba(245, 158, 11, 0.4); transform: scale(1.04); }
+    100% { outline-color: #12a37f; box-shadow: 0 0 0 8px rgba(18, 163, 127, 0.65), 0 10px 25px rgba(18, 163, 127, 0.4); transform: scale(1.02); }
+  }
 
   /* ---------- Barra inferior (estilo YouTube Kids) ---------- */
   #barra-inferior {
@@ -1534,13 +1543,37 @@
     }
   }
   function irAlVideoActual() {
-    if (itemActual) {
+    var k = listaVideos.indexOf(videoActualId);
+    var el = k >= 0 ? selectorGrid.children[k] : itemActual;
+    if (el) {
+      if (itemActual && itemActual !== el) itemActual.classList.remove("actual");
+      el.classList.add("actual");
+      itemActual = el;
+
+      // 1. Desplaza el contenedor interno de videos para situar el video
       try {
-        var topPos = itemActual.offsetTop - selectorGrid.offsetTop;
+        var topPos = el.offsetTop - selectorGrid.offsetTop;
         selectorGrid.scrollTo({ top: Math.max(0, topPos - 8), behavior: "smooth" });
+      } catch (e) {}
+
+      // 2. Desplaza la página completa hacia abajo hasta la tarjeta y la lista de videos
+      try {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
       } catch (e) {
-        try { itemActual.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (err) {}
+        var secc = document.querySelector(".seccion-videos-canal");
+        if (secc) secc.scrollIntoView({ behavior: "smooth", block: "start" });
       }
+
+      // 3. Efecto de destello visual momentáneo para identificarlo al instante
+      el.classList.remove("resaltando");
+      void el.offsetWidth;
+      el.classList.add("resaltando");
+      setTimeout(function () {
+        if (el) el.classList.remove("resaltando");
+      }, 2500);
+    } else {
+      var secc = document.querySelector(".seccion-videos-canal");
+      if (secc) secc.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
   irActual.addEventListener("click", irAlVideoActual);
