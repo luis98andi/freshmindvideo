@@ -803,9 +803,45 @@
   .en-pantalla .controles { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; background: linear-gradient(transparent, rgba(0,0,0,.8)); padding-top: 28px; transition: opacity .25s; }
   .en-pantalla.inactivo .controles { opacity: 0; pointer-events: none; }
   .en-pantalla.inactivo { cursor: none; }
+  .rango-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 60px;
+    display: flex;
+    align-items: center;
+  }
+  .controles #rango { width: 100%; margin: 0; accent-color: var(--acento); }
+  .rango-detector {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 32, 0.95);
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.25);
+    z-index: 20;
+  }
+  .rango-detector::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 4px;
+    border-style: solid;
+    border-color: rgba(15, 23, 32, 0.95) transparent transparent transparent;
+  }
   @media (max-width: 600px) {
     .controles { flex-wrap: wrap; padding: 6px 8px 6px; gap: 2px; }
-    #rango { order: -1; flex: 1 1 100%; margin: 0 2px 2px 2px; height: 3px; }
+    .rango-wrapper { order: -1; flex: 1 1 100%; margin: 0 2px 2px 2px; }
+    .controles #rango { height: 3px; }
     .tiempo { order: 0; font-size: 0.75rem; min-width: 72px; }
     .controles button { min-width: 36px; min-height: 36px; font-size: 1.1rem; }
     .controles svg { width: 18px; height: 18px; }
@@ -850,7 +886,8 @@
   .en-pantalla .controles button { min-width: 46px; min-height: 46px; }
   .en-pantalla .controles svg { width: 26px; height: 26px; }
   .en-pantalla .tiempo { order: 0; font-size: .9rem; min-width: 96px; }
-  .en-pantalla #rango { order: -1; flex: 1 1 100%; height: 28px; }
+  .en-pantalla .rango-wrapper { order: -1; flex: 1 1 100%; }
+  .en-pantalla #rango { height: 28px; }
   .en-pantalla .vol-panel { padding: 14px 18px; }
   .en-pantalla .vol-panel input { width: 170px; height: 28px; }
   /* Celular en vertical: todo en una sola fila */
@@ -1146,7 +1183,10 @@
         <button type="button" id="b-anterior" aria-label="Video anterior"></button>
         <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
         <button type="button" id="b-siguiente" aria-label="Video siguiente"></button>
-        <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
+        <div class="rango-wrapper">
+          <div id="rango-detector" class="rango-detector" hidden>0:00</div>
+          <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
+        </div>
         <span class="tiempo" id="tiempo">0:00 / 0:00</span>
         <div class="vol" id="vol-contenedor">
           <div class="vol-panel" id="vol-panel">
@@ -3202,16 +3242,55 @@
 
   volPanel.addEventListener("click", function (e) { e.stopPropagation(); });
   document.addEventListener("click", cerrarVol);
-  rango.addEventListener("input", function () { arrastrando = true; });
+  var rangoDetector = document.getElementById("rango-detector");
+  function actualizarDetectorTiempo() {
+    if (!rangoDetector) return;
+    var dur = (listo && jugador && jugador.getDuration) ? jugador.getDuration() : 0;
+    var val = +rango.value;
+    var seg = (val / 1000) * dur;
+    rangoDetector.textContent = formato(seg);
+    var pct = (val / 1000) * 100;
+    rangoDetector.style.left = pct + "%";
+  }
+
+  rango.addEventListener("pointerenter", function () {
+    if (rangoDetector) rangoDetector.hidden = false;
+    actualizarDetectorTiempo();
+  });
+  rango.addEventListener("pointerleave", function () {
+    if (!arrastrando && rangoDetector) rangoDetector.hidden = true;
+  });
+  rango.addEventListener("pointerdown", function () {
+    arrastrando = true;
+    if (rangoDetector) rangoDetector.hidden = false;
+    actualizarDetectorTiempo();
+  });
+  rango.addEventListener("input", function () {
+    arrastrando = true;
+    if (rangoDetector) rangoDetector.hidden = false;
+    actualizarDetectorTiempo();
+  });
   rango.addEventListener("change", function () {
     if (listo) {
-      var nuevoSeg = jugador.getDuration() * rango.value / 1000;
+      var dur = jugador.getDuration() || 0;
+      var nuevoSeg = dur * rango.value / 1000;
       if (nuevoSeg < 5 && videoActualId) {
-        if (registrarReproduccionSeguida(videoActualId)) { arrastrando = false; return; }
+        if (registrarReproduccionSeguida(videoActualId)) {
+          arrastrando = false;
+          if (rangoDetector) rangoDetector.hidden = true;
+          return;
+        }
       }
       jugador.seekTo(nuevoSeg, true);
     }
     arrastrando = false;
+    if (rangoDetector) rangoDetector.hidden = true;
+  });
+  window.addEventListener("pointerup", function () {
+    if (arrastrando) {
+      arrastrando = false;
+      if (rangoDetector) rangoDetector.hidden = true;
+    }
   });
 
   /* ---------- Volumen (desbloqueado con toque sostenido de 3s) ---------- */
@@ -3302,9 +3381,45 @@
       }
       return;
     }
+
+    // Flechas del teclado para deslizar abajo y arriba
+    if (e.key === "ArrowDown" || e.code === "ArrowDown" || e.keyCode === 40) {
+      e.preventDefault();
+      window.scrollBy({ top: 320, behavior: "smooth" });
+      return;
+    }
+    if (e.key === "ArrowUp" || e.code === "ArrowUp" || e.keyCode === 38) {
+      e.preventDefault();
+      window.scrollBy({ top: -320, behavior: "smooth" });
+      return;
+    }
+    if (e.key === "ArrowRight" || e.code === "ArrowRight" || e.keyCode === 39) {
+      if (document.body.classList.contains("viendo") || (listo && jugador && videoActualId)) {
+        if (jugador && jugador.getCurrentTime && jugador.seekTo) {
+          e.preventDefault();
+          var actual = jugador.getCurrentTime();
+          var dur = jugador.getDuration ? jugador.getDuration() : actual + 10;
+          var nuevo = Math.min(dur, actual + 10);
+          jugador.seekTo(nuevo, true);
+        }
+      }
+      return;
+    }
+    if (e.key === "ArrowLeft" || e.code === "ArrowLeft" || e.keyCode === 37) {
+      if (document.body.classList.contains("viendo") || (listo && jugador && videoActualId)) {
+        if (jugador && jugador.getCurrentTime && jugador.seekTo) {
+          e.preventDefault();
+          var actual = jugador.getCurrentTime();
+          var nuevo = Math.max(0, actual - 10);
+          jugador.seekTo(nuevo, true);
+        }
+      }
+      return;
+    }
   });
 
   /* ---------- Modo padres: quitar la barrera transparente y mostrar controles/engranaje de YouTube ---------- */
+  // Force update
   var bLibre = document.getElementById("b-libre"), tLibre = null;
   bLibre.innerHTML = ICONOS.libre;
   bLibre.title = "Modo Padres: Toca para mostrar controles y engranaje ⚙️ de YouTube";
