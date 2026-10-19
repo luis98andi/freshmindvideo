@@ -89,9 +89,32 @@
       adElems.forEach(function (el) { el.style.display = "none"; });
     } catch (e) {}
   }, 300);
+
+  /* Bloqueo estricto en móvil: desactiva zoom táctil (pellizco/doble toque) y guardar imagen / contextmenu */
+  document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener("gestureend", function (e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener("touchmove", function (e) {
+    if (e.touches && e.touches.length > 1) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+  var _lastTouchEnd = 0;
+  document.addEventListener("touchend", function (e) {
+    var now = Date.now();
+    if (now - _lastTouchEnd <= 300 && e.target && e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA") {
+      e.preventDefault();
+    }
+    _lastTouchEnd = now;
+  }, { passive: false });
+  window.addEventListener("contextmenu", function (e) {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+    e.preventDefault();
+    return false;
+  }, true);
 })();
 </script>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#12a37f">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -116,12 +139,27 @@
     --acento: #12a37f;
     --proporcion: 16 / 9;
   }
-  * { box-sizing: border-box; }
-  .contenedor-reproductor-principal, .controles, .tapa, button, .selector-grid, .logo {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
+  *, *::before, *::after {
+    box-sizing: border-box;
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+  }
+  input, textarea {
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+  }
+  img {
+    -webkit-touch-callout: none !important;
+    -webkit-user-drag: none !important;
+    user-drag: none !important;
+    pointer-events: none;
+  }
+  html, body {
+    touch-action: pan-x pan-y;
+  }
+  button, a, input, select, textarea, .tarjeta, .item {
+    touch-action: manipulation;
   }
   body { margin: 0; min-height: 100vh; background: #8ecbf7 linear-gradient(180deg, #d9f0ff 0%, #9fd6fb 45%, #6fb9f0 100%) fixed; color: var(--texto); font-family: "Nunito", "Segoe UI", Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
   header { position: sticky; top: 0; z-index: 10; background: #fff; padding: 10px 18px; box-shadow: 0 2px 10px rgba(20, 60, 100, .16); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -803,9 +841,45 @@
   .en-pantalla .controles { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; background: linear-gradient(transparent, rgba(0,0,0,.8)); padding-top: 28px; transition: opacity .25s; }
   .en-pantalla.inactivo .controles { opacity: 0; pointer-events: none; }
   .en-pantalla.inactivo { cursor: none; }
+  .rango-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 60px;
+    display: flex;
+    align-items: center;
+  }
+  .controles #rango { width: 100%; margin: 0; accent-color: var(--acento); }
+  .rango-detector {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 0;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 32, 0.95);
+    color: #fff;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.25);
+    z-index: 20;
+  }
+  .rango-detector::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 4px;
+    border-style: solid;
+    border-color: rgba(15, 23, 32, 0.95) transparent transparent transparent;
+  }
   @media (max-width: 600px) {
     .controles { flex-wrap: wrap; padding: 6px 8px 6px; gap: 2px; }
-    #rango { order: -1; flex: 1 1 100%; margin: 0 2px 2px 2px; height: 3px; }
+    .rango-wrapper { order: -1; flex: 1 1 100%; margin: 0 2px 2px 2px; }
+    .controles #rango { height: 3px; }
     .tiempo { order: 0; font-size: 0.75rem; min-width: 72px; }
     .controles button { min-width: 36px; min-height: 36px; font-size: 1.1rem; }
     .controles svg { width: 18px; height: 18px; }
@@ -823,25 +897,69 @@
   .video-marco-wrapper.libre .tapa { display: none !important; }
   .selector-grid .item { position: relative; display: flex; }
   .selector-grid .item > button { width: 100%; }
-  .quitar-video {
-    position: absolute; top: 8px; right: 8px;
-    padding: 6px 12px; border-radius: 999px;
-    background: #e11d48; color: #fff;
-    font-size: 13px; font-weight: 800;
-    display: none; align-items: center; justify-content: center; gap: 4px;
-    cursor: pointer; z-index: 5;
-    box-shadow: 0 2px 8px rgba(0,0,0,.45);
-    border: 1.5px solid rgba(255,255,255,.3);
-    transition: transform .15s ease, background .15s ease;
+  .quitar-video,
+  span.quitar-video,
+  button.quitar-video,
+  .selector-grid .item > .quitar-video,
+  .selector-grid .item > span.quitar-video,
+  .selector-grid .item > button.quitar-video {
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: max-content !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 4px 10px !important;
+    border-radius: 999px !important;
+    background: #e11d48 !important;
+    color: #fff !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    line-height: 1.1 !important;
+    display: none;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    cursor: pointer !important;
+    z-index: 10 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.45) !important;
+    border: 1.5px solid rgba(255,255,255,.4) !important;
+    transition: transform .15s ease, background .15s ease !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    text-align: center !important;
   }
-  .quitar-video:hover { transform: scale(1.06); background: #be123c; }
-  body.padre .quitar-video { display: flex !important; }
+  .quitar-video:hover,
+  span.quitar-video:hover,
+  button.quitar-video:hover {
+    transform: scale(1.06) !important;
+    background: #be123c !important;
+  }
+  .quitar-video .ico-mono,
+  .quitar-video span {
+    font-size: 12px !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+    display: inline-block !important;
+  }
+  body.padre .quitar-video,
+  body.padre span.quitar-video,
+  body.padre button.quitar-video,
+  body.padre .selector-grid .item > .quitar-video,
+  body.padre .selector-grid .item > span.quitar-video,
+  body.padre .selector-grid .item > button.quitar-video {
+    display: inline-flex !important;
+  }
   .btn-ocultar-actual {
     display: none; align-items: center; gap: 6px;
-    padding: 8px 14px; background: #e11d48; color: #fff; border: 0;
-    border-radius: 999px; font-weight: 800; font-size: .85rem;
+    padding: 7px 13px; background: #e11d48; color: #fff; border: 0;
+    border-radius: 999px; font-weight: 800; font-size: .82rem;
     cursor: pointer; box-shadow: 0 2px 8px rgba(225,29,72,.35);
     margin-left: auto; transition: transform .15s ease, background .15s ease;
+    white-space: nowrap; flex-shrink: 0;
   }
   .btn-ocultar-actual:hover { background: #be123c; transform: scale(1.04); }
   body.padre .btn-ocultar-actual { display: inline-flex !important; }
@@ -850,7 +968,8 @@
   .en-pantalla .controles button { min-width: 46px; min-height: 46px; }
   .en-pantalla .controles svg { width: 26px; height: 26px; }
   .en-pantalla .tiempo { order: 0; font-size: .9rem; min-width: 96px; }
-  .en-pantalla #rango { order: -1; flex: 1 1 100%; height: 28px; }
+  .en-pantalla .rango-wrapper { order: -1; flex: 1 1 100%; }
+  .en-pantalla #rango { height: 28px; }
   .en-pantalla .vol-panel { padding: 14px 18px; }
   .en-pantalla .vol-panel input { width: 170px; height: 28px; }
   /* Celular en vertical: todo en una sola fila */
@@ -1146,7 +1265,10 @@
         <button type="button" id="b-anterior" aria-label="Video anterior"></button>
         <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
         <button type="button" id="b-siguiente" aria-label="Video siguiente"></button>
-        <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
+        <div class="rango-wrapper">
+          <div id="rango-detector" class="rango-detector" hidden>0:00</div>
+          <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
+        </div>
         <span class="tiempo" id="tiempo">0:00 / 0:00</span>
         <div class="vol" id="vol-contenedor">
           <div class="vol-panel" id="vol-panel">
@@ -1211,9 +1333,24 @@
     <h2>¡Tiempo terminado por hoy!</h2>
     <p id="bloqueo-txt">El tiempo configurado para este perfil ha terminado.</p>
     <div class="bloqueo-formulario">
-      <input type="password" id="bloqueo-pin" inputmode="numeric" placeholder="Ingresa PIN" maxlength="8">
-      <p id="bloqueo-err" style="color:#d93025;font-weight:800;display:none;margin:4px 0">PIN incorrecto</p>
-      <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap">
+      <input type="password" id="bloqueo-pin" inputmode="numeric" placeholder="Contraseña de padres (o 1234)" maxlength="20" style="padding:10px 14px;border:2px solid #cbd5e1;border-radius:12px;font-size:16px;font-family:inherit;width:100%;max-width:280px;text-align:center;box-sizing:border-box;">
+      <p id="bloqueo-err" style="color:#d93025;font-weight:800;display:none;margin:6px 0">Contraseña incorrecta</p>
+      
+      <div style="margin:12px 0 6px;font-size:13px;font-weight:800;color:#334155">¿Cuánto tiempo extra deseas dar?</div>
+      <div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px;flex-wrap:wrap">
+        <button type="button" class="bloqueo-btn-extra" data-m="5" style="border:0;background:#059669;color:#fff;font-weight:800;padding:7px 12px;border-radius:10px;cursor:pointer">+5 min</button>
+        <button type="button" class="bloqueo-btn-extra" data-m="10" style="border:0;background:#059669;color:#fff;font-weight:800;padding:7px 12px;border-radius:10px;cursor:pointer">+10 min</button>
+        <button type="button" class="bloqueo-btn-extra" data-m="15" style="border:0;background:#059669;color:#fff;font-weight:800;padding:7px 12px;border-radius:10px;cursor:pointer">+15 min</button>
+        <button type="button" class="bloqueo-btn-extra" data-m="30" style="border:0;background:#059669;color:#fff;font-weight:800;padding:7px 12px;border-radius:10px;cursor:pointer">+30 min</button>
+      </div>
+      <div style="display:flex;gap:6px;justify-content:center;align-items:center;margin-bottom:12px">
+        <span style="font-size:12px;font-weight:700;color:#64748b">O personalizado:</span>
+        <input type="number" id="bloqueo-custom-min" min="1" max="999" placeholder="ej: 5" style="width:65px;padding:6px 8px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:800;font-size:14px;text-align:center">
+        <span style="font-size:12px;color:#64748b">min</span>
+        <button type="button" id="bloqueo-btn-custom" style="border:0;background:#0284c7;color:#fff;font-weight:800;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:13px">Desbloquear</button>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap">
         <button type="button" id="bloqueo-btn-entrar" class="bloqueo-btn">Desbloquear (+15 min)</button>
         <button type="button" id="bloqueo-btn-cambiar" class="bloqueo-btn" style="background:#b06a00">Cambiar de perfil</button>
         <button type="button" id="bloqueo-btn-padres" class="bloqueo-btn" style="background:#5b6b7a">Zona de padres</button>
@@ -1692,13 +1829,15 @@
     bloquearPorTiempo(false);
   };
   window.FMV_agregarMinutos = function (p, min) {
-    var lim = obtenerLimiteMinutos(p);
-    if (lim > 0) fijarLimiteMinutos(p, lim + min);
-    else {
-      var segActual = obtenerUsoSegundos(p);
-      guardarUsoSegundos(p, Math.max(0, segActual - (min * 60)));
-    }
+    min = parseInt(min, 10) || 5;
+    var segActual = obtenerUsoSegundos(p);
+    var usoActualMin = Math.ceil(segActual / 60);
+    var limActual = obtenerLimiteMinutos(p);
+    // Aunque lleve 2 horas (120 min), garantiza que tenga exactamente `min` minutos más a partir de este momento:
+    var nuevoLimite = Math.max(limActual, usoActualMin) + min;
+    fijarLimiteMinutos(p, nuevoLimite);
     bloquearPorTiempo(false);
+    if (window.FMV_reanudarVideo) window.FMV_reanudarVideo();
   };
 
   function bloquearPorTiempo(si) {
@@ -1738,6 +1877,7 @@
   }, 1000);
 
   function obtenerPinPadres() {
+    if (window.FMV_obtenerPinPadres) return window.FMV_obtenerPinPadres();
     var p = "1234";
     try {
       var guardado = JSON.parse(localStorage.getItem("fmv_pin_padres"));
@@ -1751,20 +1891,51 @@
 
   function validarPinBloqueo(cb) {
     var val = bloqueoPinEl ? bloqueoPinEl.value.trim() : "";
-    var pinReal = obtenerPinPadres();
-    if (val === pinReal || val === "1234" || simpleHash(val) === (localStorage.getItem("fmv_pin_hash") || DEFAULT_PIN_HASH)) {
+    var ok = false;
+    if (window.FMV_verificarPinPadres) {
+      ok = window.FMV_verificarPinPadres(val);
+    } else {
+      var pinReal = obtenerPinPadres();
+      ok = (val === pinReal || val === "1234");
+    }
+    if (ok) {
       if (bloqueoErrEl) bloqueoErrEl.style.display = "none";
       if (bloqueoPinEl) bloqueoPinEl.value = "";
       cb();
     } else {
-      if (bloqueoErrEl) bloqueoErrEl.style.display = "block";
+      if (bloqueoErrEl) {
+        bloqueoErrEl.textContent = val ? "Contraseña incorrecta" : "Ingresa la contraseña de padres (o 1234)";
+        bloqueoErrEl.style.display = "block";
+      }
       if (bloqueoPinEl) { bloqueoPinEl.value = ""; bloqueoPinEl.focus(); }
     }
   }
+
+  document.querySelectorAll(".bloqueo-btn-extra").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var m = parseInt(btn.getAttribute("data-m"), 10) || 5;
+      validarPinBloqueo(function () {
+        window.FMV_agregarMinutos(window.FMV_perfil || "hija", m);
+      });
+    });
+  });
+
+  var customMinInp = document.getElementById("bloqueo-custom-min");
+  var customMinBtn = document.getElementById("bloqueo-btn-custom");
+  if (customMinBtn && customMinInp) {
+    customMinBtn.addEventListener("click", function () {
+      var m = parseInt(customMinInp.value, 10) || 5;
+      validarPinBloqueo(function () {
+        window.FMV_agregarMinutos(window.FMV_perfil || "hija", m);
+      });
+    });
+  }
+
   if (bloqueoBtnEntrar) {
     bloqueoBtnEntrar.addEventListener("click", function () {
       validarPinBloqueo(function () {
-        window.FMV_agregarMinutos(window.FMV_perfil || "hija", 15);
+        var m = (customMinInp && parseInt(customMinInp.value, 10)) || 15;
+        window.FMV_agregarMinutos(window.FMV_perfil || "hija", m);
       });
     });
   }
@@ -1786,7 +1957,10 @@
   }
   if (bloqueoPinEl) {
     bloqueoPinEl.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") bloqueoBtnEntrar.click();
+      if (e.key === "Enter") {
+        if (customMinInp && customMinInp.value) customMinBtn.click();
+        else bloqueoBtnEntrar.click();
+      }
     });
   }
 
@@ -2156,7 +2330,11 @@
     w.appendChild(b);
     if (window.FMV_esPadre && window.FMV_esPadre()) {
       var q = document.createElement("span");
-      q.className = "quitar-video"; q.innerHTML = "🙈 <span>Ocultar</span>"; q.title = "Ocultar este video para siempre";
+      q.className = "quitar-video";
+      q.setAttribute("role", "button");
+      q.setAttribute("tabindex", "0");
+      q.innerHTML = '<span class="ico-mono">🙈</span> <span>Ocultar</span>';
+      q.title = "Ocultar este video para siempre";
       q.addEventListener("click", function (e) { e.stopPropagation(); quitarVideo(i); });
       w.appendChild(q);
     }
@@ -2618,7 +2796,11 @@
         if (d.error) throw new Error(d.error.message || "error");
         
         var items = d.items || [];
+        var listasOcultas = (window.FMV_listasOcultas ? window.FMV_listasOcultas() : []);
+        var esPadreActivo = (window.FMV_esPadre && window.FMV_esPadre());
         items = items.filter(function (it) {
+          var plId = it.id;
+          if (!esPadreActivo && listasOcultas.indexOf(plId) >= 0) return false;
           var title = it.snippet ? it.snippet.title : "";
           var desc = it.snippet ? it.snippet.description : "";
           if (window.FMV_contienePalabraExcluida && (window.FMV_contienePalabraExcluida(title) || window.FMV_contienePalabraExcluida(desc))) {
@@ -2645,6 +2827,8 @@
           var wrapper = document.createElement("div");
           wrapper.className = "item";
           wrapper.style.position = "relative";
+          var estaOculta = (listasOcultas.indexOf(plId) >= 0);
+          if (estaOculta) wrapper.style.opacity = "0.65";
           
           var btn = document.createElement("button");
           btn.type = "button";
@@ -2668,7 +2852,7 @@
           
           var info = document.createElement("div");
           info.style.cssText = "padding:12px;font-weight:800;font-size:14px;color:#1d2b3a;text-align:left;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;height:36px;box-sizing:content-box;";
-          info.textContent = title;
+          info.textContent = (estaOculta ? "🙈 (Oculta) " : "") + title;
           
           btn.appendChild(port);
           btn.appendChild(info);
@@ -2679,6 +2863,34 @@
             playlistActivaTitulo = title;
             cargarLista();
           });
+
+          if (esPadreActivo) {
+            var q = document.createElement("span");
+            q.className = "quitar-video";
+            q.setAttribute("role", "button");
+            q.setAttribute("tabindex", "0");
+            q.style.background = estaOculta ? "#12a37f" : "#d93025";
+            q.innerHTML = estaOculta ? "👁 <span>Mostrar lista</span>" : '<span class="ico-mono">🙈</span> <span>Ocultar lista</span>';
+            q.title = estaOculta ? "Mostrar lista a los niños" : "Ocultar esta lista completa de reproducción";
+            q.addEventListener("click", function (e) {
+              e.stopPropagation();
+              if (estaOculta) {
+                if (window.FMV_desocultarLista) window.FMV_desocultarLista(plId);
+                cargarListasDeReproduccionDelCanal();
+              } else {
+                function doOcultar() {
+                  if (window.FMV_ocultarLista) window.FMV_ocultarLista(plId, title, tituloCanalActivo.textContent || "");
+                  cargarListasDeReproduccionDelCanal();
+                }
+                if (window.FMV_confirmar) {
+                  window.FMV_confirmar("¿Ocultar la lista completa «" + title + "»? Los niños no podrán verla.", doOcultar);
+                } else {
+                  doOcultar();
+                }
+              }
+            });
+            wrapper.appendChild(q);
+          }
 
           selectorGrid.appendChild(wrapper);
         });
@@ -2699,6 +2911,12 @@
         cargarListasDeReproduccionDelCanal();
         return;
       } else {
+        var lo = window.FMV_listasOcultas ? window.FMV_listasOcultas() : [];
+        if (lo.indexOf(playlistActivaId) >= 0 && (!window.FMV_esPadre || !window.FMV_esPadre())) {
+          playlistActivaId = null;
+          cargarListasDeReproduccionDelCanal();
+          return;
+        }
         canal = playlistActivaId;
       }
     }
@@ -3127,7 +3345,21 @@
     }
   }
 
-  window.FMV_pausarVideo = function () { if (listo && jugador && jugador.pauseVideo) try { jugador.pauseVideo(); } catch (e) {} };
+  window.FMV_pausarVideo = function () {
+    try {
+      if (jugador && jugador.pauseVideo) jugador.pauseVideo();
+    } catch (e) {}
+    try {
+      var iframeMarco = document.querySelector("#marco iframe, #marco, iframe");
+      if (iframeMarco && iframeMarco.contentWindow) {
+        iframeMarco.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+      }
+      document.querySelectorAll("video, audio").forEach(function (el) { el.pause(); });
+      if (bPlay) bPlay.innerHTML = ICONOS.play;
+      actualizarIconoCentro(false);
+      if (tapa) tapa.hidden = false;
+    } catch (e) {}
+  };
   window.FMV_reanudarVideo = function () { if (listo && jugador && jugador.playVideo) try { jugador.playVideo(); } catch (e) {} };
 
   // Controles del reproductor
@@ -3202,16 +3434,55 @@
 
   volPanel.addEventListener("click", function (e) { e.stopPropagation(); });
   document.addEventListener("click", cerrarVol);
-  rango.addEventListener("input", function () { arrastrando = true; });
+  var rangoDetector = document.getElementById("rango-detector");
+  function actualizarDetectorTiempo() {
+    if (!rangoDetector) return;
+    var dur = (listo && jugador && jugador.getDuration) ? jugador.getDuration() : 0;
+    var val = +rango.value;
+    var seg = (val / 1000) * dur;
+    rangoDetector.textContent = formato(seg);
+    var pct = (val / 1000) * 100;
+    rangoDetector.style.left = pct + "%";
+  }
+
+  rango.addEventListener("pointerenter", function () {
+    if (rangoDetector) rangoDetector.hidden = false;
+    actualizarDetectorTiempo();
+  });
+  rango.addEventListener("pointerleave", function () {
+    if (!arrastrando && rangoDetector) rangoDetector.hidden = true;
+  });
+  rango.addEventListener("pointerdown", function () {
+    arrastrando = true;
+    if (rangoDetector) rangoDetector.hidden = false;
+    actualizarDetectorTiempo();
+  });
+  rango.addEventListener("input", function () {
+    arrastrando = true;
+    if (rangoDetector) rangoDetector.hidden = false;
+    actualizarDetectorTiempo();
+  });
   rango.addEventListener("change", function () {
     if (listo) {
-      var nuevoSeg = jugador.getDuration() * rango.value / 1000;
+      var dur = jugador.getDuration() || 0;
+      var nuevoSeg = dur * rango.value / 1000;
       if (nuevoSeg < 5 && videoActualId) {
-        if (registrarReproduccionSeguida(videoActualId)) { arrastrando = false; return; }
+        if (registrarReproduccionSeguida(videoActualId)) {
+          arrastrando = false;
+          if (rangoDetector) rangoDetector.hidden = true;
+          return;
+        }
       }
       jugador.seekTo(nuevoSeg, true);
     }
     arrastrando = false;
+    if (rangoDetector) rangoDetector.hidden = true;
+  });
+  window.addEventListener("pointerup", function () {
+    if (arrastrando) {
+      arrastrando = false;
+      if (rangoDetector) rangoDetector.hidden = true;
+    }
   });
 
   /* ---------- Volumen (desbloqueado con toque sostenido de 3s) ---------- */
@@ -3302,9 +3573,45 @@
       }
       return;
     }
+
+    // Flechas del teclado para deslizar abajo y arriba
+    if (e.key === "ArrowDown" || e.code === "ArrowDown" || e.keyCode === 40) {
+      e.preventDefault();
+      window.scrollBy({ top: 320, behavior: "smooth" });
+      return;
+    }
+    if (e.key === "ArrowUp" || e.code === "ArrowUp" || e.keyCode === 38) {
+      e.preventDefault();
+      window.scrollBy({ top: -320, behavior: "smooth" });
+      return;
+    }
+    if (e.key === "ArrowRight" || e.code === "ArrowRight" || e.keyCode === 39) {
+      if (document.body.classList.contains("viendo") || (listo && jugador && videoActualId)) {
+        if (jugador && jugador.getCurrentTime && jugador.seekTo) {
+          e.preventDefault();
+          var actual = jugador.getCurrentTime();
+          var dur = jugador.getDuration ? jugador.getDuration() : actual + 10;
+          var nuevo = Math.min(dur, actual + 10);
+          jugador.seekTo(nuevo, true);
+        }
+      }
+      return;
+    }
+    if (e.key === "ArrowLeft" || e.code === "ArrowLeft" || e.keyCode === 37) {
+      if (document.body.classList.contains("viendo") || (listo && jugador && videoActualId)) {
+        if (jugador && jugador.getCurrentTime && jugador.seekTo) {
+          e.preventDefault();
+          var actual = jugador.getCurrentTime();
+          var nuevo = Math.max(0, actual - 10);
+          jugador.seekTo(nuevo, true);
+        }
+      }
+      return;
+    }
   });
 
   /* ---------- Modo padres: quitar la barrera transparente y mostrar controles/engranaje de YouTube ---------- */
+  // Force update
   var bLibre = document.getElementById("b-libre"), tLibre = null;
   bLibre.innerHTML = ICONOS.libre;
   bLibre.title = "Modo Padres: Toca para mostrar controles y engranaje ⚙️ de YouTube";
