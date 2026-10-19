@@ -390,7 +390,11 @@
     gm.appendChild(sortWrapper);
     
     if (sort === "recent") {
-        lista.sort(function(a, b) { return (b.t || 0) - (a.t || 0); });
+        lista.sort(function(a, b) {
+            var ta = a.t || 0;
+            var tb = b.t || 0;
+            return tb - ta;
+        });
     }
 
     if (!lista.length) {
