@@ -5,9 +5,9 @@
   var LS_KEY = "fmv_filtro_azul";
 
   var configPorDefecto = {
-    activo: false,
+    activo: true, // Activado por defecto en horarios nocturnos
     intensidad: 25, // porcentaje (10% a 65%)
-    modoHorario: true,
+    modoHorario: true, // Horario nocturno automático activado por defecto
     horaInicio: "19:00",
     horaFin: "07:00",
     temporizadorFin: 0 // timestamp
@@ -16,8 +16,17 @@
   function leerConfig() {
     try {
       var d = JSON.parse(localStorage.getItem(LS_KEY));
-      if (d && typeof d === "object") return Object.assign({}, configPorDefecto, d);
+      if (d && typeof d === "object") {
+        if (!localStorage.getItem("fmv_filtro_noche_v1")) {
+          d.activo = true;
+          d.modoHorario = true;
+          localStorage.setItem("fmv_filtro_noche_v1", "1");
+          localStorage.setItem(LS_KEY, JSON.stringify(d));
+        }
+        return Object.assign({}, configPorDefecto, d);
+      }
     } catch (e) {}
+    try { localStorage.setItem("fmv_filtro_noche_v1", "1"); } catch (e) {}
     return Object.assign({}, configPorDefecto);
   }
 

@@ -30,9 +30,9 @@ Tú decides exactamente qué contenido pueden ver tus hijos.
 3. Puedes escribir palabras clave, el nombre del canal (ej. `Dr. Plants`, `El Reino Infantil`) o pegar directamente el enlace URL o ID del video/canal de YouTube.
 4. Toca **"+ Agregar"** en el resultado deseado.
 
-### B. Ocultar videos no deseados
-* Puedes ocultar videos individuales que no consideres aptos tocando el botón rojo **"🙈 Ocultar video"**.
-* En la Zona de Padres, la sección **"🙈 Videos ocultos"** te permite revisar todos los videos excluidos y restaurarlos cuando quieras.
+### B. Ocultar videos y listas completas
+* Puedes ocultar videos individuales y listas completas de reproducción que no consideres aptas tocando el botón **"🙈 Ocultar"** o **"🙈 Ocultar lista"**.
+* En la Zona de Padres, la sección **"🙈 Videos y listas ocultas"** te permite revisar todos los videos y listas excluidas y restaurarlos en cualquier momento.
 
 ### C. Filtro de palabras excluidas
 * Define una lista de términos no deseados (ej. `miedo`, `terror`, `violencia`, `broma`).
@@ -45,8 +45,9 @@ Evita el agotamiento visual y fomenta hábitos saludables con límites automáti
 
 * En la Zona de Padres, abre **"⏱ Tiempo de pantalla y temporizador"**.
 * Puedes configurar límites de tiempo separados para cada perfil (**👧 Hija** y **👦 Hijo**): por ejemplo, 45 minutos al día.
+* **Tiempo extra flexible:** Si tu hijo ya vio varias horas y necesitas darle solo 5 minutos más (o el tiempo que desees), puedes tocar los botones de tiempo extra (`+5 min`, `+10 min`, `+15 min`, `+30 min` o personalizar los minutos). Esto garantiza que tendrá exactamente ese tiempo adicional a partir de ese momento.
 * **Bloqueo automático:** Cuando el tiempo se agota, la pantalla se bloquea inmediatamente con una pantalla de descanso.
-* Solo un adulto con el PIN puede otorgar tiempo extra (+15 min) o cambiar de perfil.
+* Solo un adulto con la contraseña de padres (o PIN predeterminado 1234) puede otorgar tiempo extra o cambiar de perfil.
 
 ---
 

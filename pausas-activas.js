@@ -32,8 +32,32 @@
     pausaEnCurso = true;
     segundosViendoContinuo = 0;
 
-    // Pausar video si está reproduciendo
-    if (window.FMV_pausarVideo) window.FMV_pausarVideo();
+    // Pausar video de inmediato y mantenerlo pausado mientras dure la pausa
+    function pausarTodo() {
+      if (window.FMV_pausarVideo) {
+        try { window.FMV_pausarVideo(); } catch (e) {}
+      }
+      try {
+        var iframes = document.querySelectorAll("iframe");
+        iframes.forEach(function (f) {
+          try {
+            f.contentWindow.postMessage(JSON.stringify({ event: "command", func: "pauseVideo", args: [] }), "*");
+          } catch (err) {}
+        });
+        document.querySelectorAll("video, audio").forEach(function (el) {
+          try { el.pause(); } catch (err) {}
+        });
+      } catch (e) {}
+    }
+
+    pausarTodo();
+    var keepPaused = setInterval(function () {
+      if (pausaEnCurso) {
+        pausarTodo();
+      } else {
+        clearInterval(keepPaused);
+      }
+    }, 400);
 
     var overlay = document.createElement("div");
     overlay.id = "fmv-pausa-activa-overlay";
@@ -76,6 +100,7 @@
 
     function cerrarPausa() {
       clearInterval(timer);
+      clearInterval(keepPaused);
       if (overlay && overlay.parentNode) overlay.remove();
       pausaEnCurso = false;
       if (window.FMV_reanudarVideo) window.FMV_reanudarVideo();

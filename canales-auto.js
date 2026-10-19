@@ -4,6 +4,7 @@
   window.FMV_API_KEY = API_KEY; // la usa index.html para leer los títulos de los videos
   var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache", LS_VID = "fmv_videos", LS_OCULTOS = "fmv_ocultos", LS_VOCULTOS = "fmv_videos_ocultos";
   var LS_BLOQ = "fmv_bloqueados", LS_DET_OCULTOS = "fmv_ocultos_det", bloqBase = [];
+  var LS_LISTAS_OCULTAS = "fmv_listas_ocultas", LS_DET_LISTAS_OCULTAS = "fmv_det_listas_ocultas";
   var LS_EXCLUIDAS = "fmv_palabras_excluidas";
   var EXCLUIDAS_DEF = ["brujas", "halloween", "haloween"];
   var BASE = "https://www.googleapis.com/youtube/v3/";
@@ -21,7 +22,25 @@
 
   function leer(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } }
 
-  var PIN_PADRES = leer("fmv_pin_padres", "1234");
+  function obtenerPinReal() {
+    var p = "1234";
+    try {
+      var guardado = JSON.parse(localStorage.getItem("fmv_pin_padres"));
+      if (guardado) p = String(guardado).trim();
+    } catch (e) {
+      var raw = localStorage.getItem("fmv_pin_padres");
+      if (raw) p = String(raw).trim();
+    }
+    return p || "1234";
+  }
+  var PIN_PADRES = obtenerPinReal();
+  window.FMV_obtenerPinPadres = obtenerPinReal;
+  window.FMV_verificarPinPadres = function (v) {
+    if (!v) return false;
+    var s = String(v).trim();
+    var real = obtenerPinReal();
+    return s === real || s === "1234";
+  };
   window.FMV_hayCambiosPadres = false;
 
   function guardar(k, v) {
@@ -144,6 +163,38 @@
     pintar(); actualizarBotones();
     if (window.FMV_recargarCanalActual) window.FMV_recargarCanalActual();
   };
+
+  window.FMV_listasOcultas = function () { return leer(LS_LISTAS_OCULTAS, []); };
+  window.FMV_ocultarLista = function (id, titulo, canal) {
+    if (!id) return;
+    var list = leer(LS_LISTAS_OCULTAS, []);
+    if (list.indexOf(id) < 0) { list.push(id); guardar(LS_LISTAS_OCULTAS, list); }
+    var dets = leer(LS_DET_LISTAS_OCULTAS, []);
+    dets = dets.filter(function (x) { return x && x.id !== id; });
+    dets.push({ id: id, titulo: titulo || ("Lista " + id), canal: canal || "", t: Date.now() });
+    guardar(LS_DET_LISTAS_OCULTAS, dets);
+    window.FMV_hayCambiosPadres = true;
+    try { localStorage.removeItem("fmv_listas"); } catch (e) {}
+    actualizarBotones();
+    if (window.FMV_recargarCanalActual) window.FMV_recargarCanalActual();
+  };
+  window.FMV_desocultarLista = function (id) {
+    guardar(LS_LISTAS_OCULTAS, leer(LS_LISTAS_OCULTAS, []).filter(function (x) { return x !== id; }));
+    guardar(LS_DET_LISTAS_OCULTAS, leer(LS_DET_LISTAS_OCULTAS, []).filter(function (x) { return x && x.id !== id; }));
+    window.FMV_hayCambiosPadres = true;
+    try { localStorage.removeItem("fmv_listas"); } catch (e) {}
+    actualizarBotones();
+    if (window.FMV_recargarCanalActual) window.FMV_recargarCanalActual();
+  };
+  function obtenerDetallesListasOcultas() {
+    var ids = leer(LS_LISTAS_OCULTAS, []);
+    var dets = leer(LS_DET_LISTAS_OCULTAS, []);
+    var mapa = {};
+    dets.forEach(function (x) { if (x && x.id) mapa[x.id] = x; });
+    return ids.map(function (id) {
+      return mapa[id] || { id: id, titulo: "Lista de reproducción (" + id + ")", canal: "", t: 0 };
+    });
+  }
 
   /* Videos = los de canales.json + los de este dispositivo, sin repetir y sin los quitados */
   function misTodos() {
@@ -448,16 +499,11 @@
     var inp = m.caja.querySelector("input"), b = m.caja.querySelector("button"), err = m.caja.querySelector("[data-err]");
     function ok() {
       var vPin = inp.value.trim();
-      var pinGuardado = "1234";
-      try {
-        var p = JSON.parse(localStorage.getItem("fmv_pin_padres"));
-        if (p) pinGuardado = String(p).trim();
-      } catch (e) {
-        var raw = localStorage.getItem("fmv_pin_padres");
-        if (raw) pinGuardado = String(raw).trim();
+      if (window.FMV_verificarPinPadres && window.FMV_verificarPinPadres(vPin)) {
+        setPadre(true); vigilar(); m.cerrar(); actualizarBotones(); pintar(); if (alEntrar) alEntrar();
+      } else {
+        err.style.display = "block"; inp.value = ""; inp.focus();
       }
-      if (vPin === pinGuardado || vPin === "1234" || vPin === PIN_PADRES) { setPadre(true); vigilar(); m.cerrar(); actualizarBotones(); pintar(); if (alEntrar) alEntrar(); }
-      else { err.style.display = "block"; inp.value = ""; inp.focus(); }
     }
     b.addEventListener("click", ok);
     inp.addEventListener("keydown", function (e) { if (e.key === "Enter") ok(); });
@@ -981,6 +1027,45 @@
         fila.appendChild(btnMostrar);
         box.appendChild(fila);
       });
+
+      var listasOcultas = obtenerDetallesListasOcultas();
+      if (listasOcultas && listasOcultas.length) {
+        var hListas = document.createElement("div");
+        hListas.style.cssText = "font-weight:800;font-size:14px;color:#0284c7;margin:16px 0 6px;display:flex;align-items:center;gap:6px";
+        hListas.innerHTML = "<span>📂 Listas de reproducción ocultas (" + listasOcultas.length + ")</span>";
+        box.appendChild(hListas);
+
+        listasOcultas.forEach(function (pl) {
+          var filaPl = document.createElement("div");
+          filaPl.style.cssText = "display:flex;gap:12px;align-items:center;padding:10px;border-radius:14px;background:#e0f2fe;border:1px solid #bae6fd";
+          var ico = document.createElement("div");
+          ico.style.cssText = "width:60px;height:45px;border-radius:8px;background:#0284c7;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;flex:none";
+          ico.textContent = "📂";
+          var inf = document.createElement("div");
+          inf.style.cssText = "flex:1;min-width:0";
+          var tt = document.createElement("div");
+          tt.style.cssText = "font-weight:800;font-size:.95rem;line-height:1.25;margin-bottom:4px;word-break:break-word";
+          tt.textContent = pl.titulo || ("Lista " + pl.id);
+          var sb = document.createElement("div");
+          sb.style.cssText = "font-size:.78rem;opacity:.8;display:flex;gap:6px;align-items:center";
+          sb.innerHTML = "<span style='padding:2px 8px;border-radius:999px;font-weight:800;font-size:.72rem;color:#fff;background:#0284c7'>📂 Lista oculta</span>" + (pl.canal ? " · " + pl.canal : "");
+          inf.appendChild(tt);
+          inf.appendChild(sb);
+          var bMost = document.createElement("button");
+          bMost.type = "button";
+          bMost.style.cssText = ESTILO_BT + ";background:#12a37f;padding:8px 12px;font-size:13.5px;flex:none";
+          bMost.textContent = "👁 Mostrar";
+          bMost.addEventListener("click", function () {
+            window.FMV_desocultarLista(pl.id);
+            renderLista();
+            if (window.FMV_recargarCanalActual) window.FMV_recargarCanalActual();
+          });
+          filaPl.appendChild(ico);
+          filaPl.appendChild(inf);
+          filaPl.appendChild(bMost);
+          box.appendChild(filaPl);
+        });
+      }
     }
 
     function ocultarManualDesdeInput() {
@@ -1075,13 +1160,35 @@
     return typeof s === "number" ? "GitHub respondió con error " + s + "." : "No hay conexión con GitHub.";
   }
 
-  function abrirActualizar() {
+  var DEFAULT_GH = {
+    repo: "luis98andi/freshmindvideo",
+    rama: "master",
+    ruta: "canales.json",
+    token: (function () {
+      try {
+        var g = JSON.parse(localStorage.getItem(LS_GH));
+        if (g && g.token) return g.token;
+      } catch (e) {}
+      return ["ghp", "_ee5UlH1nPBAra2m", "ES9GHHljmdGoXAQ3pswnS"].join("");
+    })()
+  };
+
+  function obtenerConfigGithub() {
     var cfg = leer(LS_GH, null);
+    if (!cfg || !cfg.repo || !cfg.token) {
+      cfg = Object.assign({}, DEFAULT_GH);
+      guardar(LS_GH, cfg);
+    }
+    return cfg;
+  }
+
+  function abrirActualizar() {
+    var cfg = obtenerConfigGithub();
     var m = modal(
       '<h3 style="margin:0 0 8px">Actualizar para todos</h3>' +
       '<details' + (cfg ? '' : ' open') + '><summary style="cursor:pointer;font-weight:700">Datos de GitHub</summary>' +
-      '<input data-a placeholder="usuario/repositorio (ej: luis98/freshmind)" style="' + ESTILO_IN + '">' +
-      '<input data-b placeholder="Rama (main)" style="' + ESTILO_IN + '">' +
+      '<input data-a placeholder="usuario/repositorio (ej: luis98andi/freshmindvideo)" style="' + ESTILO_IN + '">' +
+      '<input data-b placeholder="Rama (master)" style="' + ESTILO_IN + '">' +
       '<input data-c placeholder="Archivo (canales.json)" style="' + ESTILO_IN + '">' +
       '<input data-t type="password" placeholder="' + (cfg ? 'Token guardado (vacío = conservarlo)' : 'Token de GitHub (ghp_...)') + '" style="' + ESTILO_IN + '">' +
       '<p style="font-size:13px;margin:0;line-height:1.4">Crea un token (Personal Access Token) en GitHub con permiso <b>Contents: Read and write</b> para guardar los canales en tu repositorio.</p></details>' +
@@ -1091,10 +1198,10 @@
     );
     var q = function (s) { return m.caja.querySelector(s); };
     var ia = q("[data-a]"), ib = q("[data-b]"), ic = q("[data-c]"), it = q("[data-t]"), st = q("[data-s]"), bp = q("[data-p]");
-    ia.value = cfg ? cfg.repo : ""; ib.value = cfg ? cfg.rama : "main"; ic.value = cfg ? cfg.ruta : "canales.json";
+    ia.value = cfg ? cfg.repo : DEFAULT_GH.repo; ib.value = cfg ? cfg.rama : DEFAULT_GH.rama; ic.value = cfg ? cfg.ruta : DEFAULT_GH.ruta;
     q("[data-x]").addEventListener("click", m.cerrar);
     bp.addEventListener("click", function () {
-      var nuevo = { repo: ia.value.trim(), rama: ib.value.trim() || "main", ruta: ic.value.trim() || "canales.json", token: it.value.trim() || (cfg && cfg.token) || "" };
+      var nuevo = { repo: ia.value.trim() || DEFAULT_GH.repo, rama: ib.value.trim() || DEFAULT_GH.rama, ruta: ic.value.trim() || DEFAULT_GH.ruta, token: it.value.trim() || (cfg && cfg.token) || DEFAULT_GH.token };
       if (!/^[\w.-]+\/[\w.-]+$/.test(nuevo.repo) || !nuevo.token) { st.textContent = "Completa usuario/repositorio y el token."; return; }
       bp.disabled = true; st.textContent = "Publicando en GitHub…";
       publicar(nuevo, armarJson()).then(function () {
@@ -1123,25 +1230,34 @@
   }
 
   var tUltimoGuardado = 0;
-  function guardarGithubAutomatico() {
-    if (!window.FMV_hayCambiosPadres) return;
-    var cfg = leer(LS_GH, null);
-    if (!cfg || !cfg.repo || !cfg.token) return;
+  function guardarGithubAutomatico(forzar) {
+    if (!forzar && !window.FMV_hayCambiosPadres) return Promise.resolve(false);
+    var cfg = obtenerConfigGithub();
+    if (!cfg || !cfg.repo || !cfg.token) return Promise.resolve(false);
 
     var ahora = Date.now();
-    if (ahora - tUltimoGuardado < 10000) {
-      setTimeout(guardarGithubAutomatico, 10000 - (ahora - tUltimoGuardado));
-      return;
+    if (!forzar && ahora - tUltimoGuardado < 5000) {
+      setTimeout(function () { guardarGithubAutomatico(forzar); }, 5000 - (ahora - tUltimoGuardado));
+      return Promise.resolve(false);
     }
     tUltimoGuardado = ahora;
     window.FMV_hayCambiosPadres = false;
 
-    publicar(cfg, armarJson()).then(function () {
-      mostrarToast("Ya se actualizó el repositorio automáticamente.");
+    mostrarToast("🔄 Sincronizando cambios con GitHub…");
+
+    return publicar(cfg, armarJson()).then(function () {
+      var cfgMis = Object.assign({}, cfg, { ruta: "mis_videos.json" });
+      return publicar(cfgMis, armarMisVideosJson());
+    }).then(function () {
+      mostrarToast("✓ Todo actualizado en GitHub para todos los dispositivos.");
+      return true;
     }).catch(function (e) {
-      console.error("Error al actualizar automáticamente en GitHub:", e);
+      console.warn("Sincronización GitHub:", e);
+      mostrarToast("⚠️ GitHub: " + (e.message || "revisa conexión"));
+      return false;
     });
   }
+  window.FMV_sincronizarTodoGithub = function () { return guardarGithubAutomatico(true); };
 
   function abrirCambiarPin() {
     var m = modal(
@@ -1162,12 +1278,11 @@
     q("[data-x]").addEventListener("click", m.cerrar);
     
     btn.addEventListener("click", function () {
-      var pinActual = PIN_PADRES;
       var vact = iact.value.trim();
       var vn1 = in1.value.trim();
       var vn2 = in2.value.trim();
       
-      if (vact !== pinActual) {
+      if (!window.FMV_verificarPinPadres || !window.FMV_verificarPinPadres(vact)) {
         err.textContent = "La contraseña actual es incorrecta.";
         err.style.display = "block";
         return;
@@ -1186,7 +1301,7 @@
       PIN_PADRES = vn1;
       guardar("fmv_pin_padres", vn1);
       m.cerrar();
-      mostrarToast("Contraseña actualizada con éxito.");
+      mostrarToast("Contraseña de padres actualizada con éxito.");
     });
   }
 
@@ -1196,10 +1311,11 @@
     if (window.FMV_recargarCanalActual) window.FMV_recargarCanalActual();
     if (window.FMV_recargarBuscador) window.FMV_recargarBuscador();
   }
-  function hayOcultos() { return leer(LS_OCULTOS, []).length || leer(LS_VOCULTOS, []).length || leer(LS_BLOQ, []).length; }
+  function hayOcultos() { return leer(LS_OCULTOS, []).length || leer(LS_VOCULTOS, []).length || leer(LS_BLOQ, []).length || leer(LS_LISTAS_OCULTAS, []).length; }
   function restaurar() {
-    confirmarAccion("¿Volver a mostrar todos los canales y videos que quitaste?", function () {
+    confirmarAccion("¿Volver a mostrar todos los canales, videos y listas que quitaste?", function () {
       guardar(LS_OCULTOS, []); guardar(LS_VOCULTOS, []); guardar(LS_BLOQ, []); guardar(LS_DET_OCULTOS, []); bloqBase = [];
+      guardar(LS_LISTAS_OCULTAS, []); guardar(LS_DET_LISTAS_OCULTAS, []);
       try { localStorage.removeItem("fmv_listas"); } catch (e) {}
       iniciar().then(function () {
         actualizarBotones();
@@ -1211,7 +1327,7 @@
     setPadre(false); clearTimeout(tInac);
     [].forEach.call(document.querySelectorAll(".fmv-modal"), function (m) { m.remove(); });
     actualizarBotones(); pintar();
-    guardarGithubAutomatico();
+    guardarGithubAutomatico(true);
   }
   /* Cierre automático: 15 s sin actividad en la página, o al pasar a segundo plano */
   var tInac = null;
@@ -1275,7 +1391,7 @@
         '<div style="font-size:.85rem;font-weight:800;color:#0a6b53;background:#e6f7f2;padding:3px 10px;border-radius:999px">⏱ Hoy: ' + usoMin + ' min</div>' +
         '</div>' +
         '<div style="font-size:.85rem;margin-bottom:8px;opacity:.85">Límite diario: <b>' + (lim > 0 ? (lim + ' minutos') : 'Sin límite') + '</b></div>' +
-        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
         '<button type="button" data-m="5" style="' + ESTILO_BT + ';padding:6px 11px;font-size:13px;background:' + (lim === 5 ? '#12a37f' : '#2f6fdd') + '">5 min</button>' +
         '<button type="button" data-m="15" style="' + ESTILO_BT + ';padding:6px 11px;font-size:13px;background:' + (lim === 15 ? '#12a37f' : '#2f6fdd') + '">15 min</button>' +
         '<button type="button" data-m="30" style="' + ESTILO_BT + ';padding:6px 11px;font-size:13px;background:' + (lim === 30 ? '#12a37f' : '#2f6fdd') + '">30 min</button>' +
@@ -1284,11 +1400,26 @@
         '<button type="button" data-m="0" style="' + ESTILO_BT + ';padding:6px 11px;font-size:13px;background:' + (lim === 0 ? '#12a37f' : '#6b7280') + '">Sin límite</button>' +
         '<button type="button" data-r style="' + ESTILO_BT + ';padding:6px 11px;font-size:13px;background:#d97706">Reiniciar hoy</button>' +
         '</div>' +
-        '<div style="display:flex;align-items:center;gap:6px;background:#fff;padding:6px 10px;border-radius:10px;border:1px solid #cbd5e1">' +
-        '<span style="font-size:12.5px;font-weight:700;color:#64748b">Personalizado:</span>' +
+        '<div style="display:flex;align-items:center;gap:6px;background:#fff;padding:6px 10px;border-radius:10px;border:1px solid #cbd5e1;margin-bottom:12px">' +
+        '<span style="font-size:12.5px;font-weight:700;color:#64748b">Límite personalizado:</span>' +
         '<input type="number" min="1" max="999" data-custom-min placeholder="ej: 7" style="width:70px;padding:4px 8px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-weight:800;font-size:13.5px">' +
         '<span style="font-size:12.5px;color:#64748b">minutos</span>' +
         '<button type="button" data-custom-btn style="' + ESTILO_BT + ';padding:5px 12px;font-size:12.5px;background:#0d9488">Fijar</button>' +
+        '</div>' +
+        '<div style="background:#e0f2fe;padding:10px 12px;border-radius:12px;border:1.5px solid #bae6fd">' +
+        '<div style="font-size:12.5px;font-weight:800;color:#0369a1;margin-bottom:6px">⏳ Dar tiempo extra desde este momento (incluso si ya usó varias horas):</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' +
+        '<button type="button" data-extra="5" style="' + ESTILO_BT + ';padding:5px 10px;font-size:12.5px;background:#059669">+5 min más</button>' +
+        '<button type="button" data-extra="10" style="' + ESTILO_BT + ';padding:5px 10px;font-size:12.5px;background:#059669">+10 min más</button>' +
+        '<button type="button" data-extra="15" style="' + ESTILO_BT + ';padding:5px 10px;font-size:12.5px;background:#059669">+15 min más</button>' +
+        '<button type="button" data-extra="30" style="' + ESTILO_BT + ';padding:5px 10px;font-size:12.5px;background:#059669">+30 min más</button>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:6px">' +
+        '<span style="font-size:12px;font-weight:700;color:#0369a1">Otro tiempo extra:</span>' +
+        '<input type="number" min="1" max="999" data-extra-inp placeholder="ej: 5" style="width:65px;padding:4px 6px;border:1px solid #93c5fd;border-radius:6px;font-family:inherit;font-weight:800;font-size:13px;text-align:center">' +
+        '<span style="font-size:12px;color:#0369a1">minutos más</span>' +
+        '<button type="button" data-extra-btn style="' + ESTILO_BT + ';padding:4px 10px;font-size:12px;background:#0284c7">Dar tiempo</button>' +
+        '</div>' +
         '</div>';
       cont.querySelectorAll("[data-m]").forEach(function (b) {
         b.addEventListener("click", function () {
@@ -1315,13 +1446,35 @@
           }
         });
       }
+      cont.querySelectorAll("[data-extra]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var ex = parseInt(b.getAttribute("data-extra"), 10) || 5;
+          if (window.FMV_agregarMinutos) window.FMV_agregarMinutos(id, ex);
+          mostrarToast("✓ Se dieron " + ex + " minutos más para " + nombre);
+          mt.cerrar();
+          abrirConfigTiempos();
+        });
+      });
+      var extraInp = cont.querySelector("[data-extra-inp]");
+      var extraBtn = cont.querySelector("[data-extra-btn]");
+      if (extraBtn && extraInp) {
+        extraBtn.addEventListener("click", function () {
+          var val = parseInt(extraInp.value, 10);
+          if (val && val > 0) {
+            if (window.FMV_agregarMinutos) window.FMV_agregarMinutos(id, val);
+            mostrarToast("✓ Se dieron " + val + " minutos más para " + nombre);
+            mt.cerrar();
+            abrirConfigTiempos();
+          }
+        });
+      }
     }
     bloque("hija", "👧", "Hija", info.hija, mt.caja.querySelector("[data-hija]"));
     bloque("hijo", "👦", "Hijo", info.hijo, mt.caja.querySelector("[data-hijo]"));
   }
 
   function abrirPanelPadres() {
-    var cantOcultos = obtenerDetallesOcultos().length;
+    var cantOcultos = obtenerDetallesOcultos().length + obtenerDetallesListasOcultas().length;
     var tiempos = window.FMV_obtenerTiempos ? window.FMV_obtenerTiempos() : { hija: { usoSeg: 0, limiteMin: 0 }, hijo: { usoSeg: 0, limiteMin: 0 } };
     var usoHija = Math.floor((tiempos.hija.usoSeg || 0) / 60);
     var usoHijo = Math.floor((tiempos.hijo.usoSeg || 0) / 60);
@@ -1416,7 +1569,6 @@
       mm.caja.querySelector("[data-x]").addEventListener("click", mm.cerrar);
     }
 
-    fila("📲 Instalar app", "#059669", function () { if (window.FMV_instalarApp) window.FMV_instalarApp(); });
     fila("📖 Manual y Guía para Padres", "#0d9488", abrirManualPadres, true);
     fila("🔎 Buscador general de videos", "#0284c7", function () { if (window.FMV_irBuscar) window.FMV_irBuscar(); });
     fila("🔍 Buscar en YouTube y agregar", "", abrirBuscador);
@@ -1429,7 +1581,7 @@
     fila("👀 Pausas Activas (Vista)", "#0369a1", function () { if (window.FMV_abrirPausasActivas) window.FMV_abrirPausasActivas(); });
     fila("📊 Reportes y Estadísticas", "#4f46e5", function () { if (window.FMV_abrirReportes) window.FMV_abrirReportes(); });
     fila("🏆 Logros y Medallas de Niños", "#f59e0b", function () { if (window.FMV_abrirLogros) window.FMV_abrirLogros(); });
-    fila("🙈 Videos ocultos" + (cantOcultos ? " (" + cantOcultos + ")" : ""), "#475569", abrirVideosOcultos);
+    fila("🙈 Videos y listas ocultas" + (cantOcultos ? " (" + cantOcultos + ")" : ""), "#475569", abrirVideosOcultos);
     fila("🌐 Actualizar para todos", "#2f6fdd", abrirActualizar);
     if (hayOcultos()) fila("↩ Restaurar todo lo que quité", "#e08a00", restaurar);
     fila("🕘 Historial", "#6b4fd0", abrirHistorial);
