@@ -897,25 +897,69 @@
   .video-marco-wrapper.libre .tapa { display: none !important; }
   .selector-grid .item { position: relative; display: flex; }
   .selector-grid .item > button { width: 100%; }
-  .quitar-video {
-    position: absolute; top: 8px; right: 8px;
-    padding: 6px 12px; border-radius: 999px;
-    background: #e11d48; color: #fff;
-    font-size: 13px; font-weight: 800;
-    display: none; align-items: center; justify-content: center; gap: 4px;
-    cursor: pointer; z-index: 5;
-    box-shadow: 0 2px 8px rgba(0,0,0,.45);
-    border: 1.5px solid rgba(255,255,255,.3);
-    transition: transform .15s ease, background .15s ease;
+  .quitar-video,
+  span.quitar-video,
+  button.quitar-video,
+  .selector-grid .item > .quitar-video,
+  .selector-grid .item > span.quitar-video,
+  .selector-grid .item > button.quitar-video {
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: max-content !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding: 4px 10px !important;
+    border-radius: 999px !important;
+    background: #e11d48 !important;
+    color: #fff !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    line-height: 1.1 !important;
+    display: none;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    cursor: pointer !important;
+    z-index: 10 !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,.45) !important;
+    border: 1.5px solid rgba(255,255,255,.4) !important;
+    transition: transform .15s ease, background .15s ease !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    text-align: center !important;
   }
-  .quitar-video:hover { transform: scale(1.06); background: #be123c; }
-  body.padre .quitar-video { display: flex !important; }
+  .quitar-video:hover,
+  span.quitar-video:hover,
+  button.quitar-video:hover {
+    transform: scale(1.06) !important;
+    background: #be123c !important;
+  }
+  .quitar-video .ico-mono,
+  .quitar-video span {
+    font-size: 12px !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+    display: inline-block !important;
+  }
+  body.padre .quitar-video,
+  body.padre span.quitar-video,
+  body.padre button.quitar-video,
+  body.padre .selector-grid .item > .quitar-video,
+  body.padre .selector-grid .item > span.quitar-video,
+  body.padre .selector-grid .item > button.quitar-video {
+    display: inline-flex !important;
+  }
   .btn-ocultar-actual {
     display: none; align-items: center; gap: 6px;
-    padding: 8px 14px; background: #e11d48; color: #fff; border: 0;
-    border-radius: 999px; font-weight: 800; font-size: .85rem;
+    padding: 7px 13px; background: #e11d48; color: #fff; border: 0;
+    border-radius: 999px; font-weight: 800; font-size: .82rem;
     cursor: pointer; box-shadow: 0 2px 8px rgba(225,29,72,.35);
     margin-left: auto; transition: transform .15s ease, background .15s ease;
+    white-space: nowrap; flex-shrink: 0;
   }
   .btn-ocultar-actual:hover { background: #be123c; transform: scale(1.04); }
   body.padre .btn-ocultar-actual { display: inline-flex !important; }
@@ -2286,7 +2330,11 @@
     w.appendChild(b);
     if (window.FMV_esPadre && window.FMV_esPadre()) {
       var q = document.createElement("span");
-      q.className = "quitar-video"; q.innerHTML = "🙈 <span>Ocultar</span>"; q.title = "Ocultar este video para siempre";
+      q.className = "quitar-video";
+      q.setAttribute("role", "button");
+      q.setAttribute("tabindex", "0");
+      q.innerHTML = '<span class="ico-mono">🙈</span> <span>Ocultar</span>';
+      q.title = "Ocultar este video para siempre";
       q.addEventListener("click", function (e) { e.stopPropagation(); quitarVideo(i); });
       w.appendChild(q);
     }
@@ -2819,8 +2867,10 @@
           if (esPadreActivo) {
             var q = document.createElement("span");
             q.className = "quitar-video";
+            q.setAttribute("role", "button");
+            q.setAttribute("tabindex", "0");
             q.style.background = estaOculta ? "#12a37f" : "#d93025";
-            q.innerHTML = estaOculta ? "👁 <span>Mostrar lista</span>" : "🙈 <span>Ocultar lista</span>";
+            q.innerHTML = estaOculta ? "👁 <span>Mostrar lista</span>" : '<span class="ico-mono">🙈</span> <span>Ocultar lista</span>';
             q.title = estaOculta ? "Mostrar lista a los niños" : "Ocultar esta lista completa de reproducción";
             q.addEventListener("click", function (e) {
               e.stopPropagation();

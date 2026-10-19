@@ -344,17 +344,22 @@
 
     if (esPadreModo) {
       if (!ver) w.style.opacity = ".4";
-      var x = document.createElement("button");
+      var x = document.createElement("span");
       x.className = "quitar-video";
-      x.innerHTML = "🙈 <span>Ocultar</span>";
+      x.setAttribute("role", "button");
+      x.setAttribute("tabindex", "0");
+      x.innerHTML = '<span class="ico-mono">🙈</span> <span>Ocultar</span>';
       x.title = "Ocultar este video para siempre";
-      x.style.display = "flex";
-      x.addEventListener("click", function (ev) {
-        ev.stopPropagation();
+      function doQuitar(ev) {
+        if (ev) ev.stopPropagation();
         confirmarAccion("¿Ocultar este video («" + (v.titulo || v.id) + "»)? No volverá a aparecer.", function () {
           window.FMV_ocultarVideo(v.id, v.titulo, "⭐ Mis videos", "padre");
           pintar();
         });
+      }
+      x.addEventListener("click", doQuitar);
+      x.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); doQuitar(e); }
       });
       w.appendChild(x);
       w.appendChild(chipsPerfil(v, function () { return vperf(v); }, function (ps) { var m = leer(LS_VPERF, {}); m[v.id] = ps; guardar(LS_VPERF, m); pintar(); }));
