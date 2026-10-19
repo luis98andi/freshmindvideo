@@ -382,7 +382,8 @@
     btnSort.textContent = "Ordenar: " + (sort === "recent" ? "Más recientes" : "Defecto");
     btnSort.style.cssText = "padding:6px 14px;border:0;background:#64748b;color:#fff;border-radius:999px;cursor:pointer;font-weight:700;font-family:inherit;font-size:13px;display:inline-block";
     btnSort.addEventListener("click", function () {
-        guardar("fmv_sort_mis", sort === "recent" ? "default" : "recent");
+        var current = leer("fmv_sort_mis", "default");
+        guardar("fmv_sort_mis", current === "recent" ? "default" : "recent");
         pintarMis();
     });
     sortWrapper.appendChild(btnSort);
