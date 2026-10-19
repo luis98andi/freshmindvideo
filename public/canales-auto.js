@@ -465,7 +465,7 @@
 
       var v1 = (d && !Array.isArray(d) && Array.isArray(d.videos)) ? d.videos : [];
       var v2 = (dv && !Array.isArray(dv) && Array.isArray(dv.videos)) ? dv.videos : (Array.isArray(dv) ? dv : []);
-      videosBase = v2.length ? v2 : v1;
+      videosBase = (v2.length ? v2 : v1).map(function(v) { if (!v.t) v.t = 0; return v; });
 
       bloqBase = (d && !Array.isArray(d) && Array.isArray(d.bloqueados)) ? d.bloqueados : [];
       var base = Array.isArray(d) ? d : (d.canales || d.channels || []);
