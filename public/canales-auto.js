@@ -374,15 +374,19 @@
     var p = window.FMV_perfil, lista = esPadre() ? misTodos() : misVideos();
     var sort = leer("fmv_sort_mis", "default");
     
+    var sortWrapper = document.createElement("div");
+    sortWrapper.style.cssText = "grid-column: 1 / -1; margin-bottom: 8px;";
+    
     var btnSort = document.createElement("button");
     btnSort.type = "button";
     btnSort.textContent = "Ordenar: " + (sort === "recent" ? "Más recientes" : "Defecto");
-    btnSort.style.cssText = "padding:6px 12px;border:0;background:#64748b;color:#fff;border-radius:999px;cursor:pointer;font-weight:700;font-family:inherit;font-size:13px;margin-bottom:12px";
+    btnSort.style.cssText = "padding:6px 14px;border:0;background:#64748b;color:#fff;border-radius:999px;cursor:pointer;font-weight:700;font-family:inherit;font-size:13px;display:inline-block";
     btnSort.addEventListener("click", function () {
         guardar("fmv_sort_mis", sort === "recent" ? "default" : "recent");
         pintarMis();
     });
-    gm.appendChild(btnSort);
+    sortWrapper.appendChild(btnSort);
+    gm.appendChild(sortWrapper);
     
     if (sort === "recent") {
         lista.sort(function(a, b) { return (b.t || 0) - (a.t || 0); });
