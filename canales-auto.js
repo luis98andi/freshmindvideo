@@ -372,6 +372,22 @@
     if (!gm) return;
     gm.innerHTML = "";
     var p = window.FMV_perfil, lista = esPadre() ? misTodos() : misVideos();
+    var sort = leer("fmv_sort_mis", "default");
+    
+    var btnSort = document.createElement("button");
+    btnSort.type = "button";
+    btnSort.textContent = "Ordenar: " + (sort === "recent" ? "Más recientes" : "Defecto");
+    btnSort.style.cssText = ESTILO_BT + ";margin-bottom:10px;background:#64748b";
+    btnSort.addEventListener("click", function () {
+        guardar("fmv_sort_mis", sort === "recent" ? "default" : "recent");
+        pintarMis();
+    });
+    gm.appendChild(btnSort);
+    
+    if (sort === "recent") {
+        lista.sort(function(a, b) { return (b.t || 0) - (a.t || 0); });
+    }
+
     if (!lista.length) {
       var e = document.createElement("p"); e.className = "mensaje"; e.style.gridColumn = "1/-1";
       e.textContent = "Aún no hay videos aquí. Los padres pueden agregarlos desde 🔒 Padres → Buscar en YouTube.";
@@ -669,7 +685,8 @@
   function agregarVideo(vid, titulo, img) {
     var p = window.FMV_perfil, ex = misTodos().filter(function (v) { return v.id === vid; })[0];
     if (ex) { if (p) { var ps = vperf(ex).slice(); if (ps.indexOf(p) < 0) ps.push(p); var m = leer(LS_VPERF, {}); m[vid] = ps; guardar(LS_VPERF, m); } }
-    else { var vs = leer(LS_VID, []), o = { id: vid, titulo: titulo, img: img }; if (p) o.perfiles = [p]; vs.push(o); guardar(LS_VID, vs); }
+    else { var vs = leer(LS_VID, []), o = { id: vid, titulo: titulo, img: img, t: Date.now() }; if (p) o.perfiles = [p]; vs.push(o); guardar(LS_VID, vs); }
+    window.FMV_hayCambiosPadres = true;
     guardar(LS_VOCULTOS, leer(LS_VOCULTOS, []).filter(function (q) { return q !== vid; }));
     guardar(LS_BLOQ, leer(LS_BLOQ, []).filter(function (q) { return q !== vid; }));
     guardar(LS_DET_OCULTOS, leer(LS_DET_OCULTOS, []).filter(function (x) { return x && x.id !== vid; }));
@@ -1332,7 +1349,10 @@
     setPadre(false); clearTimeout(tInac);
     [].forEach.call(document.querySelectorAll(".fmv-modal"), function (m) { m.remove(); });
     actualizarBotones(); pintar();
-    guardarGithubAutomatico(true);
+    if (window.FMV_hayCambiosPadres) {
+      guardarGithubAutomatico(true);
+      window.FMV_hayCambiosPadres = false;
+    }
   }
   /* Cierre automático: 15 s sin actividad en la página, o al pasar a segundo plano */
   var tInac = null;
