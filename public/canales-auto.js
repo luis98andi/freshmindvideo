@@ -1604,8 +1604,7 @@
     }
 
     fila("📖 Manual y Guía para Padres", "#0d9488", abrirManualPadres, true);
-    fila("🔎 Buscador general de videos", "#0284c7", function () { if (window.FMV_irBuscar) window.FMV_irBuscar(); });
-    fila("🔍 Buscar en YouTube y agregar", "", abrirBuscador);
+    fila(" Buscar en YouTube y agregar", "", abrirBuscador);
     fila("🎨 Estilo de tarjetas", "#10b981", abrirEstiloTarjetas);
     fila("🚫 Palabras excluidas (" + obtenerPalabrasExcluidas().length + ")", "#be123c", abrirConfigPalabrasExcluidas);
     fila("⏱ Tiempo de pantalla y temporizador", "#0284c7", abrirConfigTiempos);

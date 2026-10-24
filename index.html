@@ -585,6 +585,16 @@
     box-shadow: 0 6px 16px rgba(155, 89, 208, 0.4);
     border-color: #a855f7;
   }
+  .btn-padres.padre-hold {
+    transform: scale(0.94);
+    box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.15), 0 4px 12px rgba(139, 92, 246, 0.3);
+    background: #f3e8ff;
+  }
+  .btn-padres.padre-hold-activado {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.18), 0 4px 12px rgba(16, 185, 129, 0.24);
+  }
   body.padre .btn-padres {
     background: #ecfdf5; border-color: #a7f3d0;
     box-shadow: 0 2px 8px rgba(18, 163, 127, 0.35);
@@ -1750,9 +1760,7 @@
   });
   var navPadresVideo = document.getElementById("nav-padres-video");
   if (navPadresVideo) {
-    navPadresVideo.addEventListener("click", function () {
-      if (window.FMV_abrirPadres) FMV_abrirPadres();
-    });
+    activarBotonPadresConRetencion(navPadresVideo);
   }
   pintarAvatarGridPicker();
   var sesionInicial = sesion();
@@ -3340,10 +3348,53 @@
   document.getElementById("logo-inicio").addEventListener("click", irInicio);
   var btnBuscarCab = document.getElementById("btn-buscar-cabecera");
   if (btnBuscarCab) btnBuscarCab.addEventListener("click", irBuscar);
+  function esAndroidMovil() {
+    return /android/i.test((navigator.userAgent || "")) && !/ipad|iphone|ipod/i.test((navigator.userAgent || ""));
+  }
+
+  function activarBotonPadresConRetencion(btn) {
+    if (!btn) return;
+    var timer = null;
+    function limpiar() {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      btn.classList.remove("padre-hold");
+      btn.classList.remove("padre-hold-activado");
+    }
+    function comenzar() {
+      if (!esAndroidMovil()) return;
+      btn.classList.add("padre-hold");
+      timer = setTimeout(function () {
+        btn.classList.add("padre-hold-activado");
+        if (window.FMV_abrirPadres) window.FMV_abrirPadres();
+      }, 3000);
+    }
+    btn.addEventListener("pointerdown", function (e) {
+      if (!esAndroidMovil()) return;
+      e.preventDefault();
+      e.stopPropagation();
+      comenzar();
+    });
+    btn.addEventListener("pointerup", limpiar);
+    btn.addEventListener("pointerleave", limpiar);
+    btn.addEventListener("pointercancel", limpiar);
+    btn.addEventListener("click", function (e) {
+      if (esAndroidMovil()) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (window.FMV_abrirPadres) window.FMV_abrirPadres();
+    });
+  }
+
   var navPadres = document.getElementById("nav-padres");
-  if (navPadres) navPadres.addEventListener("click", function () { if (window.FMV_abrirPadres) FMV_abrirPadres(); });
+  activarBotonPadresConRetencion(navPadres);
   var navPremios = document.getElementById("nav-premios");
   if (navPremios) navPremios.addEventListener("click", function () { if (window.FMV_abrirLogros) FMV_abrirLogros(); });
+
+  var navPadresVideoElHold = document.getElementById("nav-padres-video");
+  activarBotonPadresConRetencion(navPadresVideoElHold);
   window.FMV_alListo = function () {
     window.FMV_alListo = null;
     var ss = sesion();   // si la página se recargó, vuelve a donde estaba

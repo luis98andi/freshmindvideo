@@ -17,10 +17,12 @@
   /* ---------- Estilos y caja de búsqueda ---------- */
   var css = document.createElement("style");
   css.textContent =
-    "#buscador{position:sticky;top:64px;z-index:15;margin:0 0 22px;background:rgba(255,255,255,0.08);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}" +
-    "#buscador input{width:100%;padding:16px 22px;font-size:17px;border:0;border-radius:999px;font-family:inherit;outline:0;background:#fff;color:var(--texto);box-shadow:0 3px 10px rgba(20,60,100,.2);-webkit-appearance:none;appearance:none}" +
-    "#buscador .estado{text-align:center;font-weight:700;margin:12px 0 0;min-height:1.2em;font-size:.95rem}" +
+    "#buscador{position:sticky;top:64px;z-index:15;margin:10px 0 18px;padding:0;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}" +
+    "#buscador input{width:100%;padding:14px 18px;font-size:16px;border:1px solid rgba(148,163,184,0.35);border-radius:18px;font-family:inherit;outline:0;background:rgba(255,255,255,0.98);color:var(--texto);box-shadow:0 8px 22px rgba(15,23,42,.08),0 2px 6px rgba(15,23,42,.05);-webkit-appearance:none;appearance:none;box-sizing:border-box}" +
+    "#buscador input:focus{border-color:rgba(18,163,127,0.7);box-shadow:0 0 0 3px rgba(18,163,127,0.12),0 8px 20px rgba(18,163,127,0.14)}" +
+    "#buscador .estado{text-align:center;font-weight:700;margin:10px 0 0;min-height:1.2em;font-size:.92rem;color:#475569}" +
     ".fmv-res{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:16px;margin-top:16px}" +
+    "@media (max-width: 640px){#buscador{top:58px;margin:8px 0 14px}#buscador input{padding:13px 16px;font-size:15px;border-radius:16px;box-shadow:0 6px 18px rgba(15,23,42,.07),0 1px 4px rgba(15,23,42,.04)}}" +
     ".fmv-res button{border:0;padding:0;background:var(--tarjeta);color:var(--texto);border-radius:20px;overflow:hidden;cursor:pointer;text-align:left;font-family:inherit;display:flex;flex-direction:column;box-shadow:0 3px 10px rgba(20,60,100,.2);transition:transform .15s ease,box-shadow .15s ease}" +
     ".fmv-res button:hover{transform:translateY(-3px);box-shadow:0 6px 14px rgba(29,43,58,.18)}" +
     ".fmv-res img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:#000}" +
@@ -396,23 +398,41 @@
     var palabras = norm(texto).split(/\s+/).filter(Boolean);
     if (!palabras.length) return [];
 
+    function meterLista(arr, lista) {
+      (lista || []).forEach(function (v) {
+        var vv = norm(v);
+        if (vv && arr.indexOf(vv) < 0) arr.push(vv);
+      });
+    }
+
     var terminos = [];
     palabras.forEach(function (w) {
       var base = norm(w);
       if (!base) return;
       if (terminos.indexOf(base) < 0) terminos.push(base);
       var vars = generarVariantes(base);
-      vars.forEach(function (v) {
-        if (v && terminos.indexOf(v) < 0) terminos.push(v);
-      });
+      meterLista(terminos, vars);
       var rel = RELACIONES[base] || [];
-      rel.forEach(function (r) {
-        var rr = norm(r);
-        if (rr && terminos.indexOf(rr) < 0) terminos.push(rr);
-      });
+      meterLista(terminos, rel);
     });
 
-    if (!terminos.length) return [];
+    var extras = [];
+    if (resultados && resultados.length) {
+      resultados.forEach(function (r) {
+        if (!r || !r.titulo) return;
+        var wds = norm(r.titulo).split(/\W+/).filter(function (v) { return v.length > 3; });
+        meterLista(extras, wds);
+      });
+    }
+
+    var baseTerminos = terminos.slice();
+    if (!baseTerminos.length && extras.length) {
+      terminos = extras.slice();
+    } else if (extras.length) {
+      extras.forEach(function (e) {
+        if (terminos.indexOf(e) < 0) terminos.push(e);
+      });
+    }
 
     var salida = [];
     var ya = {};
@@ -454,6 +474,27 @@
         }
       }
     });
+
+    if (!salida.length && resultados.length) {
+      var tokens = [];
+      resultados.forEach(function (r) {
+        if (!r || !r.titulo) return;
+        norm(r.titulo).split(/\W+/).forEach(function (w) {
+          if (w.length > 3 && tokens.indexOf(w) < 0) tokens.push(w);
+        });
+      });
+      tokens.forEach(function (token) {
+        if (!token || token === "adivina") return;
+        misLista.forEach(function (v) {
+          if (!v || !v.id) return;
+          var tNorm = norm(v.titulo || v.title || "");
+          if (!tNorm) return;
+          if (tNorm.indexOf(token) >= 0) {
+            añadir({ canal: { nombre: "⭐ Mis videos", id: "MIS" }, id: v.id, titulo: v.titulo || v.title || "Sin título", score: 1, origen: "mis" });
+          }
+        });
+      });
+    }
 
     salida.sort(function (a, b) { return b.score - a.score; });
     return salida.slice(0, Math.max(10, limite || 30));
