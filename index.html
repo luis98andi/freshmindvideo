@@ -10,108 +10,56 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.googleapis.com https://api.github.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'none'; media-src 'none'; worker-src 'self'; manifest-src 'self';">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <script>
-/* Escudo Avanzado Brave & AdGuard AdBlock: bloquea ventanas emergentes, scripts publicitarios, fetch/XHR de anuncios y auto-clics en saltar anuncios */
+/* Seguridad del PWA: bloquear salidas a sitios externos, guardar el contexto dentro de la app y evitar que
+   el navegador reabra el flujo de navegación mientras el usuario está viendo el contenido infantil. */
 (function () {
+  var YT_OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|i\.ytimg\.com|yt3\.ggpht\.com)/i;
+
   try {
-    var _f = window.fetch ? window.fetch.bind(window) : null;
-    if (_f) {
-      window.fetch = function (url, opts) {
-        var s = String(url || "");
-        if (/pagead|ptracking|googleads|doubleclick|stats\/ads|adformat/i.test(s)) {
-          return Promise.resolve(new Response('{"ad_signals":0}', { status: 200 }));
-        }
-        return _f(url, opts);
-      };
+    var abrir = window.open;
+    window.open = function (url, name, features) {
+      try {
+        var target = String(url || "");
+        if (!target) return abrir ? abrir.call(window, url, name, features) : null;
+        var parsed = new URL(target, location.href);
+        if (parsed.origin !== location.origin && !YT_OK.test(parsed.href)) return null;
+      } catch (e) {}
+      return abrir ? abrir.call(window, url, name, features) : null;
+    };
+  } catch (e) {}
+
+  try {
+    if (window.navigation) {
+      navigation.addEventListener("navigate", function (e) {
+        try {
+          var u = new URL(e.destination.url, location.href);
+          if (u.origin !== location.origin && !YT_OK.test(u.href)) e.preventDefault();
+        } catch (x) {}
+      });
     }
-  } catch (e) {}
-
-  try {
-    var _open = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function (method, url) {
-      var s = String(url || "");
-      if (/pagead|ptracking|googleads|doubleclick|stats\/ads|adformat/i.test(s)) {
-        this._isAdReq = true;
-      }
-      return _open.apply(this, arguments);
-    };
-    var _send = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.send = function () {
-      if (this._isAdReq) {
-        try { Object.defineProperty(this, 'readyState', { value: 4 }); } catch (e) {}
-        try { Object.defineProperty(this, 'status', { value: 200 }); } catch (e) {}
-        try { Object.defineProperty(this, 'responseText', { value: '{}' }); } catch (e) {}
-        if (typeof this.onload === 'function') this.onload();
-        return;
-      }
-      return _send.apply(this, arguments);
-    };
-  } catch (e) {}
-
-  var OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|i\.ytimg\.com|yt3\.ggpht\.com)\//;
-  var SRC_OK = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|s\.ytimg\.com)\//;
-  var abrir = window.open;
-  var filtro = function (u) { return OK.test(String(u || "")) ? abrir.apply(window, arguments) : null; };
-  try { Object.defineProperty(window, "open", { get: function () { return filtro; }, set: function () {}, configurable: false }); }
-  catch (e) { try { window.open = filtro; } catch (x) {} }
-
-  try {
-    if (window.navigation) navigation.addEventListener("navigate", function (e) {
-      try { if (e.cancelable && new URL(e.destination.url).origin !== location.origin) e.preventDefault(); } catch (x) {}
-    });
   } catch (e) {}
 
   document.addEventListener("click", function (e) {
     var a = e.target && e.target.closest && e.target.closest("a[href]");
-    if (a && a.origin && a.origin !== location.origin) { e.preventDefault(); e.stopPropagation(); }
-  }, true);
-
-  new MutationObserver(function (ms) {
-    ms.forEach(function (m) {
-      m.addedNodes.forEach(function (n) {
-        if (n.nodeType !== 1) return;
-        var tag = n.tagName;
-        if (/^(IFRAME|SCRIPT|EMBED|OBJECT)$/.test(tag) && n.src) {
-          if (n.src.indexOf(location.origin) !== 0 && !SRC_OK.test(n.src)) n.remove();
-        }
-        // Auto-clic en botones de saltar anuncio de YouTube
-        if (n.classList && (n.classList.contains("ytp-ad-skip-button") || n.classList.contains("ytp-ad-overlay-close") || n.classList.contains("ytp-ad-skip-button-container"))) {
-          try { n.click(); } catch (x) {}
-        }
-      });
-    });
-  }).observe(document.documentElement, { childList: true, subtree: true });
-
-  setInterval(function () {
+    if (!a || !a.href) return;
     try {
-      var skip = document.querySelector(".ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-ad-overlay-close");
-      if (skip) skip.click();
-      var adElems = document.querySelectorAll(".ad-showing, .video-ads, ytd-ad-slot-renderer");
-      adElems.forEach(function (el) { el.style.display = "none"; });
-    } catch (e) {}
-  }, 300);
-
-  /* Bloqueo estricto en móvil: desactiva zoom táctil (pellizco/doble toque) y guardar imagen / contextmenu */
-  document.addEventListener("gesturestart", function (e) { e.preventDefault(); }, { passive: false });
-  document.addEventListener("gesturechange", function (e) { e.preventDefault(); }, { passive: false });
-  document.addEventListener("gestureend", function (e) { e.preventDefault(); }, { passive: false });
-  document.addEventListener("touchmove", function (e) {
-    if (e.touches && e.touches.length > 1) {
-      e.preventDefault();
-    }
-  }, { passive: false });
-  var _lastTouchEnd = 0;
-  document.addEventListener("touchend", function (e) {
-    var now = Date.now();
-    if (now - _lastTouchEnd <= 300 && e.target && e.target.tagName !== "INPUT" && e.target.tagName !== "TEXTAREA") {
-      e.preventDefault();
-    }
-    _lastTouchEnd = now;
-  }, { passive: false });
-  window.addEventListener("contextmenu", function (e) {
-    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
-    e.preventDefault();
-    return false;
+      var u = new URL(a.href, location.href);
+      if (u.origin !== location.origin && !YT_OK.test(u.href)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    } catch (x) {}
   }, true);
+
+  window.addEventListener("beforeinstallprompt", function (e) {
+    try { e.preventDefault(); } catch (x) {}
+  });
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") {
+      try { history.pushState(null, "", location.href); } catch (e) {}
+    }
+  });
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -138,6 +86,15 @@
     --texto: #1d2b3a;
     --acento: #12a37f;
     --proporcion: 16 / 9;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #07111b;
+      --tarjeta: #101b2a;
+      --texto: #e5eef8;
+      --acento: #1bc39c;
+    }
   }
   *, *::before, *::after {
     box-sizing: border-box;
@@ -161,7 +118,16 @@
   button, a, input, select, textarea, .tarjeta, .item {
     touch-action: manipulation;
   }
-  body { margin: 0; min-height: 100vh; background: #8ecbf7 linear-gradient(180deg, #d9f0ff 0%, #9fd6fb 45%, #6fb9f0 100%) fixed; color: var(--texto); font-family: "Nunito", "Segoe UI", Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: var(--fondo) linear-gradient(180deg, rgba(255,255,255,0.22), rgba(0,0,0,0.06)) fixed;
+    color: var(--texto); font-family: "Nunito", "Segoe UI", Arial, sans-serif; -webkit-tap-highlight-color: transparent;
+  }
+  @media (prefers-color-scheme: dark) {
+    body {
+      background: var(--fondo) linear-gradient(180deg, rgba(11,23,35,0.72), rgba(7,17,27,0.95)) fixed;
+    }
+  }
   header { position: sticky; top: 0; z-index: 10; background: #fff; padding: 10px 18px; box-shadow: 0 2px 10px rgba(20, 60, 100, .16); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   header h1 { margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--acento); letter-spacing: -.02em; }
   header h1 span { color: var(--texto); }
@@ -369,6 +335,14 @@
   .controles button:hover { background: rgba(255, 255, 255, .12); }
   .controles svg { width: 22px; height: 22px; fill: currentColor; }
   .controles input[type=range] { flex: 1; min-width: 60px; accent-color: var(--acento); }
+  #b-autoplay {
+    display: none !important;
+    min-width: 68px; padding: 0 10px; border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(15, 23, 32, 0.32); color: #fff; font-size: 0.72rem; font-weight: 900;
+    letter-spacing: 0.08em; border-radius: 999px; text-transform: uppercase;
+  }
+  body.padre #b-autoplay { display: flex !important; }
+  #b-autoplay.activo { background: rgba(18, 163, 127, 0.9); border-color: rgba(18,163,127,0.9); }
   .tiempo { min-width: 84px; text-align: center; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
 
   /* Selector inferior de todos los videos del canal en formato rueda / lista playlist */
@@ -1283,6 +1257,7 @@
           </button>
         </div>
         <button type="button" id="b-subs" aria-label="Subtítulos" aria-pressed="false"></button>
+        <button type="button" id="b-autoplay" aria-label="Autoplay activado" aria-pressed="true" title="Autoplay activado">AUTO</button>
         <button type="button" id="b-libre" aria-label="Padres: quitar la barrera del video un momento" title="Padres: tocar el aviso de YouTube"></button>
         <button type="button" id="b-pantalla" aria-label="Pantalla completa"></button>
       </div>
@@ -1385,6 +1360,7 @@
   function enPantalla() { return contenedor && contenedor.classList.contains("en-pantalla"); }
 
   var bPlay = document.getElementById("b-play");
+  var bAutoplay = document.getElementById("b-autoplay");
   var bSonido = document.getElementById("b-sonido");
   var bAnterior = document.getElementById("b-anterior");
   var bSiguiente = document.getElementById("b-siguiente");
@@ -1409,6 +1385,7 @@
   bSiguiente.innerHTML = ICONOS.siguiente;
   document.getElementById("b-pantalla").innerHTML = ICONOS.pantalla;
   bPlay.innerHTML = ICONOS.play;
+  if (bAutoplay) { bAutoplay.textContent = "AUTO"; }
   bSonido.innerHTML = ICONOS.sonido;
   document.getElementById("b-subs").innerHTML = ICONOS.subs;
 
@@ -1420,11 +1397,23 @@
   var esperandoLista = false; // solo se usa si falla la API de datos
   var videoInicial = null;    // video que se debe dejar listo (viene del buscador)
   var videoActualId = null, yaPreparado = false;
-  var tCargador = null, tTextoAnuncio = null, mudoPorAnuncio = false, ultimoSaltoAnuncio = 0;
+  var tCargador = null, tTextoAnuncio = null, tCambioVideo = null, mudoPorAnuncio = false, ultimoSaltoAnuncio = 0;
+  var cambioVideoEnCurso = false, bloqueoAutoplay = false, tBloqueoAutoplay = null;
+  var autoplayActivado = true;
   var LS_LISTAS = "fmv_listas", LS_ULT = "fmv_ultimo";
 
   function actualizarPortadaTapa() {
     tapa.style.backgroundImage = "none";
+  }
+
+  function pintarAutoplay() {
+    if (!bAutoplay) return;
+    var activo = !!autoplayActivado;
+    bAutoplay.classList.toggle("activo", activo);
+    bAutoplay.setAttribute("aria-pressed", String(activo));
+    bAutoplay.setAttribute("aria-label", activo ? "Autoplay activado" : "Autoplay desactivado");
+    bAutoplay.title = activo ? "Autoplay activado" : "Autoplay desactivado";
+    bAutoplay.textContent = activo ? "AUTO" : "MANUAL";
   }
 
   function silenciarPreventivo() {
@@ -1483,12 +1472,16 @@
   /* Capa 4: Escudo Anti-Anuncios en el reproductor (detecta publicidad, la silencia al instante, muestra "Eliminando publicidad…" y la salta) */
   function esPublicidadDetectada() {
     if (!listo || !videoActualId || !jugador) return false;
+    if (cambioVideoEnCurso) return false;
     try {
       var vd = (jugador.getVideoData && jugador.getVideoData()) || {};
-      if (vd.video_id && vd.video_id !== videoActualId) return true;
+      var st = jugador.getPlayerState ? jugador.getPlayerState() : -1;
       if (jugador.getAdState && jugador.getAdState() > 0) return true;
       if (jugador.isAdPlaying && jugador.isAdPlaying()) return true;
       if (vd.author && /advertis|sponsored|anuncio|publicidad/i.test(vd.author)) return true;
+      if (vd.video_id && vd.video_id !== videoActualId && st === 1) {
+        return true;
+      }
     } catch (e) {}
     return false;
   }
@@ -2084,11 +2077,13 @@
             if (window.FMV_historial) FMV_historial(videoActualId, titulos[listaVideos.indexOf(videoActualId)] || "", tituloCanalActivo.textContent, canalUC || "MIS");
             if (window.FMV_registrarEventoLogro) window.FMV_registrarEventoLogro("video_visto", { canalId: canalUC, titulo: titulos[listaVideos.indexOf(videoActualId)] || "" });
           }
-          if (debeAutoreproducir && (e.data === 5 || e.data === 2)) {
+          if (debeAutoreproducir && !bloqueoAutoplay && (e.data === 5 || e.data === 2)) {
             debeAutoreproducir = false;
             try { if (jugador.playVideo) jugador.playVideo(); } catch (err) {}
           }
           if (e.data === 1) {
+            bloqueoAutoplay = false;
+            clearTimeout(tBloqueoAutoplay);
             if (vigilarAnuncios()) return;
             mostrarCargador(false);
             restaurarSonidoReal();
@@ -2127,7 +2122,9 @@
           }
           if (e.data === 0) {
             registrarVideoCompletado(videoActualId);
-            siguienteVideo();
+            if (autoplayActivado) {
+              siguienteVideo();
+            }
           }
         },
         onError: function () {
@@ -2157,36 +2154,54 @@
   }
 
   var debeAutoreproducir = true;
+  var apiPrecalentada = false;
+
+  function precargarApiYoutube() {
+    if (apiPrecalentada || document.getElementById("yt-api")) return;
+    apiPrecalentada = true;
+    var s = document.createElement("script");
+    s.id = "yt-api";
+    s.async = true;
+    s.defer = true;
+    s.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(s);
+  }
+
   /* Si el reproductor quedó con subtítulos forzados, se recrea normal para que el video siguiente arranque sin ellos */
   function cargarVideo(id, seg) {
     if (!vistaCanal.classList.contains("activo")) return;
+    cambioVideoEnCurso = true;
+    bloqueoAutoplay = true;
+    clearTimeout(tCambioVideo);
+    clearTimeout(tBloqueoAutoplay);
+    tCambioVideo = setTimeout(function () { cambioVideoEnCurso = false; }, 1800);
+    tBloqueoAutoplay = setTimeout(function () { bloqueoAutoplay = false; }, 1800);
     mostrarCargador(true);
-    debeAutoreproducir = true;
+    debeAutoreproducir = false;
     var arg = seg > 5 ? { videoId: id, startSeconds: seg } : id;
     if (modoSubs) {
       recrearJugador(false, function () {
         if (vistaCanal.classList.contains("activo")) {
-          try { jugador.loadVideoById(arg); jugador.playVideo(); } catch(e){}
+          try { jugador.loadVideoById(arg); } catch(e){}
         }
       });
     } else {
-      try { jugador.loadVideoById(arg); jugador.playVideo(); } catch(e){}
+      try { jugador.loadVideoById(arg); } catch(e){}
     }
   }
 
   function cargarApi(cb) {
     if (window.YT && YT.Player) { cb(); return; }
     apiPendiente = cb;
-    if (!document.getElementById("yt-api")) {
-      var s = document.createElement("script");
-      s.id = "yt-api";
-      s.src = "https://www.youtube.com/iframe_api";
-      document.head.appendChild(s);
-    }
+    precargarApiYoutube();
   }
   window.onYouTubeIframeAPIReady = function () {
     if (apiPendiente) { var f = apiPendiente; apiPendiente = null; f(); }
   };
+
+  window.addEventListener("load", function () {
+    precargarApiYoutube();
+  });
 
   function formato(seg) {
     seg = Math.max(0, Math.floor(seg || 0));
@@ -2489,6 +2504,12 @@
       }
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
+  }
+
+  function precargarSiguiente() {
+    // Evitamos el precargado del siguiente video porque cueVideoById puede interferir con el flujo real del player,
+    // provocando saltos a 0s, transiciones raras, y la pantalla de "Cargando video…" tras un cambio manual.
+    return;
   }
 
   function siguienteVideo() {
@@ -3184,6 +3205,12 @@
     if (vigilarAnuncios()) return;
     verificarEstadoCargando();
     pintarMarca();
+    if (cambioVideoEnCurso) {
+      if (cargadorVideo && !cargadorVideo.hidden) {
+        try { if (jugador && jugador.getPlayerState && jugador.getPlayerState() === 1) cambioVideoEnCurso = false; } catch (e) {}
+      }
+      return;
+    }
     if (!listo || !jugador.getDuration) return;
     var dur = jugador.getDuration() || 0, t = jugador.getCurrentTime() || 0;
     if (!arrastrando && dur > 0) rango.value = Math.round(t / dur * 1000);
@@ -3326,8 +3353,11 @@
   window.FMV_tabVideos = function (n) { var c = document.getElementById("cuenta-mis"); if (c) { c.textContent = n > 99 ? "99+" : n; c.classList.toggle("hay", n > 0); } };
 
   function alternarPlayPausa() {
-    if (!listo || !jugador) return;
-    var st = (jugador.getPlayerState && jugador.getPlayerState()) || -1;
+    if (!jugador || !jugador.getPlayerState) return;
+    var st = jugador.getPlayerState() || -1;
+    bloqueoAutoplay = true;
+    clearTimeout(tBloqueoAutoplay);
+    tBloqueoAutoplay = setTimeout(function () { bloqueoAutoplay = false; }, 1600);
     if (st === 1) {
       if (jugador.pauseVideo) jugador.pauseVideo();
       bPlay.innerHTML = ICONOS.play;
@@ -3360,11 +3390,21 @@
       if (tapa) tapa.hidden = false;
     } catch (e) {}
   };
-  window.FMV_reanudarVideo = function () { if (listo && jugador && jugador.playVideo) try { jugador.playVideo(); } catch (e) {} };
+  window.FMV_reanudarVideo = function () { if (jugador && jugador.playVideo) try { jugador.playVideo(); } catch (e) {} };
 
   // Controles del reproductor
   bAnterior.addEventListener("click", anteriorVideo);
   bSiguiente.addEventListener("click", siguienteVideo);
+  if (bAutoplay) {
+    bAutoplay.addEventListener("click", function (e) {
+      e.stopPropagation();
+      autoplayActivado = !autoplayActivado;
+      pintarAutoplay();
+      if (autoplayActivado && videoActualId && jugador && jugador.getPlayerState && jugador.getPlayerState() === 0) {
+        siguienteVideo();
+      }
+    });
+  }
   bPlay.addEventListener("click", function (e) {
     e.stopPropagation();
     alternarPlayPausa();
@@ -3501,21 +3541,41 @@
   /* ---------- Subtítulos (función interna de YouTube, solo si el video los tiene) ---------- */
   var bSubs = document.getElementById("b-subs"), subsOn = false, videoConSubs = null;
   try { localStorage.removeItem("fmv_subs"); } catch (e) {}   // ya no se recuerda: cada video arranca sin subtítulos
-  function pintarSubs() { bSubs.classList.toggle("activo", subsOn); bSubs.setAttribute("aria-pressed", subsOn); }
+  function pintarSubs() {
+    if (!bSubs) return;
+    bSubs.classList.toggle("activo", !!subsOn);
+    bSubs.setAttribute("aria-pressed", String(!!subsOn));
+    bSubs.setAttribute("aria-label", subsOn ? "Desactivar subtítulos" : "Activar subtítulos");
+    bSubs.title = subsOn ? "Desactivar subtítulos" : "Activar subtítulos";
+  }
   /* Cada video nuevo empieza sin subtítulos; el botón solo los activa para el video que se está viendo */
-  function nuevoVideoSubs() { subsOn = false; videoConSubs = null; pintarSubs(); }
-  /* Apagar: se usa al empezar cada video (YouTube recuerda el último estado de subtítulos del navegador) */
+  function nuevoVideoSubs() {
+    subsOn = false;
+    videoConSubs = null;
+    pintarSubs();
+    try {
+      if (jugador && jugador.setOption) {
+        jugador.setOption("captions", "track", {});
+      }
+    } catch (e) {}
+    try {
+      if (jugador && jugador.unloadModule) {
+        jugador.unloadModule("captions");
+      }
+    } catch (e) {}
+  }
   function aplicarSubs() {
-    if (!listo || subsOn) return;
+    if (!listo) return;
     var vid = videoActualId;
     var quitar = function () {
-      if (subsOn || vid !== videoActualId || !listo) return;
-      try { jugador.setOption("captions", "track", {}); } catch (e) {}
-      try { jugador.unloadModule("captions"); } catch (e) {}
+      if (vid !== videoActualId || !listo) return;
+      try { if (jugador && jugador.setOption) jugador.setOption("captions", "track", {}); } catch (e) {}
+      try { if (jugador && jugador.unloadModule) jugador.unloadModule("captions"); } catch (e) {}
     };
-    quitar(); setTimeout(quitar, 800); setTimeout(quitar, 2500);   // YouTube a veces los enciende con retraso
+    quitar(); setTimeout(quitar, 800); setTimeout(quitar, 2500);
   }
   pintarSubs();
+  pintarAutoplay();
   /* Plan B (el método anterior): recrear el reproductor con subtítulos forzados */
   function subsPorRecreacion() {
     var id = videoActualId, t = 0;
@@ -3530,21 +3590,25 @@
     if (!listo || !videoActualId) return;
     subsOn = !subsOn; videoConSubs = videoActualId; pintarSubs();
     var id = videoActualId;
-    if (modoSubs) { subsPorRecreacion(); return; }           // venían forzados por el método anterior: se apagan recreando
-    if (!subsOn) { try { jugador.setOption("captions", "track", {}); jugador.unloadModule("captions"); } catch (e) {} return; }
-    try { jugador.loadModule("captions"); } catch (e) {}
+    if (modoSubs) { subsPorRecreacion(); return; }
+    if (!subsOn) {
+      try { if (jugador && jugador.setOption) jugador.setOption("captions", "track", {}); } catch (e) {}
+      try { if (jugador && jugador.unloadModule) jugador.unloadModule("captions"); } catch (e) {}
+      return;
+    }
+    try { if (jugador && jugador.loadModule) jugador.loadModule("captions"); } catch (e) {}
     var intentos = 0;
     (function probar() {
       if (!subsOn || id !== videoActualId) return;
       var pistas = [];
-      try { pistas = jugador.getOption("captions", "tracklist") || []; } catch (e) {}
+      try { pistas = (jugador && jugador.getOption) ? jugador.getOption("captions", "tracklist") || [] : []; } catch (e) {}
       if (pistas.length) {
         var es = pistas.filter(function (p) { return /^es/.test(p.languageCode || ""); })[0] || pistas[0];
-        try { jugador.setOption("captions", "track", { languageCode: es.languageCode }); } catch (e) {}
+        try { if (jugador && jugador.setOption) jugador.setOption("captions", "track", { languageCode: es.languageCode }); } catch (e) {}
         return;
       }
       if (++intentos < 6) setTimeout(probar, 400);
-      else subsPorRecreacion();                                // si YouTube no respondió, se usa el método anterior
+      else subsPorRecreacion();
     })();
   }
 
