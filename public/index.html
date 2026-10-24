@@ -1027,9 +1027,11 @@
   }
   .bloqueo-btn:hover { transform: scale(1.04); }
 
-  /* Modo "Buscar": se ve la caja y los resultados; el listado de canales se esconde */
-  body:not(.modo-buscar) #buscador, body:not(.modo-buscar) #fmv-zona { display: none !important; }
+  /* La barra de búsqueda va siempre bajo la cabecera en la home; los resultados solo aparecen cuando se activa la búsqueda */
+  #buscador { display: block !important; }
+  #fmv-zona { display: none !important; }
   body.modo-buscar #cuadricula, body.modo-buscar #mensaje { display: none !important; }
+  body.modo-buscar #fmv-zona { display: block !important; }
 </style>
 </head>
 <body>

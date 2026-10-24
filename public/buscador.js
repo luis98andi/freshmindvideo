@@ -12,7 +12,7 @@
   var indice = {};          // id de canal -> { id, nombre, t, ids, titulos, norm }
   var db = null, cargado = false, pendiente = false;
   var ocupado = false, hechos = 0, total = 0, fallos = 0, sinClave = false;
-  var textoActual = "", resultados = [], mostrados = 0, espera = null, sugerenciaActual = "";
+  var textoActual = "", resultados = [], resultadosRelacionados = [], mostrados = 0, espera = null, sugerenciaActual = "";
 
   /* ---------- Estilos y caja de búsqueda ---------- */
   var css = document.createElement("style");
@@ -242,7 +242,10 @@
     jugar: ["juego", "juguete", "juguetes", "diversion"],
     colores: ["color", "pintar", "arcoiris", "amarillo", "azul", "rojo", "verde"],
     numeros: ["contar", "123", "numero"],
-    letras: ["abecedario", "alfabeto", "abc", "vocal", "vocales"],
+    letra: ["letras", "alfabeto", "abecedario", "abc", "leer", "lectura", "palabra", "palabras"],
+    letras: ["abecedario", "alfabeto", "abc", "vocal", "vocales", "leer", "lectura"],
+    leer: ["lectura", "letra", "letras", "alfabeto", "abecedario", "palabra"],
+    lectura: ["leer", "letra", "letras", "alfabeto", "abecedario", "palabra"],
     flauta: ["musica", "cancion", "canciones", "instrumento", "melodia", "cantar"],
     guitarra: ["musica", "cancion", "canciones", "instrumento", "melodia", "cantar"],
     piano: ["musica", "cancion", "canciones", "instrumento", "melodia", "cantar"],
@@ -365,10 +368,102 @@
   }
 
   /* ---------- Buscar y mostrar ---------- */
+  function coincideBusqueda(tNorm, palabras) {
+    var q = (palabras || []).filter(Boolean);
+    if (!q.length) return false;
+
+    for (var i = 0; i < q.length; i++) {
+      var base = norm(q[i]);
+      if (!base) continue;
+
+      if (tNorm.indexOf(base) >= 0) continue;
+
+      var variantes = generarVariantes(base);
+      var ok = variantes.some(function (v) { return tNorm.indexOf(v) >= 0; });
+      if (ok) continue;
+
+      if (base.length <= 2) {
+        var letras = base.split("");
+        if (letras.some(function (ch) { return tNorm.indexOf(ch) >= 0; })) continue;
+      }
+
+      return false;
+    }
+    return true;
+  }
+
+  function obtenerRelacionados(texto, limite) {
+    var palabras = norm(texto).split(/\s+/).filter(Boolean);
+    if (!palabras.length) return [];
+
+    var terminos = [];
+    palabras.forEach(function (w) {
+      var base = norm(w);
+      if (!base) return;
+      if (terminos.indexOf(base) < 0) terminos.push(base);
+      var vars = generarVariantes(base);
+      vars.forEach(function (v) {
+        if (v && terminos.indexOf(v) < 0) terminos.push(v);
+      });
+      var rel = RELACIONES[base] || [];
+      rel.forEach(function (r) {
+        var rr = norm(r);
+        if (rr && terminos.indexOf(rr) < 0) terminos.push(rr);
+      });
+    });
+
+    if (!terminos.length) return [];
+
+    var salida = [];
+    var ya = {};
+    var directIds = {};
+    resultados.forEach(function (r) { if (r && r.id) directIds[r.id] = 1; });
+
+    var añadir = function (item) {
+      if (!item || !item.id || ya[item.id] || directIds[item.id]) return;
+      ya[item.id] = 1;
+      salida.push(item);
+    };
+
+    var misLista = window.FMV_misVideos ? window.FMV_misVideos() : [];
+    misLista.forEach(function (v) {
+      if (!v || !v.id) return;
+      var tNorm = norm(v.titulo || v.title || "");
+      if (!tNorm) return;
+      var score = 0;
+      for (var i = 0; i < terminos.length; i++) {
+        if (tNorm.indexOf(terminos[i]) >= 0) score += 2;
+      }
+      if (score > 0) {
+        añadir({ canal: { nombre: "⭐ Mis videos", id: "MIS" }, id: v.id, titulo: v.titulo || v.title || "Sin título", score: score, origen: "mis" });
+      }
+    });
+
+    canalesActuales().forEach(function (c) {
+      var r = indice[c.id];
+      if (!r) return;
+      for (var i = 0; i < r.titulos.length; i++) {
+        var tNorm = norm(r.titulos[i]);
+        if (!tNorm) continue;
+        var score = 0;
+        for (var k = 0; k < terminos.length; k++) {
+          if (tNorm.indexOf(terminos[k]) >= 0) score += 2;
+        }
+        if (score > 0) {
+          añadir({ canal: c, id: r.ids[i], titulo: r.titulos[i], score: score });
+        }
+      }
+    });
+
+    salida.sort(function (a, b) { return b.score - a.score; });
+    return salida.slice(0, Math.max(10, limite || 30));
+  }
+
   function calcular(texto) {
     var palabras = norm(texto).split(/\s+/).filter(Boolean);
     if (!palabras.length) {
       resultados = [];
+      resultadosRelacionados = [];
       sugerenciaActual = "";
       return;
     }
@@ -378,11 +473,66 @@
     var yaIds = {};
     var excluidas = (window.FMV_palabrasExcluidas ? window.FMV_palabrasExcluidas() : []).map(norm).filter(Boolean);
 
+    var misLista = window.FMV_misVideos ? window.FMV_misVideos() : [];
+    misLista.forEach(function (v) {
+      if (!v || !v.id) return;
+      var tNorm = norm(v.titulo || v.title || "");
+      if (!tNorm || yaIds[v.id]) return;
+
+      var ok = true;
+      var score = 0;
+      for (var k = 0; k < variantesPorPalabra.length; k++) {
+        var vars = variantesPorPalabra[k];
+        var matchPalabra = false;
+        for (var vv = 0; vv < vars.length; vv++) {
+          var idx = tNorm.indexOf(vars[vv]);
+          if (idx >= 0) {
+            matchPalabra = true;
+            score += (vv === 0 ? 10 : 3);
+            if (idx === 0) score += 5;
+            break;
+          }
+        }
+        if (!matchPalabra && !coincideBusqueda(tNorm, [palabras[k]])) {
+          ok = false;
+          break;
+        }
+      }
+
+      if (ok) {
+        yaIds[v.id] = 1;
+        resVideos.push({
+          canal: { nombre: "⭐ Mis videos", id: "MIS" },
+          id: v.id,
+          titulo: v.titulo || v.title || "Sin título",
+          score: score,
+          origen: "mis"
+        });
+      }
+    });
+
+    if (!resVideos.length && misLista.length) {
+      misLista.forEach(function (v) {
+        if (!v || !v.id || yaIds[v.id]) return;
+        var tNorm = norm(v.titulo || v.title || "");
+        if (!tNorm) return;
+        if (coincideBusqueda(tNorm, palabras)) {
+          yaIds[v.id] = 1;
+          resVideos.push({
+            canal: { nombre: "⭐ Mis videos", id: "MIS" },
+            id: v.id,
+            titulo: v.titulo || v.title || "Sin título",
+            score: 1,
+            origen: "mis"
+          });
+        }
+      });
+    }
+
     canalesActuales().forEach(function (c) {
       var r = indice[c.id];
       if (!r) return;
 
-      // Buscar en las listas de reproducción (playlists) de este canal
       if (r.playlists && r.playlists.length) {
         r.playlists.forEach(function (pl) {
           var tituloNorm = norm(pl.titulo);
@@ -407,7 +557,7 @@
             for (var v = 0; v < vars.length; v++) {
               if (tituloNorm.indexOf(vars[v]) >= 0) { matchVar = true; break; }
             }
-            if (!matchVar) { ok = false; break; }
+            if (!matchVar && !coincideBusqueda(tituloNorm, [palabrasPl[k]])) { ok = false; break; }
           }
           if (ok && !yaIds[pl.id]) {
             yaIds[pl.id] = 1;
@@ -420,6 +570,7 @@
       for (var i = 0; i < r.norm.length; i++) {
         var vid = r.ids[i];
         if (bloq.indexOf(vid) >= 0 || yaIds[vid]) continue;
+
         var omitirPorExclusion = false;
         for (var ex = 0; ex < excluidas.length; ex++) {
           if (r.norm[i].indexOf(excluidas[ex]) >= 0) {
@@ -440,12 +591,12 @@
             var idx = tNorm.indexOf(vars[v]);
             if (idx >= 0) {
               matchPalabra = true;
-              score += (v === 0 ? 10 : 3); // Más puntaje a coincidencia directa
-              if (idx === 0) score += 5;   // Comienza con la palabra
+              score += (v === 0 ? 10 : 3);
+              if (idx === 0) score += 5;
               break;
             }
           }
-          if (!matchPalabra) {
+          if (!matchPalabra && !coincideBusqueda(tNorm, [palabras[k]])) {
             matchTotal = false;
             break;
           }
@@ -461,7 +612,37 @@
     resVideos.sort(function (a, b) { return b.score - a.score; });
     resultados = resPlaylists.concat(resVideos);
 
-    // Calcular sugerencia de corrección si no hay resultados
+    if (resultados.length === 0 && palabras.length) {
+      var fallback = [];
+      (window.FMV_CANALES || []).forEach(function (c) {
+        if (!c || !c.nombre) return;
+        var n = norm(c.nombre);
+        if (n && coincideBusqueda(n, palabras)) {
+          fallback.push({ canal: c, id: c.id || "", titulo: c.nombre, score: 1, origen: "canal" });
+        }
+      });
+
+      if (!fallback.length) {
+        var baseVideos = (window.FMV_misVideos ? window.FMV_misVideos() : []).slice(0, 120);
+        baseVideos.forEach(function (v) {
+          if (!v || !v.id) return;
+          var t = norm(v.titulo || v.title || "");
+          if (t && coincideBusqueda(t, palabras)) {
+            fallback.push({ canal: { nombre: "⭐ Mis videos", id: "MIS" }, id: v.id, titulo: v.titulo || v.title || "Sin título", score: 1, origen: "mis" });
+          }
+        });
+      }
+
+      if (fallback.length) {
+        resultados = fallback.slice(0, 48);
+      }
+    }
+
+    resultadosRelacionados = obtenerRelacionados(texto, 30).filter(function (r) {
+      if (!r || !r.id) return false;
+      return !resultados.some(function (x) { return x && x.id === r.id; });
+    });
+
     sugerenciaActual = "";
     if (resultados.length === 0) {
       var voc = obtenerVocabulario();
@@ -635,11 +816,35 @@
 
   function pintarResultados() {
     zona.textContent = "";
+
     var g = document.createElement("div");
     g.className = "fmv-res";
     zona.appendChild(g);
     mostrados = 0;
-    agregarMas();
+
+    var primerBloque = resultados.slice(0, POR_PAGINA);
+    primerBloque.forEach(function (r) { g.appendChild(tarjeta(r)); });
+    mostrados = primerBloque.length;
+
+    if (resultados.length > primerBloque.length) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "fmv-mas";
+      b.textContent = "Mostrar más (" + (resultados.length - mostrados) + ")";
+      b.addEventListener("click", agregarMas);
+      zona.appendChild(b);
+    }
+
+    if (resultadosRelacionados.length) {
+      var title = document.createElement("div");
+      title.style.cssText = "margin:20px 0 12px;font-size:1.05rem;font-weight:900;color:var(--texto);";
+      title.textContent = resultados.length ? "También te puede interesar" : "Recomendaciones relacionadas";
+      zona.appendChild(title);
+
+      var rec = document.createElement("div");
+      rec.className = "fmv-res";
+      resultadosRelacionados.slice(0, 30).forEach(function (r) { rec.appendChild(tarjeta(r)); });
+      zona.appendChild(rec);
+    }
   }
 
   /* Mientras se indexa, vuelve a buscar y solo repinta si cambió la cantidad */
@@ -655,12 +860,14 @@
   function lanzar() {
     textoActual = entrada.value.trim();
     if (!textoActual) {
+      document.body.classList.toggle("modo-buscar", document.activeElement === entrada);
       resultados = [];
       zona.hidden = true;
       zona.textContent = "";
       avisar();
       return;
     }
+    document.body.classList.add("modo-buscar");
     sincronizar();
     calcular(textoActual);
     zona.hidden = false;
@@ -668,8 +875,15 @@
     avisar();
   }
 
-  entrada.addEventListener("focus", sincronizar);
+  entrada.addEventListener("focus", function () {
+    document.body.classList.add("modo-buscar");
+    sincronizar();
+  });
+  entrada.addEventListener("blur", function () {
+    if (!entrada.value.trim()) document.body.classList.remove("modo-buscar");
+  });
   entrada.addEventListener("input", function () {
+    document.body.classList.add("modo-buscar");
     clearTimeout(espera);
     espera = setTimeout(lanzar, 220);
   });

@@ -1,7 +1,7 @@
 /* FreshMindVideo - service worker
    Cache de app shell + stale-while-revalidate para que la web arranque rápido,
    sin bloquear el cambio de video ni depender del navegador para todo. */
-var STATIC_CACHE = "fmv-static-v26";
+var STATIC_CACHE = "fmv-static-v27";
 var APP_SHELL = [
   "./",
   "index.html",
