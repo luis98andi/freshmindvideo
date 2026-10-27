@@ -312,6 +312,7 @@
 
     var img = document.createElement("img");
     img.src = v.img || ("https://i.ytimg.com/vi/" + encodeURIComponent(v.id) + "/mqdefault.jpg");
+    img.referrerPolicy = "no-referrer";
     img.alt = "";
     img.style.width = "100%";
     img.style.aspectRatio = "16 / 9";
