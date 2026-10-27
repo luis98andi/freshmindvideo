@@ -115,9 +115,11 @@
       '</div>' +
       '<div style="display:flex;align-items:flex-end;justify-content:space-between;height:120px;padding:10px 4px 0;border-bottom:2px solid #cbd5e1;gap:6px">';
 
+    // Escala proporcional con techo estándar de 3 horas (180 min) o el máximo visto
+    var escalaMax = Math.max(180, maxMinutos);
     diasSemana.forEach(function (d) {
-      var pctHija = maxMinutos ? Math.min(100, Math.round((d.minHija / maxMinutos) * 100)) : 0;
-      var pctHijo = maxMinutos ? Math.min(100, Math.round((d.minHijo / maxMinutos) * 100)) : 0;
+      var pctHija = d.minHija ? Math.max(10, Math.min(100, Math.round((d.minHija / escalaMax) * 100))) : 0;
+      var pctHijo = d.minHijo ? Math.max(10, Math.min(100, Math.round((d.minHijo / escalaMax) * 100))) : 0;
       html +=
         '<div style="flex:1;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end">' +
         '<div style="font-size:10px;font-weight:800;color:#64748b;margin-bottom:4px">' + (d.total ? d.total + 'm' : '') + '</div>' +
