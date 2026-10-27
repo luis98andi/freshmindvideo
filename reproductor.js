@@ -2345,7 +2345,7 @@
     })();
   }
 
-  activarBotonConRetencion(bSubs, alternarSubs, "🔒 Mantén presionado 3s para subtítulos");
+  bSubs.addEventListener("click", alternarSubs);
 
   /* Atajos de teclado: Espacio (Pausar/Reanudar) y C (Activar/Desactivar subtítulos) */
   document.addEventListener("keydown", function (e) {
@@ -2515,10 +2515,10 @@
   function sincronizarPantallaCompleta() {
     pintarPantallaCompleta(document.fullscreenElement === contenedor || document.webkitFullscreenElement === contenedor);
   }
-  activarBotonConRetencion(bPantalla, function () {
+  bPantalla.addEventListener("click", function () {
     if (enPantallaCompleta()) salirPantallaCompleta();
     else entrarPantallaCompleta();
-  }, "🔒 Mantén presionado 3s para pantalla completa");
+  });
   document.addEventListener("fullscreenchange", sincronizarPantallaCompleta);
   document.addEventListener("webkitfullscreenchange", sincronizarPantallaCompleta);
 
@@ -2687,56 +2687,3 @@
     .catch(function () {
       document.getElementById("mensaje").textContent = "No se pudo leer canales.json.";
     });
-
-
-  function activarBotonConRetencion(btn, fnAccion, mensajeAviso) {
-    if (!btn) return;
-    var feedback = null, inicio = 0, activado = false;
-    function limpiar() {
-      if (feedback) clearInterval(feedback);
-      feedback = null;
-      btn.classList.remove("hold-activo");
-      var indicador = btn.querySelector(".hold-feedback");
-      if (indicador) indicador.remove();
-    }
-    function comenzar() {
-      limpiar();
-      inicio = Date.now();
-      activado = false;
-      btn.classList.add("hold-activo");
-      var indicador = document.createElement("span");
-      indicador.className = "hold-feedback";
-      indicador.style.cssText = "position:absolute;inset:0;background:rgba(18,163,127,0.92);color:#fff;border-radius:inherit;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;z-index:10;";
-      var contador = document.createElement("span");
-      contador.textContent = "3";
-      indicador.appendChild(contador);
-      btn.appendChild(indicador);
-      feedback = setInterval(function () {
-        var transcurrido = Date.now() - inicio;
-        var restante = Math.max(0, 3000 - transcurrido);
-        contador.textContent = String(Math.max(1, Math.ceil(restante / 1000)));
-        if (restante > 0 || activado) return;
-        activado = true;
-        clearInterval(feedback);
-        feedback = null;
-        contador.textContent = "✓";
-        setTimeout(limpiar, 300);
-        fnAccion();
-      }, 50);
-    }
-    btn.addEventListener("pointerdown", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      comenzar();
-    });
-    btn.addEventListener("pointerup", limpiar);
-    btn.addEventListener("pointerleave", limpiar);
-    btn.addEventListener("pointercancel", limpiar);
-    btn.addEventListener("click", function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!activado && mensajeAviso && window.FMV_mostrarToast) {
-        window.FMV_mostrarToast(mensajeAviso);
-      }
-    });
-  }

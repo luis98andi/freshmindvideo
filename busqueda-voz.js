@@ -10,7 +10,7 @@ import { SpeechRecognition as NativeSpeechRecognition } from "@capacitor-communi
     if (!cajaBuscador || document.getElementById("btn-voz-ninos")) return;
 
     var input = cajaBuscador.querySelector('input[type="search"]');
-    if (!input) return;
+    if (!input || (!esAndroidNativo && !WebSpeechRecognition)) return;
 
     input.style.paddingRight = "54px";
 
