@@ -209,7 +209,7 @@
       txtInt.textContent = rng.value + "%";
       if (chkActivo.checked) {
         var capa = crearCapaSiNoExiste();
-        capa.style.backgroundColor = "rgba(255, 145, 0, " + (rng.value / 100) + ")";
+        capa.style.backgroundColor = "rgba(220, 40, 0, " + ((rng.value / 100) * 1.3) + ")";
         capa.style.opacity = "1";
       }
     });
