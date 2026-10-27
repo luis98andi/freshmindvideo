@@ -195,7 +195,7 @@
       var capa = crearCapaSiNoExiste();
       if (chkActivo.checked) {
         var op = (parseInt(rng.value, 10) || 25) / 100;
-        capa.style.backgroundColor = "rgba(255, 145, 0, " + op + ")";
+        capa.style.backgroundColor = "rgba(220, 40, 0, " + (op * 1.3) + ")";
         capa.style.mixBlendMode = "multiply";
         capa.style.opacity = "1";
       } else {
