@@ -2,12 +2,17 @@
 (function () {
   'use strict';
   var LS_EXCL = "fmv_palabras_excluidas";
+  var EXCLUIDAS_DEF = ["brujas", "🎃", "fantasmas", "fantasma", "🕷️", "🦇", "💀", "👹", "😈", "🦄", "🌈", "LGTB", "terror", "halloween", "haloween"];
 
   function obtenerPalabrasExcluidas() {
     try {
       var v = window.FMV_getItem ? window.FMV_getItem(LS_EXCL) : localStorage.getItem(LS_EXCL);
-      return JSON.parse(v) || [];
-    } catch (e) { return []; }
+      var parsed = JSON.parse(v);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch (e) {}
+    return EXCLUIDAS_DEF.slice();
   }
 
   function guardarPalabrasExcluidas(arr) {
@@ -41,12 +46,25 @@
     }
 
     html += '</div>' +
-      '<div style="display:flex;justify-content:flex-end"><button type="button" data-x style="padding:8px 16px;border:0;background:#5b6b7a;color:#fff;border-radius:8px;font-weight:700;cursor:pointer">Cerrar</button></div>';
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<button type="button" data-reset style="padding:8px 14px;border:0;background:#e11d48;color:#fff;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">↩ Cargar palabras por defecto</button>' +
+        '<button type="button" data-x style="padding:8px 16px;border:0;background:#5b6b7a;color:#fff;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">Cerrar</button>' +
+      '</div>';
 
-    var m = modalFn(html, 500);
+    var m = modalFn(html, 520);
     var q = function (s) { return m.caja.querySelector(s); };
 
     q("[data-x]").addEventListener("click", m.cerrar);
+
+    var btnReset = q("[data-reset]");
+    if (btnReset) {
+      btnReset.addEventListener("click", function () {
+        guardarPalabrasExcluidas(EXCLUIDAS_DEF.slice());
+        m.cerrar();
+        abrirConfigPalabrasExcluidas();
+        if (window.FMV_mostrarToast) window.FMV_mostrarToast("✓ Palabras por defecto restauradas.");
+      });
+    }
 
     function agregar() {
       var inp = q("[data-inp]");
@@ -77,6 +95,7 @@
     });
   }
 
+  window.FMV_EXCLUIDAS_DEF = EXCLUIDAS_DEF;
   window.FMV_obtenerPalabrasExcluidas = obtenerPalabrasExcluidas;
   window.FMV_guardarPalabrasExcluidas = guardarPalabrasExcluidas;
   window.FMV_abrirConfigPalabrasExcluidas = abrirConfigPalabrasExcluidas;
