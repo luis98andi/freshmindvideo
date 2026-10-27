@@ -760,6 +760,7 @@
         var im = document.createElement("img");
         im.src = r.img;
         im.alt = "";
+        im.referrerPolicy = "no-referrer";
         im.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;";
         port.appendChild(im);
       }
