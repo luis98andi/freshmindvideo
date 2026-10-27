@@ -20,7 +20,7 @@
     return s.trim();
   }
 
-  function leer(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } }
+  function leer(k, d) { try { var v = window.FMV_getItem ? window.FMV_getItem(k) : localStorage.getItem(k); return JSON.parse(v) || d; } catch (e) { return d; } }
 
   function obtenerPinReal() {
     var p = "1234";
@@ -43,7 +43,7 @@
   };
   window.FMV_hayCambiosPadres = false;
 
-  function guardar(k, v) {
+  function guardar(k, v) { try { if (window.FMV_setItem) window.FMV_setItem(k, JSON.stringify(v)); else localStorage.setItem(k, JSON.stringify(v)); if (k !== LS_CACHE && k !== "fmv_historial" && k !== "fmv_pin_padres") { window.FMV_hayCambiosPadres = true; } } catch (e) {} return;
     try {
       localStorage.setItem(k, JSON.stringify(v));
       if (k !== LS_CACHE && k !== "fmv_historial" && k !== "fmv_pin_padres") {
@@ -504,20 +504,48 @@
     c.className = "fmv-modal-caja";
     c.style.cssText = "background:#fff;border-radius:24px;padding:24px;width:100%;max-width:" + (ancho || 480) + "px;margin:auto;max-height:calc(100vh - 40px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;color:#1d2b3a;box-shadow:0 12px 40px rgba(0,0,0,.35);box-sizing:border-box;position:relative;";
     
-    var btnMin = document.createElement("button");
-    btnMin.type = "button";
-    btnMin.innerHTML = "—";
-    btnMin.title = "Minimizar";
-    btnMin.style.cssText = "position:absolute;top:16px;right:16px;background:#f1f5f9;border:0;width:34px;height:34px;border-radius:50%;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;z-index:10;font-size:18px;transition:background 0.2s;";
-    btnMin.onmouseover = function() { btnMin.style.background = "#e2e8f0"; };
-    btnMin.onmouseout = function() { btnMin.style.background = "#f1f5f9"; };
+    var isParentMode = typeof esPadre === "function" ? esPadre() : (window.FMV_esPadre ? window.FMV_esPadre() : false);
+    var isMainParentModal = html.includes("Zona de padres") || html.includes("Zona de Padres");
 
-    btnMin.addEventListener("click", function (e) {
-      e.stopPropagation();
-      f.remove();
-    });
+    if (isParentMode && !isMainParentModal) {
+      var topNav = document.createElement("div");
+      topNav.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #e2e8f0;";
+      
+      var btnVolver = document.createElement("button");
+      btnVolver.type = "button";
+      btnVolver.innerHTML = "⬅️ Volver a Zona de Padres";
+      btnVolver.style.cssText = "background:#0f172a;color:#fff;border:0;padding:8px 14px;border-radius:999px;font-weight:700;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;";
+      btnVolver.addEventListener("click", function (e) {
+        e.stopPropagation();
+        f.remove();
+        if (window.FMV_abrirPadres) window.FMV_abrirPadres();
+      });
 
-    c.appendChild(btnMin);
+      var btnMin = document.createElement("button");
+      btnMin.type = "button";
+      btnMin.innerHTML = "—";
+      btnMin.title = "Minimizar / Cerrar";
+      btnMin.style.cssText = "background:#f1f5f9;border:0;width:32px;height:32px;border-radius:50%;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;font-size:16px;";
+      btnMin.addEventListener("click", function (e) {
+        e.stopPropagation();
+        f.remove();
+      });
+
+      topNav.appendChild(btnVolver);
+      topNav.appendChild(btnMin);
+      c.appendChild(topNav);
+    } else {
+      var btnMin = document.createElement("button");
+      btnMin.type = "button";
+      btnMin.innerHTML = "—";
+      btnMin.title = "Minimizar / Cerrar";
+      btnMin.style.cssText = "position:absolute;top:16px;right:16px;background:#f1f5f9;border:0;width:34px;height:34px;border-radius:50%;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#475569;z-index:10;font-size:18px;";
+      btnMin.addEventListener("click", function (e) {
+        e.stopPropagation();
+        f.remove();
+      });
+      c.appendChild(btnMin);
+    }
 
     var innerDiv = document.createElement("div");
     innerDiv.innerHTML = html;

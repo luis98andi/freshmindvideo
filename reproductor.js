@@ -875,8 +875,8 @@
       localStorage.setItem("fmv_cache_lang_es", "v2");
     }
   } catch (e) {}
-  function lsLeer(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch (e) { return {}; } }
-  function lsGuardar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function lsLeer(k) { try { return JSON.parse(window.FMV_getItem(k)) || {}; } catch (e) { return {}; } }
+  function lsGuardar(k, v) { try { window.FMV_setItem(k, JSON.stringify(v)); } catch (e) {} }
   var cacheTitulos = lsLeer(LS_TITULOS);
   var vivosGuardados = lsLeer(LS_VIVOS);
   var vivosPorCanal = lsLeer(LS_VIVOS_CANAL);
@@ -2006,6 +2006,10 @@
     }
     function comenzar() {
       if (!esAndroidMovil()) return;
+      if (window.FMV_esPadre && window.FMV_esPadre()) {
+        if (window.FMV_abrirPadres) window.FMV_abrirPadres();
+        return;
+      }
       limpiar();
       inicio = Date.now();
       activado = false;
@@ -2033,6 +2037,12 @@
     }
     btn.addEventListener("pointerdown", function (e) {
       if (!esAndroidMovil()) return;
+      if (window.FMV_esPadre && window.FMV_esPadre()) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (window.FMV_abrirPadres) window.FMV_abrirPadres();
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       comenzar();
@@ -2044,6 +2054,9 @@
       if (esAndroidMovil()) {
         e.preventDefault();
         e.stopPropagation();
+        if (window.FMV_esPadre && window.FMV_esPadre()) {
+          if (window.FMV_abrirPadres) window.FMV_abrirPadres();
+        }
         return;
       }
       if (window.FMV_abrirPadres) window.FMV_abrirPadres();
