@@ -412,37 +412,7 @@
     bloque("hijo", "👦", "Hijo", info.hijo, mt.caja.querySelector("[data-hijo]"));
   }
 
-  function abrirPanelPadres() {
-    var cantOcultos = obtenerDetallesOcultos().length + obtenerDetallesListasOcultas().length;
-    var tiempos = window.FMV_obtenerTiempos ? window.FMV_obtenerTiempos() : { hija: { usoSeg: 0, limiteMin: 0 }, hijo: { usoSeg: 0, limiteMin: 0 } };
-    var usoHija = Math.floor((tiempos.hija.usoSeg || 0) / 60);
-    var usoHijo = Math.floor((tiempos.hijo.usoSeg || 0) / 60);
-    var limHija = tiempos.hija.limiteMin > 0 ? (tiempos.hija.limiteMin + "m") : "∞";
-    var limHijo = tiempos.hijo.limiteMin > 0 ? (tiempos.hijo.limiteMin + "m") : "∞";
-
-    var m = modal(
-      '<h3 style="margin:0 0 4px">🔒 Zona de padres</h3>' +
-      '<p style="margin:0 0 12px;font-size:14px;opacity:.75">Administra el contenido, tiempos y límites de pantalla de tus hijos.</p>' +
-      '<div style="background:#f4f8fb;padding:10px 14px;border-radius:12px;margin-bottom:14px;font-size:.86rem;display:flex;justify-content:space-around;font-weight:800">' +
-      '<span>👧 Hija: <b style="color:#0a6b53">' + usoHija + 'm hoy</b> (Límite: ' + limHija + ')</span>' +
-      '<span>👦 Hijo: <b style="color:#0a6b53">' + usoHijo + 'm hoy</b> (Límite: ' + limHijo + ')</span>' +
-      '</div>' +
-      '<div data-l style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>',
-      620
-    );
-    var l = m.caja.querySelector("[data-l]");
-    function fila(texto, color, fn, spans) {
-      var b = document.createElement("button"); b.type = "button"; b.textContent = texto;
-      var styleStr = ESTILO_BT + ";width:100%;padding:12px 14px;font-size:14.5px;text-align:left;display:flex;align-items:center;min-height:54px" + (color ? ";background:" + color : "");
-      if (spans) {
-        styleStr += ";grid-column:span 2";
-      }
-      b.style.cssText = styleStr;
-      b.addEventListener("click", function () { m.cerrar(); fn(); });
-      l.appendChild(b);
-    }
   
-
   window.FMV_abrirBuscadorYouTubePadres = abrirBuscador;
   window.FMV_abrirBuscador = abrirBuscador;
 })();
