@@ -6,7 +6,7 @@
   var LS_BLOQ = "fmv_bloqueados", LS_DET_OCULTOS = "fmv_ocultos_det", bloqBase = [];
   var LS_LISTAS_OCULTAS = "fmv_listas_ocultas", LS_DET_LISTAS_OCULTAS = "fmv_det_listas_ocultas";
   var LS_EXCLUIDAS = "fmv_palabras_excluidas";
-  var EXCLUIDAS_DEF = ["brujas", "halloween", "haloween"];
+  var EXCLUIDAS_DEF = ["brujas", "🎃", "fantasmas", "fantasma", "🕷️", "🦇","💀", "👹","😈","😈","🦄","🌈", "LGTB", "terror", "halloween", "haloween"];
   var BASE = "https://www.googleapis.com/youtube/v3/";
   var ID_OK = /^UC[\w-]{22}$/;
   var grid = document.getElementById("cuadricula"), msg = document.getElementById("mensaje");
