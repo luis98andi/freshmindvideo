@@ -705,7 +705,7 @@
   function tarjeta(img, nombre, boton) {
     var card = document.createElement("div"); card.className = "tarjeta"; card.style.cursor = "default";
     var media = document.createElement("div"); media.className = "media";
-    var im = document.createElement("img"); im.src = img; im.alt = ""; media.appendChild(im);
+    var im = document.createElement("img"); im.src = img; im.alt = "";im.referrerPolicy = "no-referrer"; media.appendChild(im);
     var nom = document.createElement("p"); nom.className = "nombre"; nom.textContent = nombre;
     card.appendChild(media); card.appendChild(nom); card.appendChild(boton);
     return card;
