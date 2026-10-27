@@ -79,7 +79,7 @@
     if (debeEstarActivo) {
       var op = (cfg.intensidad || 25) / 100;
       // Tono ámbar cálido que bloquea los picos de luz azul dañinos para los ojos
-      capa.style.backgroundColor = "rgba(255, 145, 0, " + op + ")";
+      capa.style.backgroundColor = "rgba(220, 40, 0, " + (op * 1.3) + ")";
       capa.style.mixBlendMode = "multiply";
       capa.style.opacity = "1";
     } else {
