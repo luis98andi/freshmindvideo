@@ -5,7 +5,7 @@
   var LS_KEY = "fmv_filtro_azul";
 
   var configPorDefecto = {
-    activo: false,
+    activo: true,
     intensidad: 25, // porcentaje (10% a 65%)
     modoHorario: true,
     horaInicio: "19:00",
