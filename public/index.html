@@ -1,8 +1,5 @@
 <!DOCTYPE html>
 <html lang="es">
-<script type="module" crossorigin src="/assets/index-CyVWzxsN.js"></script>
-<link rel="stylesheet" crossorigin href="/assets/index-Baa-k6jj.css">
-
 <head>
 <meta charset="UTF-8">
 <link rel="preconnect" href="https://www.youtube.com">
@@ -12,7 +9,325 @@
 <link rel="dns-prefetch" href="https://www.youtube.com">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.googleapis.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'none'; media-src 'none'; worker-src 'self'; manifest-src 'self';">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<div id="root"></div>
+<script src="seguridad.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#12a37f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="FreshMind">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='44' height='44' x='2' y='2' rx='12' fill='%2312a37f' stroke='%23f59e0b' stroke-width='3'/%3E%3Cpath d='M19 14v20l17-10z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="manifest" href="/assets/manifest-DkrGNILX.json">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon-Dn1fHuAf.png">
+<title>FreshMindVideo</title>
+<meta name="description" content="Videos seguros para niños, solo de los canales que eliges." />
+<meta property="og:title" content="FreshMindVideo" />
+<meta property="og:description" content="Videos seguros para niños, solo de los canales que eliges." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="/assets/index-BbtdjSRD.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CZsUWOIZ.css">
+</head>
+<body>
+
+<header id="cabecera-app">
+  <div class="header-izq">
+    <div class="logo" id="logo-inicio" role="button" tabindex="0" aria-label="Ir al inicio" title="FreshMindVideo - Inicio">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#12a37f"/><path d="M19 14v20l17-10z" fill="#fff"/></svg>
+      <h1>Fresh<span>MindVideo</span></h1>
+    </div>
+    <span class="perfil-chip" id="perfil-chip" hidden title="Cambiar perfil" role="button" tabindex="0"></span>
+  </div>
+
+  <div class="header-centro">
+    <div id="conmutador" class="conmutador-3d">
+      <button type="button" class="btn-seccion-3d on" data-v="canales" aria-label="Mis Canales" title="Mis Canales">
+        <span class="icono-3d ico-canal">
+          <svg viewBox="0 0 36 36" class="svg-3d-tv" aria-hidden="true">
+            <defs>
+              <linearGradient id="tvGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#38bdf8"/>
+                <stop offset="50%" stop-color="#0284c7"/>
+                <stop offset="100%" stop-color="#0369a1"/>
+              </linearGradient>
+              <linearGradient id="tvScreen" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="40%" stop-color="#f0f9ff"/>
+                <stop offset="100%" stop-color="#bae6fd"/>
+              </linearGradient>
+              <linearGradient id="tvPlay" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0284c7"/>
+                <stop offset="100%" stop-color="#0369a1"/>
+              </linearGradient>
+              <filter id="tvShad" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#0369a1" flood-opacity="0.35"/>
+              </filter>
+            </defs>
+            <path d="M12 5 L18 12 L24 5" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="11.5" cy="4.5" r="1.8" fill="#38bdf8"/>
+            <circle cx="24.5" cy="4.5" r="1.8" fill="#38bdf8"/>
+            <rect x="2.5" y="10" width="31" height="23" rx="8" fill="url(#tvGrad)" filter="url(#tvShad)"/>
+            <rect x="5" y="11" width="26" height="2" rx="1" fill="#ffffff" opacity="0.6"/>
+            <rect x="5.5" y="13.5" width="20.5" height="16" rx="5" fill="url(#tvScreen)" stroke="#e0f2fe" stroke-width="0.8"/>
+            <path d="M13 17.5 L20.5 21.5 L13 25.5 Z" fill="url(#tvPlay)"/>
+            <circle cx="29" cy="17" r="2" fill="#e0f2fe" stroke="#0284c7" stroke-width="0.8"/>
+            <circle cx="29" cy="23.5" r="2" fill="#e0f2fe" stroke="#0284c7" stroke-width="0.8"/>
+          </svg>
+        </span>
+        <span class="label-seccion">Mis Canales</span>
+      </button>
+
+      <button type="button" class="btn-seccion-3d" data-v="mis" aria-label="Mis Videos" title="Mis Videos">
+        <span class="icono-3d ico-star">
+          <svg viewBox="0 0 36 36" class="svg-3d-star" aria-hidden="true">
+            <defs>
+              <linearGradient id="starGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#fde047"/>
+                <stop offset="35%" stop-color="#fbbf24"/>
+                <stop offset="70%" stop-color="#f59e0b"/>
+                <stop offset="100%" stop-color="#d97706"/>
+              </linearGradient>
+              <linearGradient id="starShine" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="100%" stop-color="#fef08a"/>
+              </linearGradient>
+              <filter id="starShad" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="2.5" stdDeviation="2" flood-color="#b45309" flood-opacity="0.38"/>
+              </filter>
+            </defs>
+            <path d="M18 2 L22.8 11.8 L33.5 13.3 L25.8 20.8 L27.6 31.5 L18 26.4 L8.4 31.5 L10.2 20.8 L2.5 13.3 L13.2 11.8 Z" fill="url(#starGrad)" filter="url(#starShad)"/>
+            <path d="M18 2 L22.8 11.8 L18 17 L13.2 11.8 Z" fill="url(#starShine)" opacity="0.9"/>
+            <path d="M18 17 L25.8 20.8 L18 26.4 Z" fill="#ffffff" opacity="0.25"/>
+            <circle cx="23.5" cy="8.5" r="1.6" fill="#ffffff" opacity="0.95"/>
+            <path d="M23.5 6 L23.5 11 M21 8.5 L26 8.5" stroke="#ffffff" stroke-width="0.8" opacity="0.85"/>
+          </svg>
+        </span>
+        <span class="label-seccion">Mis Videos</span>
+        <span class="cuenta" id="cuenta-mis"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="header-der">
+    <button type="button" id="nav-premios" class="btn-cabecera-icono btn-premios" aria-label="Premios y medallas" title="Premios y medallas">
+      <svg viewBox="0 0 36 36" class="svg-3d-trophy" aria-hidden="true">
+        <defs>
+          <linearGradient id="trophyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fde047"/>
+            <stop offset="40%" stop-color="#f59e0b"/>
+            <stop offset="100%" stop-color="#d97706"/>
+          </linearGradient>
+          <linearGradient id="trophyRim" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="100%" stop-color="#fde047"/>
+          </linearGradient>
+          <filter id="trophyShad" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#b45309" flood-opacity="0.35"/>
+          </filter>
+        </defs>
+        <path d="M9 11 C4 11, 4 20, 11 21 M27 11 C32 11, 32 20, 25 21" stroke="#f59e0b" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+        <rect x="11" y="28" width="14" height="4.5" rx="2" fill="#78350f" filter="url(#trophyShad)"/>
+        <path d="M16 22 L14 28 L22 28 L20 22 Z" fill="#d97706"/>
+        <path d="M8 8 L28 8 L26 19 C25 24, 11 24, 10 19 Z" fill="url(#trophyGrad)" filter="url(#trophyShad)"/>
+        <ellipse cx="18" cy="8" rx="10" ry="2.2" fill="url(#trophyRim)"/>
+        <path d="M18 12 L19.2 15.5 L22.8 15.5 L20 17.5 L21 21 L18 19 L15 21 L16 17.5 L13.2 15.5 L16.8 15.5 Z" fill="#ffffff" opacity="0.95"/>
+      </svg>
+    </button>
+    <button type="button" id="nav-padres" class="btn-cabecera-icono btn-padres" aria-label="Zona de padres" title="Zona de padres">
+      <svg viewBox="0 0 36 36" class="svg-3d-padres" aria-hidden="true">
+        <defs>
+          <linearGradient id="lockBody" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#c084fc"/>
+            <stop offset="50%" stop-color="#9333ea"/>
+            <stop offset="100%" stop-color="#6b21a8"/>
+          </linearGradient>
+          <linearGradient id="lockBodyPadre" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#34d399"/>
+            <stop offset="50%" stop-color="#10b981"/>
+            <stop offset="100%" stop-color="#047857"/>
+          </linearGradient>
+          <linearGradient id="lockShackle" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="100%" stop-color="#cbd5e1"/>
+          </linearGradient>
+          <filter id="lockShad" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2" stdDeviation="1.5" flood-color="#3b0764" flood-opacity="0.35"/>
+          </filter>
+        </defs>
+        <path d="M12 16 V11 C12 7.7, 14.7 5, 18 5 C21.3 5, 24 7.7, 24 11 V16" stroke="url(#lockShackle)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+        <rect x="7" y="14" width="22" height="18" rx="6" class="lock-rect" fill="url(#lockBody)" filter="url(#lockShad)"/>
+        <circle cx="18" cy="21.5" r="2.2" fill="#ffffff" opacity="0.95"/>
+        <path d="M17 22 L19 22 L19.5 26 L16.5 26 Z" fill="#ffffff" opacity="0.95"/>
+      </svg>
+    </button>
+    <button type="button" class="btn-padres-salir" aria-label="Salir del modo padres" title="Salir del modo padres">×</button>
+  </div>
+</header>
+
+<main>
+  <!-- VISTA PRINCIPAL: Cuadrícula de Canales y Mis videos -->
+  <div id="vista-principal">
+    <div id="cuadricula" class="cuadricula"></div>
+    <div id="cuadricula-mis" class="selector-grid"></div>
+    <p id="mensaje" class="mensaje">Cargando canales…</p>
+  </div>
+
+  <!-- VISTA DE CANAL: Reproductor orgánico y lista completa de videos -->
+  <div id="vista-canal">
+    <div class="barra-navegacion">
+      <div class="barra-navegacion-izq">
+        <button class="volver" id="btn-volver" type="button"><span style="font-size:1.25rem">🏠</span> <b>Inicio</b></button>
+        <h2 class="titulo-canal-activo" id="titulo-canal-activo"></h2>
+      </div>
+      <div class="barra-navegacion-der">
+        <button type="button" id="btn-ocultar-actual" class="btn-ocultar-actual" title="Ocultar este video para siempre" aria-label="Ocultar video">🙈 Ocultar video</button>
+        <button type="button" id="nav-padres-video" class="btn-cabecera-icono btn-padres" aria-label="Zona de padres" title="Zona de padres">
+          <svg viewBox="0 0 36 36" class="svg-3d-padres" aria-hidden="true">
+            <defs>
+              <linearGradient id="lockBodyV" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#c084fc"/>
+                <stop offset="50%" stop-color="#9333ea"/>
+                <stop offset="100%" stop-color="#6b21a8"/>
+              </linearGradient>
+              <linearGradient id="lockShackleV" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="100%" stop-color="#cbd5e1"/>
+              </linearGradient>
+            </defs>
+            <path d="M12 16 V11 C12 7.7, 14.7 5, 18 5 C21.3 5, 24 7.7, 24 11 V16" stroke="url(#lockShackleV)" stroke-width="3.2" stroke-linecap="round" fill="none"/>
+            <rect x="7" y="14" width="22" height="18" rx="6" class="lock-rect" fill="url(#lockBodyV)"/>
+            <circle cx="18" cy="21.5" r="2.2" fill="#ffffff" opacity="0.95"/>
+            <path d="M17 22 L19 22 L19.5 26 L16.5 26 Z" fill="#ffffff" opacity="0.95"/>
+          </svg>
+        </button>
+        <button type="button" class="btn-padres-salir" aria-label="Salir del modo padres" title="Salir del modo padres">×</button>
+      </div>
+    </div>
+
+    <div class="reproductor-area" id="reproductor-area">
+      <div class="contenedor-reproductor-principal" id="contenedor-reproductor">
+        <div class="video-marco-wrapper">
+          <div id="marco"></div>
+          <!-- Logo cargador mientras el reproductor/video está en negro al inicio -->
+          <div id="cargador-video" class="cargador-video">
+            <div class="cargador-logo">
+              <div class="cargador-aro"></div>
+              <svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" rx="13" fill="#12a37f"/><path d="M19 14v20l17-10z" fill="#fff"/></svg>
+            </div>
+            <span id="cargador-txt">Cargando video…</span>
+          </div>
+          <!-- Tapa translúcida de Play/Pausa: no oscurece en negro sólido ni tapa imágenes de en vivo programado -->
+          <button type="button" id="tapa" class="tapa" aria-label="Reproducir" hidden>
+            <span class="play-circulo"><svg viewBox="0 0 24 24"><path d="M7 4v16l13-8z"/></svg></span>
+          </button>
+          <!-- Aviso cuando un video En Vivo está programado por horario y no transmite en este momento -->
+          <div id="aviso-vivo" class="aviso-vivo" hidden>
+            <span id="aviso-vivo-txt">⏳ Este video en vivo tiene horario programado y no está disponible por el momento.</span>
+            <button type="button" id="aviso-vivo-sig">Siguiente video →</button>
+          </div>
+          <div class="marca-video" id="marca-video" hidden><span id="mv-num"></span><span class="vivo" id="mv-vivo" hidden>● EN VIVO</span></div>
+        </div>
+        <div class="controles" id="controles">
+        <button type="button" id="b-anterior" aria-label="Video anterior"></button>
+        <button type="button" id="b-play" aria-label="Reproducir o pausar"></button>
+        <button type="button" id="b-siguiente" aria-label="Video siguiente"></button>
+        <div class="rango-wrapper">
+          <div id="rango-detector" class="rango-detector" hidden>0:00</div>
+          <input type="range" id="rango" min="0" max="1000" value="0" aria-label="Avance del video">
+        </div>
+        <span class="tiempo" id="tiempo">0:00 / 0:00</span>
+        <div class="vol" id="vol-contenedor">
+          <div class="vol-panel" id="vol-panel">
+            <div style="font-size:12px;font-weight:800;color:#fff;display:flex;align-items:center;gap:4px">
+              <span>🔊</span> <span id="vol-porcentaje">100%</span>
+            </div>
+            <input type="range" id="volumen" min="0" max="100" value="100" aria-label="Volumen">
+          </div>
+          <div id="vol-aviso" class="vol-bloqueo-aviso">Mantén 3s para ajustar volumen</div>
+          <button type="button" id="b-sonido" aria-label="Volumen">
+            <div class="vol-progreso-aro"></div>
+          </button>
+        </div>
+        <button type="button" id="b-subs" aria-label="Subtítulos" aria-pressed="false"></button>
+        <button type="button" id="b-pantalla" aria-label="Pantalla completa" title="Pantalla completa"></button>
+        <button type="button" id="b-autoplay" aria-label="Autoplay activado" aria-pressed="true" title="Autoplay activado">AUTO</button>
+        <button type="button" id="b-libre" aria-label="Padres: quitar la barrera del video un momento" title="Padres: tocar el aviso de YouTube"></button>
+      </div>
+    </div>
+  </div>
+
+    <div class="seccion-videos-canal">
+      <div class="fila-titulo">
+        <h3 id="titulo-seccion-canal">Todos los videos del canal (<span id="contador-total">0</span>)</h3>
+        <div id="pestanas" hidden>
+          <button type="button" data-p="UULF">🎬 Videos</button>
+          <button type="button" data-p="LISTAS">📂 Listas</button>
+          <button type="button" data-p="UULV">🔴 En vivo</button>
+          <button type="button" data-p="UUSH">📱 Reels</button>
+        </div>
+      </div>
+      <p id="selector-mensaje">Cargando lista completa de videos…</p>
+      <div class="selector-grid" id="selector-grid"></div>
+    </div>
+  </div>
+</main>
+<div id="quien">
+  <button type="button" id="quien-btn-cerrar" class="quien-btn-cerrar" aria-label="Cerrar">✕</button>
+  <h2>Cambiar hijo</h2>
+  <div class="quien-opciones">
+    <button type="button" data-p="hija" id="btn-perfil-hija">
+      <span class="avatar-quien-3d" id="quien-av-hija"></span>
+      <span>Hija</span>
+    </button>
+    <button type="button" data-p="hijo" id="btn-perfil-hijo">
+      <span class="avatar-quien-3d" id="quien-av-hijo"></span>
+      <span>Hijo</span>
+    </button>
+  </div>
+  <div class="avatar-picker-seccion">
+    <button type="button" id="btn-toggle-avatar-picker" class="btn-toggle-avatar-picker" aria-expanded="false">
+      <span>🎨 Cambiar icono</span>
+      <span id="flecha-toggle-avatar" style="font-size:0.85rem;margin-left:4px;display:inline-block;transition:transform 0.2s;">▼</span>
+    </button>
+    <div id="avatar-grid-opciones" class="avatar-grid-opciones" hidden></div>
+  </div>
+</div>
+
+<!-- Pantalla de bloqueo cuando el tiempo diario se acaba -->
+<div id="bloqueo-tiempo" class="bloqueo-tiempo" hidden>
+  <div class="bloqueo-tarjeta">
+    <div class="bloqueo-icono">⏳</div>
+    <h2>¡Tiempo terminado por hoy!</h2>
+    <p id="bloqueo-txt">El tiempo configurado para este perfil ha terminado.</p>
+    <div class="bloqueo-formulario">
+      <input type="password" id="bloqueo-pin" inputmode="numeric" placeholder="Contraseña de padres (o 1234)" maxlength="20" style="padding:10px 14px;border:2px solid #cbd5e1;border-radius:12px;font-size:16px;font-family:inherit;width:100%;max-width:280px;text-align:center;box-sizing:border-box;">
+      <p id="bloqueo-err" style="color:#d93025;font-weight:800;display:none;margin:6px 0">Contraseña incorrecta</p>
+      
+      <div style="margin:12px 0 6px;font-size:13px;font-weight:800;color:#334155">¿Cuánto tiempo extra deseas dar?</div>
+      <div style="display:flex;gap:6px;justify-content:center;margin-bottom:8px;flex-wrap:wrap">
+        <button type="button" class="bloqueo-btn-extra" data-m="5" style="border:0;background:#059669;color:#fff;font-weight:800;padding:7px 12px;border-radius:10px;cursor:pointer">+5 min</button>
+        <button type="button" class="bloqueo-btn-extra" data-m="10" style="border:0;background:#059669;color:#fff;font-weight:800;padding:7px 12px;border-radius:10px;cursor:pointer">+10 min</button>
+        <button type="button" class="bloqueo-btn-extra" data-m="15" style="border:0;background:#059669;color:#fff;font-weight:800;padding:7px 12px;border-radius:10px;cursor:pointer">+15 min</button>
+        <button type="button" class="bloqueo-btn-extra" data-m="30" style="border:0;background:#059669;color:#fff;font-weight:800;padding:7px 12px;border-radius:10px;cursor:pointer">+30 min</button>
+      </div>
+      <div style="display:flex;gap:6px;justify-content:center;align-items:center;margin-bottom:12px">
+        <span style="font-size:12px;font-weight:700;color:#64748b">O personalizado:</span>
+        <input type="number" id="bloqueo-custom-min" min="1" max="999" placeholder="ej: 5" style="width:65px;padding:6px 8px;border:1.5px solid #cbd5e1;border-radius:8px;font-weight:800;font-size:14px;text-align:center">
+        <span style="font-size:12px;color:#64748b">min</span>
+        <button type="button" id="bloqueo-btn-custom" style="border:0;background:#0284c7;color:#fff;font-weight:800;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:13px">Desbloquear</button>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:10px;flex-wrap:wrap">
+        <button type="button" id="bloqueo-btn-entrar" class="bloqueo-btn">Desbloquear (+15 min)</button>
+        <button type="button" id="bloqueo-btn-cambiar" class="bloqueo-btn" style="background:#b06a00">Cambiar de perfil</button>
+        <button type="button" id="bloqueo-btn-padres" class="bloqueo-btn" style="background:#5b6b7a">Zona de padres</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="seguridad.js?v=26"></script>
 <script src="reproductor.js?v=26"></script>
 <script src="limite-tiempo-perfil.js?v=26"></script>
@@ -31,5 +346,4 @@
 <script src="indexador-vocabulario.js?v=26"></script>
 <script src="buscador-youtube-padres.js?v=26"></script>
 <script src="buscador.js?v=26"></script>
-</body>
-</html>
+</body></html>
