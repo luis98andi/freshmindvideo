@@ -32,7 +32,7 @@ Para conocer en detalle cada una de las opciones, visita la [Guía Completa para
 * `public/css/` contiene los estilos estáticos.
 * `public/js/` organiza los scripts por área: núcleo, reproductor, canales, búsqueda, PWA, control parental y funcionalidades.
 * `src/js/search/` contiene la búsqueda por voz, que Vite compila como módulo ES porque integra las dependencias de Capacitor.
-* `public/` también contiene los datos y recursos estáticos que Vite publica desde la raíz del sitio.
+* `public/` también contiene los datos y recursos estáticos. El HTML los carga desde `public/` para funcionar tanto al publicar la raíz del repositorio como en los artefactos compilados.
 
 Los scripts clásicos se cargan en un orden explícito desde `index.html` porque algunas funcionalidades comparten la API global `window.FMV_*`. Las vistas de Mis canales, Mis videos y Zona de padres tienen archivos separados del reproductor y del controlador de datos.
 
