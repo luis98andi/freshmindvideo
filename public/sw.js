@@ -1,7 +1,7 @@
 /* FreshMindVideo - service worker
    Cache de app shell + stale-while-revalidate para que la web arranque rápido,
    sin bloquear el cambio de video ni depender del navegador para todo. */
-var STATIC_CACHE = "fmv-static-v34";
+var STATIC_CACHE = "fmv-static-v35";
 var APP_SHELL = [
   "./",
   "index.html",
@@ -11,8 +11,8 @@ var APP_SHELL = [
   "public/js/player/reproductor.js",
   "public/js/channels/mis-canales.js",
   "public/js/pwa/pwa-install.js",
-  "canales.json",
-  "mis_videos.json",
+  "public/canales.json",
+  "public/mis_videos.json",
   "public/js/channels/canales-auto.js",
   "public/js/channels/mis-videos.js",
   "public/js/parental/zona-padres.js",
