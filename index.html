@@ -9,7 +9,8 @@
 <link rel="dns-prefetch" href="https://www.youtube.com">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.googleapis.com https://www.youtube.com; object-src 'none'; base-uri 'self'; form-action 'none'; media-src 'none'; worker-src 'self'; manifest-src 'self';">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<script src="seguridad.js"></script>
+<script src="./js/core/seguridad.js"></script>
+<script src="./js/core/datos.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#12a37f">
 <meta name="mobile-web-app-capable" content="yes">
@@ -27,7 +28,7 @@
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=26">
+<link rel="stylesheet" href="./css/styles.css?v=26">
 </head>
 <body>
 
@@ -327,15 +328,18 @@
   </div>
 </div>
 
-<script src="reproductor.js?v=26"></script>
-<script src="pwa-install.js?v=26"></script>
-<script src="logros-premios.js?v=24"></script>
-<script src="filtro-azul.js?v=24"></script>
-<script src="horarios-rutina.js?v=24"></script>
-<script src="pausas-activas.js?v=24"></script>
-<script src="reportes-padres.js?v=24"></script>
-<script type="module" src="busqueda-voz.js?v=25"></script>
-<script src="canales-auto.js?v=25"></script>
-<script src="buscador.js?v=25"></script>
+<script src="./js/player/reproductor.js?v=26"></script>
+<script src="./js/channels/mis-canales.js?v=2"></script>
+<script src="./js/pwa/pwa-install.js?v=26"></script>
+<script src="./js/features/logros-premios.js?v=24"></script>
+<script src="./js/features/filtro-azul.js?v=24"></script>
+<script src="./js/parental/horarios-rutina.js?v=24"></script>
+<script src="./js/features/pausas-activas.js?v=24"></script>
+<script src="./js/parental/reportes-padres.js?v=24"></script>
+<script type="module" src="./src/js/search/busqueda-voz.js?v=25"></script>
+<script src="./js/channels/canales-auto.js?v=26"></script>
+<script src="./js/parental/zona-padres.js?v=1"></script>
+<script src="./js/channels/mis-videos.js?v=1"></script>
+<script src="./js/search/buscador.js?v=25"></script>
 </body>
 </html>

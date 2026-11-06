@@ -74,7 +74,12 @@
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js", { scope: "./" }).catch(function () {});
+        var swUrl = new URL("./sw.js", document.baseURI);
+        var scope = new URL("./", document.baseURI);
+        navigator.serviceWorker.register(swUrl.href, { scope: scope.pathname })
+          .catch(function (error) {
+            console.error("No se pudo habilitar el funcionamiento sin conexión.", error);
+          });
       });
     }
   })();

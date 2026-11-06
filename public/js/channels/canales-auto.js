@@ -9,7 +9,7 @@
   var EXCLUIDAS_DEF = ["brujas", "🎃", "fantasmas", "fantasma", "🕷️", "🦇","💀", "👹","😈","😈","🦄","🌈", "LGTB", "terror", "halloween", "haloween"];
   var BASE = "https://www.googleapis.com/youtube/v3/";
   var ID_OK = /^UC[\w-]{22}$/;
-  var grid = document.getElementById("cuadricula"), msg = document.getElementById("mensaje");
+  var msg = document.getElementById("mensaje");
   var sinClave = !API_KEY || API_KEY.indexOf("PEGA") === 0;
   var todos = [];
   var videosBase = []; // videos que vienen de canales.json (para todos los dispositivos)
@@ -287,181 +287,68 @@
   function vperf(v) { return leer(LS_VPERF, {})[v.id] || v.perfiles || PERFS; }
   function visibleV(v, p) { return !p || vperf(v).indexOf(p) >= 0; }
   window.FMV_repintar = function () { pintar(); };
-  window.FMV_repintarMis = function () { pintarMis(); };
-
-  function crearCardMisVideo(v, idx, p, esPadreModo) {
-    var ver = visibleV(v, p);
-    var w = document.createElement("div");
-    w.className = "item";
-    w.style.position = "relative";
-    w.style.display = "flex";
-
-    var b = document.createElement("button");
-    b.type = "button";
-    b.style.width = "100%";
-    b.style.display = "flex";
-    b.style.flexDirection = "column";
-    b.style.border = "0";
-    b.style.padding = "0";
-    b.style.background = "var(--tarjeta)";
-    b.style.borderRadius = "20px";
-    b.style.overflow = "hidden";
-    b.style.textAlign = "left";
-    b.style.boxShadow = "0 3px 10px rgba(20, 60, 100, .2)";
-    b.style.cursor = "pointer";
-
-    var img = document.createElement("img");
-    img.src = v.img || ("https://i.ytimg.com/vi/" + encodeURIComponent(v.id) + "/mqdefault.jpg");
-    img.referrerPolicy = "no-referrer";
-    img.alt = "";
-    img.style.width = "100%";
-    img.style.aspectRatio = "16 / 9";
-    img.style.objectFit = "cover";
-    img.style.display = "block";
-    img.style.background = "#000";
-
-    var mc = document.createElement("span");
-    mc.className = "marcas";
-    var num = document.createElement("span");
-    num.className = "num";
-    num.textContent = (idx + 1);
-    mc.appendChild(num);
-
-    var t = document.createElement("span");
-    t.className = "titulo";
-    t.textContent = v.titulo || ("Video " + (idx + 1));
-
-    b.appendChild(img);
-    b.appendChild(mc);
-    b.appendChild(t);
-
-    if (ver) {
-      b.addEventListener("click", function () {
-        if (window.FMV_abrirMis) FMV_abrirMis(v.id);
+  window.FMV_repintarMis = function () {
+    if (window.FMV_pintarMisVideos) window.FMV_pintarMisVideos();
+  };
+  window.FMV_datosMisVideos = {
+    listar: function () { return esPadre() ? misTodos() : misVideos(); },
+    perfil: function () { return window.FMV_perfil; },
+    esPadre: esPadre,
+    visible: visibleV,
+    orden: function () { return leer("fmv_sort_mis", "recent") === "oldest" ? "oldest" : "recent"; },
+    alternarOrden: function () {
+      guardar("fmv_sort_mis", leer("fmv_sort_mis", "recent") === "recent" ? "oldest" : "recent");
+    },
+    confirmar: confirmarAccion,
+    ocultar: window.FMV_ocultarVideo,
+    abrirVideo: function (id) {
+      if (window.FMV_abrirMis) window.FMV_abrirMis(id);
+    },
+    chipsPerfil: function (video) {
+      return chipsPerfil(video, function () { return vperf(video); }, function (perfiles) {
+        var mapas = leer(LS_VPERF, {});
+        mapas[video.id] = perfiles;
+        guardar(LS_VPERF, mapas);
+        pintar();
       });
     }
-
-    w.appendChild(b);
-
-    if (esPadreModo) {
-      if (!ver) w.style.opacity = ".4";
-      var x = document.createElement("span");
-      x.className = "quitar-video";
-      x.setAttribute("role", "button");
-      x.setAttribute("tabindex", "0");
-      x.innerHTML = '<span class="ico-mono">🙈</span> <span>Ocultar</span>';
-      x.title = "Ocultar este video para siempre";
-      function doQuitar(ev) {
-        if (ev) ev.stopPropagation();
-        confirmarAccion("¿Ocultar este video («" + (v.titulo || v.id) + "»)? No volverá a aparecer.", function () {
-          window.FMV_ocultarVideo(v.id, v.titulo, "⭐ Mis videos", "padre");
-          pintar();
-        });
-      }
-      x.addEventListener("click", doQuitar);
-      x.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); doQuitar(e); }
+  };
+  window.FMV_datosMisCanales = {
+    listar: function () {
+      return esPadre() ? todos.slice() : todos.filter(function (canal) {
+        return visibleEn(canal, window.FMV_perfil);
       });
-      w.appendChild(x);
-      w.appendChild(chipsPerfil(v, function () { return vperf(v); }, function (ps) { var m = leer(LS_VPERF, {}); m[v.id] = ps; guardar(LS_VPERF, m); pintar(); }));
+    },
+    esPadre: esPadre,
+    visible: function (canal) { return visibleEn(canal, window.FMV_perfil); },
+    chipsPerfil: chipsPerfil,
+    quitar: function (canal) {
+      confirmarAccion("¿Quitar " + canal.nombre + "?", function () {
+        if (canal.extra) guardar(LS_EXTRA, leer(LS_EXTRA, []).filter(function (item) { return item.id !== canal.id; }));
+        else {
+          var ocultos = leer(LS_OCULTOS, []);
+          if (ocultos.indexOf(canal.url) < 0) ocultos.push(canal.url);
+          guardar(LS_OCULTOS, ocultos);
+        }
+        todos = todos.filter(function (item) { return item !== canal; });
+        pintar();
+        actualizarBotones();
+      });
     }
-    return w;
-  }
-
-  function pintarMis() {
-    var gm = document.getElementById("cuadricula-mis");
-    if (!gm) return;
-    gm.innerHTML = "";
-    var p = window.FMV_perfil, lista = esPadre() ? misTodos() : misVideos();
-    var sort = leer("fmv_sort_mis", "recent") === "oldest" ? "oldest" : "recent";
-    
-    var sortWrapper = document.createElement("div");
-    sortWrapper.style.cssText = "grid-column: 1 / -1; margin-bottom: 8px;";
-    
-    var btnSort = document.createElement("button");
-    btnSort.type = "button";
-    btnSort.textContent = "Orden: " + (sort === "recent" ? "Más recientes primero" : "Más antiguos primero");
-    btnSort.setAttribute("aria-label", btnSort.textContent);
-    btnSort.style.cssText = "padding:6px 14px;border:0;background:#64748b;color:#fff;border-radius:999px;cursor:pointer;font-weight:700;font-family:inherit;font-size:13px;display:inline-block";
-    btnSort.addEventListener("click", function () {
-        var current = leer("fmv_sort_mis", "recent");
-        guardar("fmv_sort_mis", current === "recent" ? "oldest" : "recent");
-        pintarMis();
-    });
-    sortWrapper.appendChild(btnSort);
-    gm.appendChild(sortWrapper);
-    
-    lista = lista.map(function (video, index) { return { video: video, index: index }; })
-      .sort(function (a, b) {
-        var ta = Number(a.video.t) || 0;
-        var tb = Number(b.video.t) || 0;
-        var diferencia = ta - tb;
-        if (diferencia) return sort === "recent" ? -diferencia : diferencia;
-        return sort === "recent" ? a.index - b.index : b.index - a.index;
-      })
-      .map(function (item) { return item.video; });
-
-    if (!lista.length) {
-      var e = document.createElement("p"); e.className = "mensaje"; e.style.gridColumn = "1/-1";
-      e.textContent = "Aún no hay videos aquí. Los padres pueden agregarlos desde 🔒 Padres → Buscar en YouTube.";
-      gm.appendChild(e);
-      return;
-    }
-    lista.forEach(function (v, idx) {
-      gm.appendChild(crearCardMisVideo(v, idx, p, esPadre()));
-    });
-  }
+  };
 
   function pintar() {
     var perfil = window.FMV_perfil;
     window.FMV_CANALES = esPadre() ? todos : todos.filter(function (c) { return visibleEn(c, perfil); }); // lo usa el buscador (buscador.js)
-    grid.innerHTML = "";
     if (window.FMV_tabVideos) FMV_tabVideos(misVideos().length);
     if (window.FMV_repintarSelector) FMV_repintarSelector();
-    todos.forEach(function (c, i) {
-      var ver = visibleEn(c, perfil);
-      if (!ver && !esPadre()) return;
-      var t = crearTarjeta(c, i);
-      if (!t) return;
-      if (esPadre()) {
-        if (!ver) t.style.opacity = ".4";   // los padres ven todos; los que no son de este perfil salen atenuados
-        var x = document.createElement("button");
-        x.textContent = "×"; x.title = "Quitar canal";
-        x.style.cssText = "position:absolute;top:6px;right:6px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(0,0,0,.7);color:#fff;font-size:20px;cursor:pointer;z-index:2";
-        x.addEventListener("click", function (e) {
-          e.stopPropagation();
-          function proceder() {
-            confirmarAccion("¿Quitar " + c.nombre + "?", function () {
-              if (c.extra) guardar(LS_EXTRA, leer(LS_EXTRA, []).filter(function (o) { return o.id !== c.id; }));
-              else { var oc = leer(LS_OCULTOS, []); oc.push(c.url); guardar(LS_OCULTOS, oc); }
-              todos = todos.filter(function (o) { return o !== c; });
-              pintar(); actualizarBotones();
-            });
-          }
-          if (!esPadre()) {
-            pedirPin(proceder);
-            return;
-          }
-          proceder();
-        });
-        t.style.position = "relative";
-        t.appendChild(x);
-        t.appendChild(chipsPerfil(c));
-      }
-      grid.appendChild(t);
-    });
-    msg.hidden = grid.children.length > 0;
-    pintarMis();
+    if (window.FMV_pintarMisCanales) window.FMV_pintarMisCanales();
+    window.FMV_repintarMis();
   }
 
   function iniciar() {
-    var pCanales = fetch("canales.json?_t=" + Date.now(), { cache: "no-store" })
-      .then(function (r) { return r.json(); })
-      .catch(function () { return { canales: [] }; });
-
-    var pVideos = fetch("mis_videos.json?_t=" + Date.now(), { cache: "no-store" })
-      .then(function (r) { return r.json(); })
-      .catch(function () { return { videos: [] }; });
+    var pCanales = window.FMV_cargarCanalesBase();
+    var pVideos = window.FMV_cargarMisVideosBase();
 
     return Promise.all([pCanales, pVideos]).then(function (res) {
       var d = res[0] || {};
@@ -490,6 +377,11 @@
       resolver(todos).then(function () {
         pintar();
       });
+    }).catch(function (error) {
+      console.error("No se pudieron cargar los datos de canales y videos.", error);
+      msg.textContent = "No se pudieron cargar los canales y mis videos. Revisa la conexión o vuelve a cargar la app.";
+      msg.hidden = false;
+      if (window.FMV_alListo) window.FMV_alListo();
     });
   }
 
@@ -1436,175 +1328,29 @@
     bloque("hijo", "👦", "Hijo", info.hijo, mt.caja.querySelector("[data-hijo]"));
   }
 
-  function abrirPanelPadres() {
-    var cantOcultos = obtenerDetallesOcultos().length + obtenerDetallesListasOcultas().length;
-    var tiempos = window.FMV_obtenerTiempos ? window.FMV_obtenerTiempos() : { hija: { usoSeg: 0, limiteMin: 0 }, hijo: { usoSeg: 0, limiteMin: 0 } };
-    var usoHija = Math.floor((tiempos.hija.usoSeg || 0) / 60);
-    var usoHijo = Math.floor((tiempos.hijo.usoSeg || 0) / 60);
-    var limHija = tiempos.hija.limiteMin > 0 ? (tiempos.hija.limiteMin + "m") : "∞";
-    var limHijo = tiempos.hijo.limiteMin > 0 ? (tiempos.hijo.limiteMin + "m") : "∞";
-
-    var m = modal(
-      '<h3 style="margin:0 0 4px">🔒 Zona de padres</h3>' +
-      '<p style="margin:0 0 12px;font-size:14px;opacity:.75">Administra el contenido, tiempos y límites de pantalla de tus hijos.</p>' +
-      '<div style="background:#f4f8fb;padding:10px 14px;border-radius:12px;margin-bottom:14px;font-size:.86rem;display:flex;justify-content:space-around;font-weight:800">' +
-      '<span>👧 Hija: <b style="color:#0a6b53">' + usoHija + 'm hoy</b> (Límite: ' + limHija + ')</span>' +
-      '<span>👦 Hijo: <b style="color:#0a6b53">' + usoHijo + 'm hoy</b> (Límite: ' + limHijo + ')</span>' +
-      '</div>' +
-      '<div data-l style="display:grid;grid-template-columns:1fr 1fr;gap:10px"></div>',
-      620
-    );
-    var l = m.caja.querySelector("[data-l]");
-    function fila(texto, color, fn, spans) {
-      var b = document.createElement("button"); b.type = "button"; b.textContent = texto;
-      var styleStr = ESTILO_BT + ";width:100%;padding:12px 14px;font-size:14.5px;text-align:left;display:flex;align-items:center;min-height:54px" + (color ? ";background:" + color : "");
-      if (spans) {
-        styleStr += ";grid-column:span 2";
-      }
-      b.style.cssText = styleStr;
-      b.addEventListener("click", function () { m.cerrar(); fn(); });
-      l.appendChild(b);
-    }
-    function abrirEstiloTarjetas() {
-      var formaActual = localStorage.getItem("fmv_card_shape") || "rounded";
-      var mt = modal(
-        '<h3 style="margin:0 0 4px">🎨 Estilo y Forma de Tarjetas</h3>' +
-        '<p style="margin:0 0 16px;font-size:14px;opacity:.75">Elige cómo se ven las tarjetas de los canales en la pantalla principal.</p>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
-        '<button type="button" data-shape="rounded" style="' + ESTILO_BT + ';padding:14px;background:' + (formaActual === 'rounded' ? '#10b981' : '#2f6fdd') + '">🔵 Redondeado (Clásico)</button>' +
-        '<button type="button" data-shape="circle" style="' + ESTILO_BT + ';padding:14px;background:' + (formaActual === 'circle' ? '#10b981' : '#2f6fdd') + '">⚪ Círculo / Avatar</button>' +
-        '<button type="button" data-shape="square" style="' + ESTILO_BT + ';padding:14px;background:' + (formaActual === 'square' ? '#10b981' : '#2f6fdd') + '">◼ Cuadrado</button>' +
-        '<button type="button" data-shape="modern" style="' + ESTILO_BT + ';padding:14px;background:' + (formaActual === 'modern' ? '#10b981' : '#2f6fdd') + '">🌟 Moderno (Sombra)</button>' +
-        '</div>',
-        500
-      );
-      mt.caja.querySelectorAll("[data-shape]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var sh = btn.getAttribute("data-shape");
-          localStorage.setItem("fmv_card_shape", sh);
-          document.body.classList.remove("card-circle", "card-square", "card-modern");
-          if (sh !== "rounded") {
-            document.body.classList.add("card-" + sh);
-          }
-          mt.cerrar();
-        });
-      });
-    }
-
-
-    function abrirCopiaSeguridad() {
-      var mt = modal(
-        '<h3 style="margin:0 0 4px">⚙️ Copia de Seguridad y Configuración</h3>' +
-        '<p style="margin:0 0 16px;font-size:14px;opacity:.75">Exporta todas tus configuraciones (canales, videos, palabras excluidas, horarios, límites de tiempo, contraseñas, etc.) en un archivo JSON, o restáuralas importando un respaldo previo.</p>' +
-        '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">' +
-          '<button type="button" data-export style="' + ESTILO_BT + ';background:#3b82f6;flex:1">💾 Exportar Configuración</button>' +
-          '<label style="' + ESTILO_BT + ';background:#10b981;flex:1;text-align:center;cursor:pointer;display:inline-block;padding:12px">📂 Importar Configuración<input type="file" data-import accept=".json" style="display:none"></label>' +
-        '</div>' +
-        '<p data-msg style="font-size:13px;font-weight:700;margin:0;color:#12a37f"></p>',
-        480
-      );
-      var q = function (s) { return mt.caja.querySelector(s); };
-      q("[data-export]").addEventListener("click", function () {
-        var data = {};
-        for (var i = 0; i < localStorage.length; i++) {
-          var k = localStorage.key(i);
-          if (k) {
-            data[k] = localStorage.getItem(k);
-          }
-        }
-        var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement("a");
-        a.href = url; a.download = "freshmind_backup_" + new Date().toISOString().slice(0, 10) + ".json";
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        q("[data-msg]").textContent = "✓ Copia de seguridad exportada con éxito.";
-      });
-      q("[data-import]").addEventListener("change", function (e) {
-        var file = e.target.files[0];
-        if (!file) return;
-        var reader = new FileReader();
-        reader.onload = function (evt) {
-          try {
-            var data = JSON.parse(evt.target.result);
-            if (!data || typeof data !== "object") throw new Error("Archivo inválido");
-            Object.keys(data).forEach(function (k) {
-              if (typeof data[k] === "string") {
-                localStorage.setItem(k, data[k]);
-              }
-            });
-            q("[data-msg]").textContent = "✓ Configuración importada con éxito. Recargando...";
-            setTimeout(function () { location.reload(); }, 1500);
-          } catch (err) {
-            q("[data-msg]").style.color = "#d93025";
-            q("[data-msg]").textContent = "⚠️ Error al importar: archivo JSON no válido.";
-          }
-        };
-        reader.readAsText(file);
-      });
-    }
-
-    function abrirManualPadres() {
-      var mm = modal(
-        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
-        '<div style="display:flex;align-items:center;gap:8px">' +
-        '<span style="font-size:26px">📖</span>' +
-        '<h2 style="margin:0;font-size:1.35rem">Manual y Guía para Padres</h2>' +
-        '</div>' +
-        '<button type="button" data-x style="' + ESTILO_BT + ';background:#5b6b7a;padding:6px 14px;border-radius:999px">Cerrar</button>' +
-        '</div>' +
-        '<div style="max-height:72vh;overflow-y:auto;padding-right:6px;font-size:14.5px;line-height:1.55;color:#334155">' +
-
-        '<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;padding:12px 14px;margin-bottom:14px">' +
-        '<b style="color:#166534">🌟 ¡Bienvenido a FreshMindVideo!</b>' +
-        '<p style="margin:4px 0 0;font-size:13px;color:#15803d">Un entorno web infantil sin distracciones, sin comentarios, sin anuncios invasivos y con control total para ti como padre o madre.</p>' +
-        '</div>' +
-
-        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">🔒 1. Acceso y Contraseña</h4>' +
-        '<p style="margin:0 0 10px">Toda la configuración está resguardada por tu PIN. Para mayor seguridad, el PIN se guarda encriptado mediante hash en este dispositivo y nunca queda visible en la pantalla. Puedes cambiarlo en cualquier momento desde <b>«🔑 Cambiar contraseña»</b>.</p>' +
-
-        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">🔍 2. Búsqueda y Agregar Contenido</h4>' +
-        '<p style="margin:0 0 10px">En <b>«🔍 Buscar en YouTube y agregar»</b> puedes buscar canales o videos escribiendo palabras clave o pegando el enlace de YouTube directamente. Además, puedes ocultar videos puntuales con el botón rojo <b>«🙈 Ocultar video»</b> si no deseas que tus hijos los vean.</p>' +
-
-        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">⏱️ 3. Tiempo de Pantalla y Rutinas</h4>' +
-        '<p style="margin:0 0 10px">Puedes definir un límite de minutos diarios para <b>👧 Hija</b> y <b>👦 Hijo</b>. Al terminarse el tiempo, la app se bloquea sola. También puedes programar una <b>«⏰ Rutina de Descanso»</b> para bloquear la app a la hora de dormir o hacer deberes escolares.</p>' +
-
-        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">🌙 4. Filtro de Luz Azul y Pausas Activas</h4>' +
-        '<p style="margin:0 0 10px">El <b>«🌙 Filtro de Luz Azul»</b> atenúa los brillos molestos con un tono ámbar cálido para proteger los ojos en la noche. Con las <b>«👀 Pausas Activas»</b>, la app recuerda cada 20-25 minutos parpadear y descansar la vista por 20 segundos.</p>' +
-
-        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">🏆 5. Premios y Medallas Infantiles</h4>' +
-        '<p style="margin:0 0 10px">Los niños ganan trofeos virtuales al descubrir videos de arte, ciencia o música y al respetar el límite de tiempo. Pueden ver su vitrina tocando el botón <b>🏆 Premios</b> arriba.</p>' +
-
-        '<h4 style="margin:16px 0 6px;color:#0f172a;display:flex;align-items:center;gap:6px">📱 6. Cómo instalar en Celulares y Tablets</h4>' +
-        '<p style="margin:0 0 6px"><b>En Android:</b> Abre en Chrome, toca los tres puntos `⋮` y elige <i>«Instalar aplicación»</i>.</p>' +
-        '<p style="margin:0 0 10px"><b>En iPhone/iPad:</b> Abre en Safari, toca el botón de compartir y elige <i>«Agregar a pantalla de inicio»</i>.</p>' +
-
-        '</div>',
-        560
-      );
-      mm.caja.querySelector("[data-x]").addEventListener("click", mm.cerrar);
-    }
-
-    fila("📖 Manual y Guía para Padres", "#0d9488", abrirManualPadres, true);
-    fila(" Buscar en YouTube y agregar", "", abrirBuscador);
-    fila("⚙️ Copia de seguridad y ajustes", "#3b82f6", abrirCopiaSeguridad);
-    fila("🎨 Estilo de tarjetas", "#10b981", abrirEstiloTarjetas);
-    fila("🚫 Palabras excluidas (" + obtenerPalabrasExcluidas().length + ")", "#be123c", abrirConfigPalabrasExcluidas);
-    fila("⏱ Tiempo de pantalla y temporizador", "#0284c7", abrirConfigTiempos);
-    fila("🌙 Modo Calma y Apagado", "#4338ca", function () { if (window.FMV_abrirModoCalma) window.FMV_abrirModoCalma(); });
-    fila("🌙 Filtro de Luz Azul", "#d97706", function () { if (window.FMV_abrirFiltroAzul) window.FMV_abrirFiltroAzul(); });
-    fila("⏰ Horarios y Rutina de Descanso", "#0891b2", function () { if (window.FMV_abrirHorarios) window.FMV_abrirHorarios(); });
-    fila("👀 Pausas Activas (Vista)", "#0369a1", function () { if (window.FMV_abrirPausasActivas) window.FMV_abrirPausasActivas(); });
-    fila("📊 Reportes y Estadísticas", "#4f46e5", function () { if (window.FMV_abrirReportes) window.FMV_abrirReportes(); });
-    fila("🏆 Logros y Medallas de Niños", "#f59e0b", function () { if (window.FMV_abrirLogros) window.FMV_abrirLogros(); });
-    fila("🙈 Videos y listas ocultas" + (cantOcultos ? " (" + cantOcultos + ")" : ""), "#475569", abrirVideosOcultos);
-
-    if (hayOcultos()) fila("↩ Restaurar todo lo que quité", "#e08a00", restaurar);
-    fila("🕘 Historial", "#6b4fd0", abrirHistorial);
-    fila("👧👦 Cambiar perfil", "#b06a00", function () { if (window.FMV_cambiarPerfil) window.FMV_cambiarPerfil(); });
-    fila("🔑 Cambiar contraseña", "#9333ea", abrirCambiarPin);
-    fila("🚪 Salir de padres", "#5b6b7a", salirDePadres, true);
-  }
-  window.FMV_abrirPadres = function () { if (esPadre()) abrirPanelPadres(); else pedirPin(abrirPanelPadres); };
+  window.FMV_padresAPI = {
+    esPadre: esPadre,
+    pedirPin: pedirPin,
+    modal: modal,
+    estiloBoton: ESTILO_BT,
+    ocultos: function () { return obtenerDetallesOcultos().length + obtenerDetallesListasOcultas().length; },
+    tiempos: function () {
+      return window.FMV_obtenerTiempos ? window.FMV_obtenerTiempos() : {
+        hija: { usoSeg: 0, limiteMin: 0 },
+        hijo: { usoSeg: 0, limiteMin: 0 }
+      };
+    },
+    hayOcultos: hayOcultos,
+    palabrasExcluidas: obtenerPalabrasExcluidas,
+    abrirBuscador: abrirBuscador,
+    abrirVideosOcultos: abrirVideosOcultos,
+    abrirConfigPalabras: abrirConfigPalabrasExcluidas,
+    abrirConfigTiempos: abrirConfigTiempos,
+    abrirHistorial: abrirHistorial,
+    restaurar: restaurar,
+    abrirCambiarPin: abrirCambiarPin,
+    salir: salirDePadres
+  };
   function aplicarFormaTarjetas() {
     var sh = localStorage.getItem("fmv_card_shape") || "rounded";
     document.body.classList.remove("card-circle", "card-square", "card-modern");
@@ -1615,7 +1361,5 @@
   aplicarFormaTarjetas();
   actualizarBotones(); vigilar();
 
-  var n = 0, w = setInterval(function () {
-    if (grid.children.length || /No se pudo/.test(msg.textContent) || ++n > 50) { clearInterval(w); iniciar(); }
-  }, 100);
+  iniciar();
 })();
