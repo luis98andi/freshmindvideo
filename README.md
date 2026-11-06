@@ -39,6 +39,7 @@ Los scripts clásicos se cargan en un orden explícito desde `index.html` porque
 ## Compilar y publicar
 
 * `npm run build` genera la web y la PWA en `dist/` y sincroniza los mismos archivos con `www/` para los despliegues que publican esa carpeta.
+* GitHub Pages debe configurarse para publicar mediante **GitHub Actions**. El workflow `.github/workflows/deploy-pages.yml` compila `dist/` y publica ese artefacto al actualizar `main` o al ejecutarlo manualmente.
 * `npm run build:android` genera `dist/` y sincroniza esos mismos archivos con Capacitor para Android. El proyecto Android también debe compilarse para generar un APK.
 * La carga de `canales.json` y `mis_videos.json` comparte un lector con validación y caché local. El service worker incluye ambos archivos en la caché inicial para el uso sin conexión; la app Android también los lleva dentro del paquete web.
 
