@@ -60,6 +60,18 @@
     var mensaje = document.getElementById("mensaje");
     if (!datos || !cuadricula || !mensaje) return;
 
+    var controlOrden = document.getElementById("orden-canales");
+    if (controlOrden) {
+      controlOrden.value = datos.orden();
+      if (!controlOrden.dataset.fmvBound) {
+        controlOrden.addEventListener("change", function () {
+          datos.establecerOrden(controlOrden.value);
+          window.FMV_pintarMisCanales();
+        });
+        controlOrden.dataset.fmvBound = "1";
+      }
+    }
+
     var lista = datos.listar();
     var esPadre = datos.esPadre();
     cuadricula.replaceChildren();

@@ -2,7 +2,7 @@
 (function () {
   var API_KEY = "AIzaSyA7R_xoLnmY__-8cuNoP40rHhWyLyLBlbk";
   window.FMV_API_KEY = API_KEY; // la usa index.html para leer los títulos de los videos
-  var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache", LS_VID = "fmv_videos", LS_OCULTOS = "fmv_ocultos", LS_VOCULTOS = "fmv_videos_ocultos";
+  var LS_EXTRA = "fmv_extra", LS_CACHE = "fmv_cache", LS_VID = "fmv_videos", LS_OCULTOS = "fmv_ocultos", LS_VOCULTOS = "fmv_videos_ocultos", LS_ORDEN_CANALES = "fmv_sort_canales";
   var LS_BLOQ = "fmv_bloqueados", LS_DET_OCULTOS = "fmv_ocultos_det", bloqBase = [];
   var LS_LISTAS_OCULTAS = "fmv_listas_ocultas", LS_DET_LISTAS_OCULTAS = "fmv_det_listas_ocultas";
   var LS_EXCLUIDAS = "fmv_palabras_excluidas";
@@ -43,7 +43,7 @@
   };
   window.FMV_hayCambiosPadres = false;
 
-  function guardar(k, v) { try { if (window.FMV_setItem) window.FMV_setItem(k, JSON.stringify(v)); else localStorage.setItem(k, JSON.stringify(v)); if (k !== LS_CACHE && k !== "fmv_historial" && k !== "fmv_pin_padres") { window.FMV_hayCambiosPadres = true; } } catch (e) {} return;
+  function guardar(k, v) { try { if (window.FMV_setItem) window.FMV_setItem(k, JSON.stringify(v)); else localStorage.setItem(k, JSON.stringify(v)); if (k !== LS_CACHE && k !== LS_ORDEN_CANALES && k !== "fmv_historial" && k !== "fmv_pin_padres") { window.FMV_hayCambiosPadres = true; } } catch (e) {} return;
     try {
       localStorage.setItem(k, JSON.stringify(v));
       if (k !== LS_CACHE && k !== "fmv_historial" && k !== "fmv_pin_padres") {
@@ -315,9 +315,26 @@
   };
   window.FMV_datosMisCanales = {
     listar: function () {
-      return esPadre() ? todos.slice() : todos.filter(function (canal) {
+      var lista = esPadre() ? todos.slice() : todos.filter(function (canal) {
         return visibleEn(canal, window.FMV_perfil);
       });
+      var orden = this.orden();
+      lista.sort(function (a, b) {
+        if (orden === "alphabetical") {
+          return String(a.nombre || a.name || "").localeCompare(String(b.nombre || b.name || ""), "es", { sensitivity: "base" });
+        }
+        var fechaA = Number(a.agregadoEn) || 0;
+        var fechaB = Number(b.agregadoEn) || 0;
+        return orden === "oldest" ? fechaA - fechaB : fechaB - fechaA;
+      });
+      return lista;
+    },
+    orden: function () {
+      var orden = leer(LS_ORDEN_CANALES, "recent");
+      return ["recent", "oldest", "alphabetical"].indexOf(orden) >= 0 ? orden : "recent";
+    },
+    establecerOrden: function (orden) {
+      if (["recent", "oldest", "alphabetical"].indexOf(orden) >= 0) guardar(LS_ORDEN_CANALES, orden);
     },
     esPadre: esPadre,
     visible: function (canal) { return visibleEn(canal, window.FMV_perfil); },
@@ -737,7 +754,7 @@
         var id = typeof it.id === "string" ? it.id : it.id.channelId, nombre = dec(it.snippet.title || it.snippet.channelTitle), img = foto(it);
         var fr = document.createDocumentFragment();
         fr.appendChild(botonAgregar(yaEsta(id), function () {
-          var nuevo = { nombre: nombre, id: id, url: "https://www.youtube.com/channel/" + id, imagen: img };
+          var nuevo = { nombre: nombre, id: id, url: "https://www.youtube.com/channel/" + id, imagen: img, agregadoEn: Date.now() };
           if (window.FMV_perfil) nuevo.perfiles = [window.FMV_perfil];   // entra solo al perfil activo
           var ex = leer(LS_EXTRA, []); ex.push(nuevo); guardar(LS_EXTRA, ex);
           nuevo.extra = true; todos.push(nuevo); pintar();

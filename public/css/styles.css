@@ -59,6 +59,9 @@
   main { max-width: 1000px; margin: 0 auto; padding: 8px 16px 120px; }
   body.viendo main { padding-bottom: 40px; }
   .cuadricula { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .controles-canales { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin: 8px 0 14px; }
+  .controles-canales label { font-size: .9rem; font-weight: 800; }
+  .controles-canales select { max-width: 100%; padding: 8px 12px; border: 1px solid #94a3b8; border-radius: 10px; background: var(--tarjeta); color: var(--texto); font: inherit; font-size: .9rem; }
   .tarjeta {
     display: block; background: var(--tarjeta); border-radius: 20px; overflow: hidden;
     color: inherit; text-decoration: none; box-shadow: 0 3px 10px rgba(20, 60, 100, .2);
@@ -662,7 +665,7 @@
   }
 
   #cuadricula-mis { display: none; }
-  body.ver-mis #cuadricula, body.ver-mis #mensaje { display: none; }
+  body.ver-mis #cuadricula, body.ver-mis #mensaje, body.ver-mis #controles-canales { display: none; }
   body.ver-mis #cuadricula-mis {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
@@ -927,5 +930,5 @@
   /* La barra de búsqueda va siempre bajo la cabecera en la home; los resultados solo aparecen cuando se activa la búsqueda */
   #buscador { display: block !important; }
   #fmv-zona { display: none !important; }
-  body.modo-buscar #cuadricula, body.modo-buscar #mensaje { display: none !important; }
+  body.modo-buscar #cuadricula, body.modo-buscar #mensaje, body.modo-buscar #controles-canales { display: none !important; }
   body.modo-buscar #fmv-zona { display: block !important; }
