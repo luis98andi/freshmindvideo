@@ -1334,8 +1334,6 @@
       e.preventDefault();
       e.stopPropagation();
       window.scrollTo({ top: 0, behavior: "smooth" });
-      contenedor.classList.remove("mini-popup");
-      if (reproductorArea) reproductorArea.style.minHeight = "";
     }
   });
   function pintarVivos() {
@@ -2458,17 +2456,45 @@
     programarOcultar();
   }
   var scrollAntesPantalla = 0, ultimoGestoPantalla = 0;
+  function esVideoVertical() {
+    return pestana === "UUSH";
+  }
+  function bloquearOrientacionPantallaCompleta(activa) {
+    var orientacion = window.screen && window.screen.orientation;
+    if (!orientacion) return;
+    if (!activa) {
+      if (typeof orientacion.unlock === "function") {
+        try { orientacion.unlock(); }
+        catch (error) { console.warn("No se pudo restaurar la orientación de la pantalla.", error); }
+      }
+      return;
+    }
+    if (typeof orientacion.lock !== "function") return;
+    try {
+      var resultado = orientacion.lock(esVideoVertical() ? "portrait" : "landscape");
+      if (resultado && typeof resultado.catch === "function") {
+        resultado.catch(function (error) {
+          console.warn("No se pudo ajustar la orientación para el video.", error);
+        });
+      }
+    } catch (error) {
+      console.warn("No se pudo ajustar la orientación para el video.", error);
+    }
+  }
   function enPantallaCompleta() {
     return contenedor.classList.contains("en-pantalla") ||
       document.fullscreenElement === contenedor || document.webkitFullscreenElement === contenedor;
   }
   function pintarPantallaCompleta(activa) {
+    var estabaActiva = contenedor.classList.contains("en-pantalla");
     contenedor.classList.toggle("en-pantalla", activa);
+    contenedor.classList.toggle("video-vertical", activa && esVideoVertical());
     contenedor.classList.remove("inactivo");
     bPantalla.innerHTML = activa ? ICONOS.salirPantalla : ICONOS.pantalla;
     bPantalla.setAttribute("aria-label", activa ? "Salir de pantalla completa" : "Pantalla completa");
     bPantalla.title = activa ? "Salir de pantalla completa" : "Pantalla completa";
     document.body.style.overflow = activa ? "hidden" : "";
+    if (activa !== estabaActiva) bloquearOrientacionPantallaCompleta(activa);
     clearTimeout(tOculta);
     if (activa) {
       programarOcultar();
