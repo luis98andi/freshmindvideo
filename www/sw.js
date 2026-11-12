@@ -1,1 +1,0 @@
-importScripts("./public/sw.js");
