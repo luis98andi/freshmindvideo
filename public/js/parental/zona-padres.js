@@ -38,9 +38,17 @@
     }
 
     agregarAccion("📖 Manual y Guía para Padres", "#0d9488", function () { window.FMV_abrirManualPadres(api); }, true);
+    agregarAccion("📱 Dispositivos y sincronización", "#2563eb", function () {
+      if (window.FMV_abrirDispositivos) window.FMV_abrirDispositivos();
+      else throw new Error("El módulo de sincronización de dispositivos no está disponible.");
+    }, true);
     agregarAccion("🔍 Buscar en YouTube y agregar", "#12a37f", api.abrirBuscador);
     agregarAccion("⚙️ Copia de seguridad y ajustes", "#3b82f6", function () { window.FMV_abrirCopiaSeguridad(api); });
     agregarAccion("🎨 Estilo de tarjetas", "#10b981", function () { window.FMV_abrirEstiloTarjetas(api); });
+    agregarAccion("🎬 Cambiar reproductores de videos", "#7c3aed", function () {
+      if (window.FMV_abrirReproductores) window.FMV_abrirReproductores(api);
+      else throw new Error("El módulo de estilos de reproductor no está disponible.");
+    }, true);
     agregarAccion("🚫 Palabras excluidas (" + api.palabrasExcluidas().length + ")", "#be123c", api.abrirConfigPalabras);
     agregarAccion("⏱ Tiempo de pantalla y temporizador", "#0284c7", api.abrirConfigTiempos);
     agregarAccion("🌙 Modo Calma y Apagado", "#4338ca", function () { if (window.FMV_abrirModoCalma) window.FMV_abrirModoCalma(); });

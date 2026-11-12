@@ -94,8 +94,17 @@ En la Zona de Padres puedes personalizar la apariencia de los canales:
 * **🌟 Moderno:** Con sombras profundas y esquinas suaves.
 
 ---
+## 📱 11. Dispositivos y sincronización familiar
 
-## 📱 11. ¿Cómo instalar FreshMindVideo en el celular o tablet?
+1. Entra a **Zona de Padres → Dispositivos y sincronización**.
+2. En un dispositivo, elige **Crear grupo familiar** y comparte el código de un solo uso.
+3. En los demás dispositivos, abre la misma sección e ingresa ese código. Los códigos duran 10 minutos y se usan una sola vez.
+4. La pantalla muestra dispositivos conectados recientemente y su última actividad. Mientras la aplicación está abierta, sincroniza canales, videos y ajustes de forma automática, tanto por Wi‑Fi como por datos móviles.
+
+Esta función requiere configurar un proyecto Supabase. Los datos sincronizados no incluyen el PIN, perfil activo, historial ni estadísticas de uso; los dispositivos emparejados comparten los cambios de configuración. Consulta la sección de sincronización del `README.md` para los pasos de instalación del backend.
+
+---
+## 📱 12. ¿Cómo instalar FreshMindVideo en el celular o tablet?
 Para instalar la aplicación en tu celular o tablet:
 
 * **Desde la Zona de Padres:** Entra a 🔒 **Padres** y toca el botón **«📲 Instalar app»**.

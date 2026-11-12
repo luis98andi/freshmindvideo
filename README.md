@@ -12,6 +12,7 @@ Un reproductor web infantil y seguro que transforma la experiencia de YouTube en
 * 🏆 **Sistema de Medallas y Logros:** Gamificación con refuerzo positivo al consumir contenido educativo.
 * 📊 **Estadísticas de Uso:** Monitoreo semanal de tiempo consumido y canales más vistos.
 * 🎙️ **Búsqueda por Voz:** Búsqueda intuitiva mediante voz para niños pequeños.
+* 📱 **Dispositivos familiares:** Emparejamiento y sincronización automática de canales, videos y ajustes con Supabase.
 * 🇪🇸 **Pistas de Audio en Español:** Preferencia automática de audio en español para videos multilingües (ej: Dr. Plants).
 * 📱 **PWA Instalable:** Funciona como aplicación nativa en Android, iOS y escritorio sin app store.
 
@@ -32,7 +33,7 @@ Para conocer en detalle cada una de las opciones, visita la [Guía Completa para
 * `public/css/` contiene los estilos estáticos.
 * `public/js/` organiza los scripts por área: núcleo, reproductor, canales, búsqueda, PWA, control parental y funcionalidades.
 * `src/js/search/` contiene la búsqueda por voz, que Vite compila como módulo ES porque integra las dependencias de Capacitor.
-* `public/` también contiene los datos y recursos estáticos. El HTML los carga desde `public/` para funcionar tanto al publicar la raíz del repositorio como en los artefactos compilados.
+* `public/` también contiene los datos y recursos estáticos. Vite copia su contenido a la raíz del sitio compilado (`dist/`); por eso el HTML y el service worker usan rutas relativas como `./js/`, `./css/` y `canales.json`, válidas en Pages y dentro del APK.
 
 Los scripts clásicos se cargan en un orden explícito desde `index.html` porque algunas funcionalidades comparten la API global `window.FMV_*`. Las vistas de Mis canales, Mis videos y Zona de padres tienen archivos separados del reproductor y del controlador de datos.
 
@@ -46,6 +47,20 @@ Los scripts clásicos se cargan en un orden explícito desde `index.html` porque
 
 ## Cuentas infantiles y datos locales
 
-La selección de Hija o Hijo se recuerda en el almacenamiento local del navegador. El historial, los videos guardados, los logros, los reportes y el tiempo de uso se almacenan separados por perfil en ese mismo dispositivo; no se envían a un servidor ni se incluyen en el repositorio. Al migrar videos antiguos sin perfil, se asignan a Hija para evitar mostrarlos en ambas cuentas. Los datos no se sincronizan entre navegadores o dispositivos y pueden borrarse al limpiar los datos del sitio. El almacenamiento del navegador no está cifrado: no debe considerarse un mecanismo para proteger información frente a otras personas que tengan acceso al dispositivo.
+La selección de Hija o Hijo se recuerda en el almacenamiento local del navegador. El historial, los logros, los reportes y el tiempo de uso se almacenan separados por perfil en ese mismo dispositivo; no se sincronizan. Al migrar videos antiguos sin perfil, se asignan a Hija para evitar mostrarlos en ambas cuentas. El almacenamiento del navegador no está cifrado: no debe considerarse un mecanismo para proteger información frente a otras personas que tengan acceso al dispositivo.
+
+## Sincronización de dispositivos familiares
+
+La sección **Zona de Padres → Dispositivos y sincronización** permite crear un grupo familiar y emparejar cada navegador o APK con un código aleatorio de un solo uso, válido durante 10 minutos. Los dispositivos emparejados muestran su última conexión; mientras la app está visible, actualizan su presencia cada 45 segundos. La sincronización funciona a través de internet tanto por Wi‑Fi como por datos móviles.
+
+Para activarla:
+
+1. Crea un proyecto Supabase y ejecuta `supabase/migrations/202611120001_device_sync.sql` en su SQL Editor.
+2. Activa el proveedor de autenticación anónima en Supabase.
+3. En desarrollo, copia `.env.example` a `.env.local` y completa `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`.
+4. Para GitHub Pages, agrega las variables de repositorio `SUPABASE_URL` y `SUPABASE_ANON_KEY` en GitHub Actions y vuelve a publicar. El sitio solo necesita la clave pública `anon`; nunca configures ni publiques la clave `service_role`.
+5. Configura esos valores públicos de Supabase al generar una nueva distribución Android.
+
+El esquema aplica Row Level Security y solo admite las claves permitidas de canales, videos y ajustes. No sincroniza el PIN parental, perfil activo, historial ni estadísticas de uso. La clave `anon` se entrega al cliente web, por lo que la seguridad depende de las políticas de la migración. Los cambios simultáneos sobre la misma clave se resuelven por el último guardado en el servidor. Las actualizaciones recibidas mientras se reproduce un video quedan aplicadas en el almacenamiento y la pantalla se recarga al regresar a la vista principal.
 
 Al agregar un recurso esencial, actualiza la lista de precarga en `public/sw.js` y aumenta la versión de su caché. Los recursos se resuelven desde la carpeta de la app para que también funcionen cuando el sitio está publicado bajo una subruta.

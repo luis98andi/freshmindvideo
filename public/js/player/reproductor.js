@@ -7,8 +7,7 @@
     mudo: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15 9l6 6M21 9l-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg>',
     libre: '<svg viewBox="0 0 24 24"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z"/></svg>',
     subs: '<svg viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1zm7 0h-1.5v-.5h-2v3h2V13H18v1c0 .55-.45 1-1 1h-3c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1z"/></svg>',
-    pantalla: '<svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z"/></svg>',
-    salirPantalla: '<svg viewBox="0 0 24 24"><path d="M4 10V4h6v2H6v4zm10-6h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 4v-4h2v6h-6v-2z"/></svg>'
+    horizontal: '<svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zm2 2v10h14V7zm2 2h5v6H7zm7 0h5v2h-5zm0 4h5v2h-5z"/></svg>'
   };
 
   var vistaPrincipal = document.getElementById("vista-principal");
@@ -21,7 +20,7 @@
   var reproductorArea = document.getElementById("reproductor-area");
 
   var bPlay = document.getElementById("b-play");
-  var bPantalla = document.getElementById("b-pantalla");
+  var bHorizontal = document.getElementById("b-horizontal");
   var bAutoplay = document.getElementById("b-autoplay");
   var bSonido = document.getElementById("b-sonido");
   var bAnterior = document.getElementById("b-anterior");
@@ -46,7 +45,7 @@
   bAnterior.innerHTML = ICONOS.anterior;
   bSiguiente.innerHTML = ICONOS.siguiente;
   bPlay.innerHTML = ICONOS.play;
-  bPantalla.innerHTML = ICONOS.pantalla;
+  bHorizontal.innerHTML = ICONOS.horizontal;
   if (bAutoplay) { bAutoplay.textContent = "AUTO"; }
   bSonido.innerHTML = ICONOS.sonido;
   document.getElementById("b-subs").innerHTML = ICONOS.subs;
@@ -2498,141 +2497,47 @@
     contenedor.classList.remove("inactivo");
     programarOcultar();
   }
-  var scrollAntesPantalla = 0, ultimoGestoPantalla = 0;
-  function esVideoVertical() {
-    return pestana === "UUSH";
+  var LS_DISTRIBUCION = "fmv_distribucion_reproductor_v2";
+  var modoDistribucionGuardado = localStorage.getItem(LS_DISTRIBUCION);
+  if (modoDistribucionGuardado !== "horizontal" && modoDistribucionGuardado !== "vertical") {
+    modoDistribucionGuardado = "vertical";
+    localStorage.setItem(LS_DISTRIBUCION, modoDistribucionGuardado);
   }
-  function bloquearOrientacionPantallaCompleta(activa) {
-    var orientacion = window.screen && window.screen.orientation;
-    if (!orientacion) return;
-    if (!activa) {
-      if (typeof orientacion.unlock === "function") {
-        try { orientacion.unlock(); }
-        catch (error) { console.warn("No se pudo restaurar la orientación de la pantalla.", error); }
-      }
-      return;
-    }
-    if (typeof orientacion.lock !== "function") return;
-    try {
-      var resultado = orientacion.lock(esVideoVertical() ? "portrait" : "landscape");
-      if (resultado && typeof resultado.catch === "function") {
-        resultado.catch(function (error) {
-          console.warn("No se pudo ajustar la orientación para el video.", error);
-        });
-      }
-    } catch (error) {
-      console.warn("No se pudo ajustar la orientación para el video.", error);
-    }
-  }
-  function enPantallaCompleta() {
-    return contenedor.classList.contains("en-pantalla") ||
-      document.fullscreenElement === contenedor || document.webkitFullscreenElement === contenedor;
-  }
-  function pintarPantallaCompleta(activa) {
-    var estabaActiva = contenedor.classList.contains("en-pantalla");
-    contenedor.classList.toggle("en-pantalla", activa);
-    contenedor.classList.toggle("video-vertical", activa && esVideoVertical());
-    contenedor.classList.remove("inactivo");
-    bPantalla.innerHTML = activa ? ICONOS.salirPantalla : ICONOS.pantalla;
-    bPantalla.setAttribute("aria-label", activa ? "Salir de pantalla completa" : "Pantalla completa");
-    bPantalla.title = activa ? "Salir de pantalla completa" : "Pantalla completa";
-    document.body.style.overflow = activa ? "hidden" : "";
-    if (activa !== estabaActiva) bloquearOrientacionPantallaCompleta(activa);
-    clearTimeout(tOculta);
-    if (activa) {
-      programarOcultar();
-    } else {
-      var y = scrollAntesPantalla;
-      requestAnimationFrame(function () { window.scrollTo(0, y); });
-    }
-  }
-  function entrarPantallaCompleta() {
-    scrollAntesPantalla = window.scrollY;
-    var solicitar = contenedor.requestFullscreen || contenedor.webkitRequestFullscreen;
-    if (!solicitar) {
-      pintarPantallaCompleta(true);
-      return;
-    }
-    try {
-      var resultado = solicitar.call(contenedor);
-      if (resultado && typeof resultado.then === "function") {
-        resultado.then(function () { pintarPantallaCompleta(true); })
-          .catch(function () { pintarPantallaCompleta(true); });
-      } else {
-        pintarPantallaCompleta(true);
-      }
-    } catch (error) {
-      pintarPantallaCompleta(true);
-    }
-  }
-  function salirPantallaCompleta() {
-    var salir = document.exitFullscreen || document.webkitExitFullscreen;
-    if ((document.fullscreenElement === contenedor || document.webkitFullscreenElement === contenedor) && salir) {
-      try {
-        var resultado = salir.call(document);
-        if (resultado && typeof resultado.catch === "function") {
-          resultado.catch(function () { pintarPantallaCompleta(false); });
-        }
-      } catch (error) {
-        pintarPantallaCompleta(false);
-      }
-    } else {
-      pintarPantallaCompleta(false);
-    }
-  }
-  function sincronizarPantallaCompleta() {
-    pintarPantallaCompleta(document.fullscreenElement === contenedor || document.webkitFullscreenElement === contenedor);
-  }
-  bPantalla.addEventListener("click", function () {
-    if (enPantallaCompleta()) salirPantallaCompleta();
-    else entrarPantallaCompleta();
-  });
-  document.addEventListener("fullscreenchange", sincronizarPantallaCompleta);
-  document.addEventListener("webkitfullscreenchange", sincronizarPantallaCompleta);
 
-  var gestoInicioX = 0, gestoInicioY = 0, gestoInicioTiempo = 0, gestoXMax = 0;
-  var gestoActivo = false, gestoEstabaCompleta = false;
-  wrapperVideo.addEventListener("touchstart", function (e) {
-    if (e.touches.length !== 1 || (e.target.closest && e.target.closest(".play-circulo"))) {
-      gestoActivo = false;
-      return;
-    }
-    gestoActivo = true;
-    gestoEstabaCompleta = enPantallaCompleta();
-    gestoInicioX = e.touches[0].clientX;
-    gestoInicioY = e.touches[0].clientY;
-    gestoInicioTiempo = Date.now();
-    gestoXMax = 0;
-  }, { passive: true });
-  wrapperVideo.addEventListener("touchmove", function (e) {
-    if (!gestoActivo || e.touches.length !== 1) {
-      gestoActivo = false;
-      return;
-    }
-    gestoXMax = Math.max(gestoXMax, Math.abs(e.touches[0].clientX - gestoInicioX));
-  }, { passive: true });
-  wrapperVideo.addEventListener("touchend", function (e) {
-    if (!gestoActivo) return;
-    gestoActivo = false;
-    if (Date.now() - gestoInicioTiempo > 900 || !e.changedTouches.length) return;
-    var touch = e.changedTouches[0];
-    var dy = touch.clientY - gestoInicioY;
-    var dx = Math.max(Math.abs(touch.clientX - gestoInicioX), gestoXMax);
-    if (Math.abs(dy) < 65 || Math.abs(dy) < dx * 1.4) return;
-    if (gestoEstabaCompleta && dy < 0) {
-      ultimoGestoPantalla = Date.now();
-      salirPantallaCompleta();
-    } else if (!gestoEstabaCompleta && dy > 0) {
-      ultimoGestoPantalla = Date.now();
-      entrarPantallaCompleta();
-    }
-  }, { passive: true });
-  wrapperVideo.addEventListener("click", function (e) {
-    if (Date.now() - ultimoGestoPantalla < 500) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-    }
-  }, true);
+  function esLayoutHorizontal() {
+    return modoDistribucionGuardado === "horizontal";
+  }
+  function actualizarDistribucion() {
+    var horizontal = esLayoutHorizontal();
+    vistaCanal.classList.toggle("modo-horizontal", modoDistribucionGuardado === "horizontal");
+    vistaCanal.classList.toggle("modo-vertical", modoDistribucionGuardado === "vertical");
+    vistaCanal.classList.toggle("horizontal-activo", horizontal);
+    document.body.classList.toggle("layout-horizontal-activo", horizontal);
+    bHorizontal.setAttribute("aria-label", horizontal ? "Cambiar a diseño vertical" : "Cambiar a diseño horizontal");
+    bHorizontal.title = horizontal ? "Cambiar a diseño vertical" : "Cambiar a diseño horizontal";
+    bHorizontal.setAttribute("aria-pressed", String(horizontal));
+  }
+  bHorizontal.addEventListener("click", function () {
+    modoDistribucionGuardado = esLayoutHorizontal() ? "vertical" : "horizontal";
+    localStorage.setItem(LS_DISTRIBUCION, modoDistribucionGuardado);
+    vistaCanal.classList.remove("recomendaciones-ocultas");
+    actualizarDistribucion();
+  });
+  actualizarDistribucion();
+
+  window.FMV_aplicarEstiloReproductor = function (estilo) {
+    if (["normal", "cine", "color"].indexOf(estilo) === -1) return false;
+    contenedor.classList.remove("estilo-cine", "estilo-color");
+    if (estilo !== "normal") contenedor.classList.add("estilo-" + estilo);
+    localStorage.setItem("fmv_estilo_reproductor", estilo);
+    return true;
+  };
+  window.FMV_obtenerEstiloReproductor = function () {
+    var estilo = localStorage.getItem("fmv_estilo_reproductor") || "normal";
+    return ["normal", "cine", "color"].indexOf(estilo) === -1 ? "normal" : estilo;
+  };
+  window.FMV_aplicarEstiloReproductor(window.FMV_obtenerEstiloReproductor());
+
   function alSalirDelReproductor(e) {
     if (e && e.pointerType === "touch") return;
     if (listo && jugador && jugador.getPlayerState && jugador.getPlayerState() === 1) {
@@ -2670,6 +2575,9 @@
   });
   wrapperVideo.addEventListener("click", function (e) {
     if (e.target.closest && (e.target.closest("#aviso-vivo") || e.target.closest(".play-circulo")) || wrapperVideo.classList.contains("libre") || !listo) return;
+    if (vistaCanal.classList.contains("horizontal-activo")) {
+      vistaCanal.classList.toggle("recomendaciones-ocultas");
+    }
     /* Al tocar en cualquier zona fuera del icono verde:
        Alterna entre ocultar y volver a mostrar la barra de navegación de reproducción.
        Mantiene el temporizador de 1s de desvanecimiento cuando se muestra. */

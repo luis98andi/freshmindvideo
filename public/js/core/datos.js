@@ -53,7 +53,7 @@
   }
 
   window.FMV_cargarCanalesBase = function () {
-    return cargarJson("public/canales.json", function (datos) {
+    return cargarJson("canales.json", function (datos) {
       return Array.isArray(datos) || !!datos && (
         Array.isArray(datos.canales) || Array.isArray(datos.channels)
       );
@@ -61,7 +61,7 @@
   };
 
   window.FMV_cargarMisVideosBase = function () {
-    return cargarJson("public/mis_videos.json", function (datos) {
+    return cargarJson("mis_videos.json", function (datos) {
       return Array.isArray(datos) || !!datos && Array.isArray(datos.videos);
     });
   };
