@@ -22,16 +22,19 @@
 
     var media = document.createElement("div");
     media.className = "media";
+    var marcador = inicial(nombre, indice);
+    media.appendChild(marcador);
     if (imagen) {
       var img = document.createElement("img");
-      img.src = imagen;
       img.alt = "";
-      img.loading = "lazy";
+      img.loading = indice < 12 ? "eager" : "lazy";
       img.decoding = "async";
-      img.onerror = function () { media.replaceChildren(inicial(nombre, indice)); };
+      img.fetchPriority = indice < 8 ? "high" : "auto";
+      img.style.opacity = "0";
+      img.onload = function () { img.style.opacity = "1"; };
+      img.onerror = function () { img.remove(); };
       media.appendChild(img);
-    } else {
-      media.appendChild(inicial(nombre, indice));
+      img.src = imagen;
     }
 
     var titulo = document.createElement("p");

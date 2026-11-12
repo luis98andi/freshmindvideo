@@ -21,6 +21,7 @@
 
   var bPlay = document.getElementById("b-play");
   var bHorizontal = document.getElementById("b-horizontal");
+  var avisoOrientacion = document.getElementById("aviso-orientacion");
   var bAutoplay = document.getElementById("b-autoplay");
   var bSonido = document.getElementById("b-sonido");
   var bAnterior = document.getElementById("b-anterior");
@@ -2349,14 +2350,73 @@
 
   /* ---------- Subtítulos (función interna de YouTube, solo si el video los tiene) ---------- */
   var bSubs = document.getElementById("b-subs"), subsOn = false, videoConSubs = null;
+  var avisoSubsHold = document.createElement("span");
+  avisoSubsHold.className = "subs-mantener-aviso";
+  avisoSubsHold.hidden = true;
+  avisoSubsHold.setAttribute("aria-live", "polite");
+  bSubs.appendChild(avisoSubsHold);
+  var subsHoldInicio = 0, subsHoldActivo = false, subsIgnorarClick = false;
+  var subsHoldTimer = null, subsHoldTick = null, subsAvisoTimer = null;
   try { localStorage.removeItem("fmv_subs"); } catch (e) {}   // ya no se recuerda: cada video arranca sin subtítulos
   function pintarSubs() {
     if (!bSubs) return;
     bSubs.classList.toggle("activo", !!subsOn);
     bSubs.setAttribute("aria-pressed", String(!!subsOn));
-    bSubs.setAttribute("aria-label", subsOn ? "Desactivar subtítulos" : "Activar subtítulos");
-    bSubs.title = subsOn ? "Desactivar subtítulos" : "Activar subtítulos";
+    bSubs.setAttribute("aria-label", subsOn ? "Mantén 3 segundos para desactivar subtítulos" : "Mantén 3 segundos para activar subtítulos");
+    bSubs.title = subsOn ? "Mantén presionado 3 segundos para desactivar subtítulos" : "Mantén presionado 3 segundos para activar subtítulos";
   }
+  function mostrarAvisoSubs(texto) {
+    clearTimeout(subsAvisoTimer);
+    avisoSubsHold.textContent = texto;
+    avisoSubsHold.hidden = false;
+  }
+  function ocultarAvisoSubs() {
+    clearTimeout(subsAvisoTimer);
+    avisoSubsHold.hidden = true;
+  }
+  function cancelarHoldSubs() {
+    clearTimeout(subsHoldTimer);
+    clearInterval(subsHoldTick);
+    subsHoldTimer = null;
+    subsHoldTick = null;
+    subsHoldActivo = false;
+    if (avisoSubsHold.textContent.indexOf("Subtítulos ") !== 0) ocultarAvisoSubs();
+  }
+  function actualizarCuentaSubs() {
+    var faltan = Math.max(0, 3000 - (Date.now() - subsHoldInicio));
+    mostrarAvisoSubs("Mantén " + Math.ceil(faltan / 1000) + " s");
+  }
+  bSubs.addEventListener("pointerdown", function (evento) {
+    if (evento.pointerType === "mouse") return;
+    subsIgnorarClick = true;
+    subsHoldActivo = true;
+    if (!listo || !videoActualId) {
+      mostrarAvisoSubs("Abre un video primero");
+      subsAvisoTimer = setTimeout(ocultarAvisoSubs, 1300);
+      return;
+    }
+    subsHoldInicio = Date.now();
+    actualizarCuentaSubs();
+    subsHoldTick = setInterval(actualizarCuentaSubs, 120);
+    subsHoldTimer = setTimeout(function () {
+      if (!subsHoldActivo) return;
+      clearInterval(subsHoldTick);
+      subsHoldTick = null;
+      subsHoldTimer = null;
+      alternarSubs();
+      mostrarAvisoSubs(subsOn ? "Subtítulos activados" : "Subtítulos desactivados");
+      subsAvisoTimer = setTimeout(ocultarAvisoSubs, 1400);
+    }, 3000);
+  });
+  function soltarHoldSubs() {
+    if (!subsHoldActivo && !subsIgnorarClick) return;
+    cancelarHoldSubs();
+    subsIgnorarClick = true;
+    setTimeout(function () { subsIgnorarClick = false; }, 500);
+  }
+  document.addEventListener("pointerup", soltarHoldSubs);
+  document.addEventListener("pointercancel", soltarHoldSubs);
+  bSubs.addEventListener("pointerleave", soltarHoldSubs);
   /* Cada video nuevo empieza sin subtítulos; el botón solo los activa para el video que se está viendo */
   function nuevoVideoSubs() {
     subsOn = false;
@@ -2421,7 +2481,15 @@
     })();
   }
 
-  bSubs.addEventListener("click", alternarSubs);
+  bSubs.addEventListener("click", function (evento) {
+    if (subsIgnorarClick) {
+      evento.preventDefault();
+      evento.stopPropagation();
+      subsIgnorarClick = false;
+      return;
+    }
+    alternarSubs();
+  });
 
   /* Atajos de teclado: Espacio (Pausar/Reanudar) y C (Activar/Desactivar subtítulos) */
   document.addEventListener("keydown", function (e) {
@@ -2544,6 +2612,44 @@
   function esLayoutHorizontal() {
     return modoDistribucionGuardado === "horizontal";
   }
+  var avisoOrientacionTimer = null;
+  function avisarOrientacion(texto) {
+    if (!avisoOrientacion) return;
+    clearTimeout(avisoOrientacionTimer);
+    avisoOrientacion.textContent = texto;
+    avisoOrientacion.hidden = false;
+    avisoOrientacionTimer = setTimeout(function () { avisoOrientacion.hidden = true; }, 3200);
+  }
+  function solicitarOrientacion(horizontal) {
+    var destino = horizontal ? "landscape" : "portrait";
+    var capacitor = window.Capacitor;
+    var plugin = capacitor && capacitor.isNativePlatform && capacitor.isNativePlatform()
+      ? window.FMVScreenOrientation
+      : null;
+    var solicitud;
+    try {
+      if (plugin && typeof plugin.lock === "function") {
+        solicitud = plugin.lock({ orientation: destino });
+      } else {
+        var screenOrientation = window.screen && window.screen.orientation;
+        if (!screenOrientation || typeof screenOrientation.lock !== "function") {
+          avisarOrientacion("Este navegador no permite girar automáticamente; gira el móvil.");
+          return;
+        }
+        solicitud = screenOrientation.lock(destino);
+      }
+    } catch (error) {
+      console.info("No se pudo solicitar la orientación del dispositivo.", error);
+      avisarOrientacion("No se pudo girar automáticamente; usa el giro del móvil.");
+      return;
+    }
+    Promise.resolve(solicitud).then(function () {
+      if (avisoOrientacion) avisoOrientacion.hidden = true;
+    }).catch(function (error) {
+      console.info("No se pudo bloquear la orientación automáticamente.", error);
+      avisarOrientacion("No se pudo girar automáticamente; usa el giro del móvil.");
+    });
+  }
   function actualizarDistribucion() {
     var horizontal = esLayoutHorizontal();
     vistaCanal.classList.toggle("modo-horizontal", modoDistribucionGuardado === "horizontal");
@@ -2559,6 +2665,7 @@
     localStorage.setItem(LS_DISTRIBUCION, modoDistribucionGuardado);
     vistaCanal.classList.remove("recomendaciones-ocultas");
     actualizarDistribucion();
+    solicitarOrientacion(esLayoutHorizontal());
   });
   actualizarDistribucion();
 

@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(FMVScreenOrientationPlugin.class);
         super.onCreate(savedInstanceState);
         insetsController = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         insetsController.setSystemBarsBehavior(

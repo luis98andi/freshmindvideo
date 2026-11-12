@@ -277,8 +277,17 @@
     var cache = leer(LS_CACHE, {}), ahora = Date.now(), pend = [];
     lista.forEach(function (c) {
       var h = cache[c.url];
-      if (h && ahora - h.t < 6048e5) { c.id = h.id; c.imagen = h.img; } else pend.push(c);
+      if (h && ahora - h.t < 6048e5) {
+        c.id = h.id || c.id;
+        c.imagen = h.img || c.imagen;
+      }
+      if (ID_OK.test((c.id || "").trim()) && c.imagen) {
+        cache[c.url] = { id: c.id, img: c.imagen, t: ahora };
+      } else {
+        pend.push(c);
+      }
     });
+    guardar(LS_CACHE, cache);
     if (sinClave || !pend.length) return Promise.resolve();
     var ids = pend.map(function (c) { return (c.id || "").trim(); }).filter(function (i) { return ID_OK.test(i); });
     var lotes = [];
@@ -297,7 +306,9 @@
         if (it) { c.id = it.id; c.imagen = foto(it); cache[c.url] = { id: c.id, img: c.imagen, t: ahora }; }
       });
       guardar(LS_CACHE, cache);
-    }).catch(function () {});
+    }).catch(function (error) {
+      console.warn("No se pudieron actualizar algunas imágenes de canales; se conservan las disponibles.", error);
+    });
   }
 
   /* Canales por perfil: cada canal tiene una lista de perfiles; sin lista = lo ven todos */
@@ -359,16 +370,7 @@
       var lista = esPadre() ? todos.slice() : todos.filter(function (canal) {
         return visibleEn(canal, window.FMV_perfil);
       });
-      var orden = this.orden();
-      lista.sort(function (a, b) {
-        if (orden === "alphabetical") {
-          return String(a.nombre || a.name || "").localeCompare(String(b.nombre || b.name || ""), "es", { sensitivity: "base" });
-        }
-        var fechaA = Number(a.agregadoEn) || 0;
-        var fechaB = Number(b.agregadoEn) || 0;
-        return orden === "oldest" ? fechaA - fechaB : fechaB - fechaA;
-      });
-      return lista;
+      return window.FMV_ordenarCanales(lista, this.orden());
     },
     orden: function () {
       var orden = leer(LS_ORDEN_CANALES, "recent");

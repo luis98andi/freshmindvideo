@@ -1,7 +1,7 @@
 /* FreshMindVideo - service worker
    Cache de app shell + stale-while-revalidate para que la web arranque rápido,
    sin bloquear el cambio de video ni depender del navegador para todo. */
-var STATIC_CACHE = "fmv-static-v42";
+var STATIC_CACHE = "fmv-static-v43";
 var IMAGE_CACHE = "fmv-youtube-images-v1";
 var MAX_CACHED_IMAGES = 160;
 var YOUTUBE_IMAGE_HOSTS = {
@@ -19,6 +19,7 @@ var APP_SHELL = [
   "js/core/datos.js",
   "js/player/reproductor.js",
   "js/channels/mis-canales.js",
+  "js/channels/orden-canales.js",
   "js/pwa/pwa-install.js",
   "canales.json",
   "mis_videos.json",
