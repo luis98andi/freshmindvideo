@@ -1,5 +1,20 @@
 apply plugin: 'com.android.application'
 
+def releaseSigning = [
+    storeFile: providers.gradleProperty('FMV_UPLOAD_STORE_FILE')
+        .orElse(providers.environmentVariable('FMV_UPLOAD_STORE_FILE')).getOrNull(),
+    storePassword: providers.gradleProperty('FMV_UPLOAD_STORE_PASSWORD')
+        .orElse(providers.environmentVariable('FMV_UPLOAD_STORE_PASSWORD')).getOrNull(),
+    keyAlias: providers.gradleProperty('FMV_UPLOAD_KEY_ALIAS')
+        .orElse(providers.environmentVariable('FMV_UPLOAD_KEY_ALIAS')).getOrNull(),
+    keyPassword: providers.gradleProperty('FMV_UPLOAD_KEY_PASSWORD')
+        .orElse(providers.environmentVariable('FMV_UPLOAD_KEY_PASSWORD')).getOrNull()
+]
+def releaseSigningConfigured = releaseSigning.values().every { it }
+def releaseBuildRequested = gradle.startParameter.taskNames.any {
+    it.toLowerCase().contains('release')
+}
+
 android {
     namespace = "com.freshmindvideo.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,12 +31,31 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (releaseSigningConfigured) {
+                storeFile file(releaseSigning.storeFile)
+                storePassword releaseSigning.storePassword
+                keyAlias releaseSigning.keyAlias
+                keyPassword releaseSigning.keyPassword
+            }
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+}
+
+if (releaseBuildRequested && !releaseSigningConfigured) {
+    throw new GradleException(
+        'Release signing is not configured. Set FMV_UPLOAD_STORE_FILE, ' +
+        'FMV_UPLOAD_STORE_PASSWORD, FMV_UPLOAD_KEY_ALIAS and FMV_UPLOAD_KEY_PASSWORD ' +
+        'in your local Gradle user properties or environment.'
+    )
 }
 
 repositories {

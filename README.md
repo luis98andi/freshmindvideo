@@ -42,6 +42,7 @@ Los scripts clásicos se cargan en un orden explícito desde `index.html` porque
 * `npm run build` genera la web y la PWA en `dist/`.
 * GitHub Pages debe configurarse para publicar mediante **GitHub Actions**. El workflow `.github/workflows/deploy-pages.yml` compila `dist/` y publica ese artefacto al actualizar `main` o al ejecutarlo manualmente.
 * `npm run build:android` genera `dist/` y sincroniza esos archivos con Capacitor para Android. El proyecto Android también debe compilarse para generar un APK.
+* Para publicar en Google Play, usa una clave de subida propia y genera un Android App Bundle (`bundleRelease`). Configura `FMV_UPLOAD_STORE_FILE`, `FMV_UPLOAD_STORE_PASSWORD`, `FMV_UPLOAD_KEY_ALIAS` y `FMV_UPLOAD_KEY_PASSWORD` en `~/.gradle/gradle.properties` o en el entorno local; no guardes la clave ni sus contraseñas en Git. La compilación release se detiene si falta alguno de esos valores. Activa Play App Signing en Play Console y distribuye a través de una pista de pruebas internas.
 * La carga de `canales.json` y `mis_videos.json` comparte un lector con validación y caché local. El service worker incluye ambos archivos en la caché inicial para el uso sin conexión; la app Android también los lleva dentro del paquete web.
 * La Zona de Padres mantiene un módulo principal y paneles separados para el manual, las copias de seguridad y el estilo. Las imágenes de canales de YouTube se precargan y se guardan en una caché del navegador con límite de tamaño para mejorar reaperturas y uso sin conexión.
 

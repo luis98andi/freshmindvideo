@@ -7,3 +7,6 @@ www/
 *.log
 .env*
 !.env.example
+*.jks
+*.keystore
+keystore.properties
