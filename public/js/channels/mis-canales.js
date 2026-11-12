@@ -1,6 +1,61 @@
 /* Render the "Mis canales" home section independently from the player. */
 (function () {
   var COLORES = ["#ffd166", "#7bdff2", "#b2f7b8", "#ffb3c1", "#cdb4ff", "#ffc98b"];
+  var MAX_IMAGENES_SIMULTANEAS = 4;
+  var imagenesPendientes = [];
+  var imagenesActivas = 0;
+
+  function procesarColaImagenes() {
+    while (imagenesActivas < MAX_IMAGENES_SIMULTANEAS && imagenesPendientes.length) {
+      (function (trabajo) {
+        var img = trabajo.img;
+        var urlOriginal = trabajo.url;
+        var reintentada = false;
+        var finalizada = false;
+        var temporizador;
+
+        function terminar() {
+          if (finalizada) return;
+          finalizada = true;
+          clearTimeout(temporizador);
+          imagenesActivas -= 1;
+          procesarColaImagenes();
+        }
+
+        function reintentarOFallar() {
+          clearTimeout(temporizador);
+          if (!reintentada) {
+            reintentada = true;
+            var urlAlternativa;
+            try {
+              urlAlternativa = new URL(urlOriginal, document.baseURI);
+            } catch (error) {
+              img.remove();
+              terminar();
+              return;
+            }
+            if (urlAlternativa.hostname === "yt3.ggpht.com") {
+              urlAlternativa.hostname = "yt3.googleusercontent.com";
+              img.src = urlAlternativa.href;
+              temporizador = setTimeout(reintentarOFallar, 12000);
+              return;
+            }
+          }
+          img.remove();
+          terminar();
+        }
+
+        imagenesActivas += 1;
+        img.onload = function () {
+          img.style.opacity = "1";
+          terminar();
+        };
+        img.onerror = reintentarOFallar;
+        temporizador = setTimeout(reintentarOFallar, 12000);
+        img.src = urlOriginal;
+      })(imagenesPendientes.shift());
+    }
+  }
 
   function inicial(nombre, indice) {
     var contenedor = document.createElement("div");
@@ -31,10 +86,9 @@
       img.decoding = "async";
       img.fetchPriority = indice < 4 ? "high" : "auto";
       img.style.opacity = "0";
-      img.onload = function () { img.style.opacity = "1"; };
-      img.onerror = function () { img.remove(); };
       media.appendChild(img);
-      img.src = imagen;
+      imagenesPendientes.push({ img: img, url: imagen });
+      procesarColaImagenes();
     }
 
     var titulo = document.createElement("p");

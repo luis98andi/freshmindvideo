@@ -76,7 +76,13 @@ test("muestra un marcador inmediato y prioriza las imágenes de los primeros can
     FMV_precargarImagenes: () => { precargaInvocada = true; }
   };
 
-  vm.runInNewContext(source, { window, document });
+  vm.runInNewContext(source, {
+    window,
+    document,
+    URL,
+    setTimeout: () => 1,
+    clearTimeout() {}
+  });
   window.FMV_pintarMisCanales();
 
   const firstMedia = grid.children[0].children[0];
@@ -89,5 +95,16 @@ test("muestra un marcador inmediato y prioriza las imágenes de los primeros can
   assert.equal(firstImage.fetchPriority, "high");
   assert.equal(secondImage.loading, "eager");
   assert.equal(lastImage.loading, "eager");
+  assert.equal(firstImage.src, canales[0].imagen);
+  assert.equal(grid.children[3].children[0].querySelector("img").src, canales[3].imagen);
+  assert.equal(lastImage.src, undefined);
   assert.equal(precargaInvocada, false);
+
+  firstImage.onerror();
+  assert.equal(new URL(firstImage.src).hostname, "yt3.googleusercontent.com");
+  firstImage.onload();
+  assert.equal(grid.children[4].children[0].querySelector("img").src, canales[4].imagen);
+  for (let index = 1; index < canales.length; index += 1) {
+    grid.children[index].children[0].querySelector("img").onload();
+  }
 });
