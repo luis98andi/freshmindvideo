@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build && node scripts/sync-web.mjs",
+    "build": "vite build",
     "build:android": "npm run build && cap sync android",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
+    "test": "node --test",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

@@ -304,8 +304,14 @@
   window.FMV_perfil = "";
   var perfilEdicion = "hija";
   var quienEl = document.getElementById("quien");
-  function sesion() { try { return JSON.parse(sessionStorage.getItem("fmv_sesion")) || {}; } catch (e) { return {}; } }
-  function guardarSesion(o) { try { var x = sesion(); for (var k in o) x[k] = o[k]; sessionStorage.setItem("fmv_sesion", JSON.stringify(x)); } catch (e) {} }
+  function sesion() {
+    var perfil = window.FMV_cuentas && window.FMV_cuentas.perfilActivo();
+    if (perfil) return { perfil: perfil };
+    try { return JSON.parse(sessionStorage.getItem("fmv_sesion")) || {}; } catch (e) { return {}; }
+  }
+  function guardarSesion(o) {
+    if (o && o.perfil && window.FMV_cuentas) window.FMV_cuentas.guardarPerfilActivo(o.perfil);
+  }
   
   function pintarAvatarGridPicker() {
     var p = window.FMV_perfil || perfilEdicion || "hija";
@@ -422,9 +428,6 @@
   };
 
   /* ---------- Control de tiempo y temporizador diario por perfil ---------- */
-  var LS_TIEMPO_FECHA = "fmv_tiempo_fecha";
-  var LS_USO = "fmv_uso_"; // fmv_uso_hija, fmv_uso_hijo
-  var LS_LIMITE = "fmv_limite_"; // fmv_limite_hija, fmv_limite_hijo (en minutos)
   var bloqueadoPorTiempo = false;
   var bloqueoTiempoEl = document.getElementById("bloqueo-tiempo");
   var bloqueoTxtEl = document.getElementById("bloqueo-txt");
@@ -439,30 +442,49 @@
     return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
   }
 
-  function revisarDiaCambio() {
-    var h = hoyStr();
-    var guardado = localStorage.getItem(LS_TIEMPO_FECHA);
-    if (guardado !== h) {
-      localStorage.setItem(LS_TIEMPO_FECHA, h);
-      localStorage.setItem(LS_USO + "hija", "0");
-      localStorage.setItem(LS_USO + "hijo", "0");
+  function leerDatoCuenta(clave, perfil, claveAnterior) {
+    var valor = window.FMV_cuentas ? window.FMV_cuentas.leer(clave, perfil) : null;
+    if (valor !== null) return valor;
+    if (!claveAnterior) return null;
+    try {
+      valor = localStorage.getItem(claveAnterior);
+      if (valor !== null && window.FMV_cuentas) window.FMV_cuentas.guardar(clave, valor, perfil);
+      return valor;
+    } catch (e) {
+      return null;
     }
   }
-  revisarDiaCambio();
+
+  function guardarDatoCuenta(clave, valor, perfil) {
+    if (window.FMV_cuentas) window.FMV_cuentas.guardar(clave, valor, perfil);
+  }
+
+  function revisarDiaCambio(p) {
+    if (!p) return;
+    var h = hoyStr();
+    var guardado = leerDatoCuenta("fecha_tiempo", p);
+    if (guardado === null) {
+      try { guardado = localStorage.getItem("fmv_tiempo_fecha"); } catch (e) { guardado = null; }
+    }
+    if (guardado !== h) {
+      guardarDatoCuenta("uso_segundos", "0", p);
+    }
+    guardarDatoCuenta("fecha_tiempo", h, p);
+  }
 
   function obtenerUsoSegundos(p) {
-    revisarDiaCambio();
-    return parseInt(localStorage.getItem(LS_USO + p) || "0", 10) || 0;
+    revisarDiaCambio(p);
+    return parseInt(leerDatoCuenta("uso_segundos", p, "fmv_uso_" + p) || "0", 10) || 0;
   }
   function guardarUsoSegundos(p, s) {
-    revisarDiaCambio();
-    localStorage.setItem(LS_USO + p, String(s));
+    revisarDiaCambio(p);
+    guardarDatoCuenta("uso_segundos", String(s), p);
   }
   function obtenerLimiteMinutos(p) {
-    return parseInt(localStorage.getItem(LS_LIMITE + p) || "0", 10) || 0;
+    return parseInt(leerDatoCuenta("limite_minutos", p, "fmv_limite_" + p) || "0", 10) || 0;
   }
   function fijarLimiteMinutos(p, m) {
-    localStorage.setItem(LS_LIMITE + p, String(m));
+    guardarDatoCuenta("limite_minutos", String(m), p);
     revisarLimiteActual();
   }
 
@@ -1992,13 +2014,12 @@
 
   function activarBotonPadresConRetencion(btn) {
     if (!btn) return;
-    var feedback = null, inicio = 0, activado = false;
+    var feedback = null, inicio = 0, punteroGestionado = false;
     function limpiar() {
       if (feedback) clearInterval(feedback);
       feedback = null;
       btn.classList.remove("padre-hold");
-      btn.classList.remove("padre-hold-activado");
-      var indicador = btn.querySelector(".padres-hold-feedback");
+      var indicador = document.getElementById("padres-hold-overlay");
       if (indicador) indicador.remove();
     }
     function comenzar() {
@@ -2008,52 +2029,74 @@
         return;
       }
       limpiar();
-      inicio = Date.now();
-      activado = false;
+      inicio = performance.now();
       btn.classList.add("padre-hold");
-      var indicador = document.createElement("span");
-      indicador.className = "padres-hold-feedback";
-      indicador.setAttribute("aria-hidden", "true");
-      var contador = document.createElement("span");
-      contador.textContent = "2";
-      indicador.appendChild(contador);
-      btn.appendChild(indicador);
+      var indicador = document.createElement("div");
+      indicador.id = "padres-hold-overlay";
+      indicador.className = "padres-hold-overlay";
+      indicador.setAttribute("role", "status");
+      indicador.setAttribute("aria-live", "polite");
+      indicador.innerHTML = '<div class="padres-hold-conteo"><span class="padres-hold-numero">2</span><span class="padres-hold-texto">Mantén presionado<br>2 segundos</span></div>';
+      document.body.appendChild(indicador);
+      var numero = indicador.querySelector(".padres-hold-numero");
+      var texto = indicador.querySelector(".padres-hold-texto");
+      var segundosMostrados = 2;
       feedback = setInterval(function () {
-        var transcurrido = Date.now() - inicio;
-        var restante = Math.max(0, 2000 - transcurrido);
-        indicador.style.setProperty("--hold-progress", Math.min(100, transcurrido / 20) + "%");
-        contador.textContent = String(Math.max(1, Math.ceil(restante / 1000)));
-        if (restante > 0 || activado) return;
-        activado = true;
+        var restante = Math.max(0, 2000 - (performance.now() - inicio));
+        if (restante > 0) {
+          var segundos = Math.ceil(restante / 1000);
+          if (segundos !== segundosMostrados) {
+            segundosMostrados = segundos;
+            numero.textContent = String(segundos);
+            texto.innerHTML = "Mantén presionado<br>" + segundos + (segundos === 1 ? " segundo" : " segundos");
+          }
+          return;
+        }
         clearInterval(feedback);
         feedback = null;
-        contador.textContent = "✓";
-        btn.classList.add("padre-hold-activado");
+        indicador.remove();
+        btn.classList.remove("padre-hold");
         if (window.FMV_abrirPadres) window.FMV_abrirPadres();
-      }, 50);
+      }, 16);
     }
     btn.addEventListener("pointerdown", function (e) {
       if (!esAndroidMovil()) return;
+      punteroGestionado = true;
+      e.preventDefault();
+      e.stopPropagation();
       if (window.FMV_esPadre && window.FMV_esPadre()) {
-        e.preventDefault();
-        e.stopPropagation();
         if (window.FMV_abrirPadres) window.FMV_abrirPadres();
         return;
       }
-      e.preventDefault();
-      e.stopPropagation();
       comenzar();
     });
-    btn.addEventListener("pointerup", limpiar);
-    btn.addEventListener("pointerleave", limpiar);
-    btn.addEventListener("pointercancel", limpiar);
+    btn.addEventListener("pointerup", function () {
+      limpiar();
+      setTimeout(function () { punteroGestionado = false; }, 0);
+    });
+    btn.addEventListener("pointerleave", function () {
+      limpiar();
+      punteroGestionado = false;
+    });
+    btn.addEventListener("pointercancel", function () {
+      limpiar();
+      punteroGestionado = false;
+    });
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) {
+        limpiar();
+        punteroGestionado = false;
+      }
+    });
     btn.addEventListener("click", function (e) {
       if (esAndroidMovil()) {
         e.preventDefault();
         e.stopPropagation();
-        if (window.FMV_esPadre && window.FMV_esPadre()) {
-          if (window.FMV_abrirPadres) window.FMV_abrirPadres();
+        if (punteroGestionado) {
+          punteroGestionado = false;
+          return;
         }
+        if (window.FMV_esPadre && window.FMV_esPadre() && window.FMV_abrirPadres) window.FMV_abrirPadres();
         return;
       }
       if (window.FMV_abrirPadres) window.FMV_abrirPadres();

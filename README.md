@@ -38,9 +38,14 @@ Los scripts clásicos se cargan en un orden explícito desde `index.html` porque
 
 ## Compilar y publicar
 
-* `npm run build` genera la web y la PWA en `dist/` y sincroniza los mismos archivos con `www/` para los despliegues que publican esa carpeta.
+* `npm run build` genera la web y la PWA en `dist/`.
 * GitHub Pages debe configurarse para publicar mediante **GitHub Actions**. El workflow `.github/workflows/deploy-pages.yml` compila `dist/` y publica ese artefacto al actualizar `main` o al ejecutarlo manualmente.
-* `npm run build:android` genera `dist/` y sincroniza esos mismos archivos con Capacitor para Android. El proyecto Android también debe compilarse para generar un APK.
+* `npm run build:android` genera `dist/` y sincroniza esos archivos con Capacitor para Android. El proyecto Android también debe compilarse para generar un APK.
 * La carga de `canales.json` y `mis_videos.json` comparte un lector con validación y caché local. El service worker incluye ambos archivos en la caché inicial para el uso sin conexión; la app Android también los lleva dentro del paquete web.
+* La Zona de Padres mantiene un módulo principal y paneles separados para el manual, las copias de seguridad y el estilo. Las imágenes de canales de YouTube se precargan y se guardan en una caché del navegador con límite de tamaño para mejorar reaperturas y uso sin conexión.
+
+## Cuentas infantiles y datos locales
+
+La selección de Hija o Hijo se recuerda en el almacenamiento local del navegador. El historial, los videos guardados, los logros, los reportes y el tiempo de uso se almacenan separados por perfil en ese mismo dispositivo; no se envían a un servidor ni se incluyen en el repositorio. Al migrar videos antiguos sin perfil, se asignan a Hija para evitar mostrarlos en ambas cuentas. Los datos no se sincronizan entre navegadores o dispositivos y pueden borrarse al limpiar los datos del sitio. El almacenamiento del navegador no está cifrado: no debe considerarse un mecanismo para proteger información frente a otras personas que tengan acceso al dispositivo.
 
 Al agregar un recurso esencial, actualiza la lista de precarga en `public/sw.js` y aumenta la versión de su caché. Los recursos se resuelven desde la carpeta de la app para que también funcionen cuando el sitio está publicado bajo una subruta.

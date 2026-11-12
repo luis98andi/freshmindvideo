@@ -1,12 +1,21 @@
 /* FreshMindVideo - service worker
    Cache de app shell + stale-while-revalidate para que la web arranque rápido,
    sin bloquear el cambio de video ni depender del navegador para todo. */
-var STATIC_CACHE = "fmv-static-v36";
+var STATIC_CACHE = "fmv-static-v38";
+var IMAGE_CACHE = "fmv-youtube-images-v1";
+var MAX_CACHED_IMAGES = 160;
+var YOUTUBE_IMAGE_HOSTS = {
+  "i.ytimg.com": true,
+  "yt3.ggpht.com": true,
+  "yt3.googleusercontent.com": true
+};
 var APP_SHELL = [
   "./",
   "index.html",
   "public/css/styles.css",
   "public/js/core/seguridad.js",
+  "public/js/core/cuentas.js",
+  "public/js/core/imagenes.js",
   "public/js/core/datos.js",
   "public/js/player/reproductor.js",
   "public/js/channels/mis-canales.js",
@@ -22,6 +31,9 @@ var APP_SHELL = [
   "public/js/parental/horarios-rutina.js",
   "public/js/features/pausas-activas.js",
   "public/js/parental/reportes-padres.js",
+  "public/js/parental/manual-padres.js",
+  "public/js/parental/copia-seguridad.js",
+  "public/js/parental/estilo-tarjetas.js",
   "stickers-premios.svg",
   "icon-192.png",
   "icon-512.png",
@@ -61,6 +73,32 @@ self.addEventListener("fetch", function (event) {
   if (req.method !== "GET") return;
 
   var url = new URL(req.url);
+  if (req.destination === "image" && url.protocol === "https:" && YOUTUBE_IMAGE_HOSTS[url.hostname]) {
+    var imageCache = caches.open(IMAGE_CACHE);
+    var imageNetwork = fetch(req);
+    event.waitUntil(imageCache.then(function (cache) {
+      return imageNetwork.then(function (response) {
+        if (!response || (!response.ok && response.type !== "opaque")) return;
+        return cache.put(req, response.clone()).then(function () {
+          return cache.keys();
+        }).then(function (keys) {
+          var sobrantes = Math.max(0, keys.length - MAX_CACHED_IMAGES);
+          return Promise.all(keys.slice(0, sobrantes).map(function (key) { return cache.delete(key); }));
+        });
+      });
+    }).catch(function (error) {
+      console.warn("No se pudo actualizar la caché de imágenes de YouTube.", error);
+    }));
+    event.respondWith(imageCache.then(function (cache) {
+      return cache.match(req, { ignoreVary: true }).then(function (cached) {
+        return cached || imageNetwork;
+      });
+    }).catch(function () {
+      return imageNetwork.catch(function () { return Response.error(); });
+    }));
+    return;
+  }
+
   if (url.origin !== self.location.origin) return;
 
   var isNavigation = req.mode === "navigate" || req.destination === "document";
@@ -101,5 +139,43 @@ self.addEventListener("fetch", function (event) {
 self.addEventListener("message", function (event) {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
+    return;
+  }
+  if (event.data && event.data.type === "CACHE_YOUTUBE_IMAGES" && Array.isArray(event.data.urls)) {
+    var urls = event.data.urls.slice(0, 40).filter(function (value) {
+      try {
+        var url = new URL(value);
+        return url.protocol === "https:" && YOUTUBE_IMAGE_HOSTS[url.hostname];
+      } catch (error) {
+        return false;
+      }
+    });
+    var precarga = caches.open(IMAGE_CACHE).then(function (cache) {
+      var tandas = [];
+      for (var i = 0; i < urls.length; i += 4) tandas.push(urls.slice(i, i + 4));
+      return tandas.reduce(function (trabajo, tanda) {
+        return trabajo.then(function () {
+          return Promise.all(tanda.map(function (value) {
+            return cache.match(value, { ignoreVary: true }).then(function (cached) {
+              if (cached) return;
+              var request = new Request(value, { mode: "no-cors", credentials: "omit" });
+              return fetch(request).then(function (response) {
+                if (response && (response.ok || response.type === "opaque")) {
+                  return cache.put(request, response);
+                }
+              });
+            }).catch(function () {});
+          }));
+        });
+      }, Promise.resolve()).then(function () {
+        return cache.keys();
+      }).then(function (keys) {
+        var sobrantes = Math.max(0, keys.length - MAX_CACHED_IMAGES);
+        return Promise.all(keys.slice(0, sobrantes).map(function (key) { return cache.delete(key); }));
+      });
+    });
+    event.waitUntil(precarga.catch(function (error) {
+      console.warn("No se pudieron precargar algunas imágenes de YouTube.", error);
+    }));
   }
 });

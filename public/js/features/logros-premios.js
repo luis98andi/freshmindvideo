@@ -71,7 +71,8 @@
 
   function leerLogros() {
     try {
-      var d = JSON.parse(localStorage.getItem(LS_LOGROS));
+      var raw = window.FMV_cuentas && window.FMV_perfil ? window.FMV_cuentas.leer(LS_LOGROS, window.FMV_perfil) : null;
+      var d = JSON.parse(raw);
       if (d && typeof d === "object") return d;
     } catch (e) {}
     return {
@@ -85,7 +86,7 @@
   }
 
   function guardarLogros(d) {
-    try { localStorage.setItem(LS_LOGROS, JSON.stringify(d)); } catch (e) {}
+    if (window.FMV_cuentas && window.FMV_perfil) window.FMV_cuentas.guardar(LS_LOGROS, JSON.stringify(d), window.FMV_perfil);
   }
 
   // Notificación de logro desbloqueado
@@ -119,6 +120,7 @@
   }
 
   function verificarLogros() {
+    if (!window.FMV_perfil) return;
     var s = leerLogros();
     var huboNuevos = false;
     DEFINICION_LOGROS.forEach(function (logro) {
@@ -132,6 +134,7 @@
   }
 
   window.FMV_registrarEventoLogro = function (tipo, datos) {
+    if (!window.FMV_perfil) return;
     var s = leerLogros();
     var ahora = new Date();
     if (tipo === "video_visto") {
@@ -156,6 +159,7 @@
 
   // Abrir Vitrina de Medallas y Logros
   window.FMV_abrirLogros = function () {
+    if (!window.FMV_perfil) return;
     var s = leerLogros();
     var modalEl = document.createElement("div");
     modalEl.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto";

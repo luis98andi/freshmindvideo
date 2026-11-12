@@ -22,15 +22,12 @@
 
     var media = document.createElement("div");
     media.className = "media";
-    if (!imagen && /^UC[\w-]{22}$/.test(idCanal)) {
-      imagen = "https://yt3.googleusercontent.com/ytc/" + idCanal;
-    }
-
     if (imagen) {
       var img = document.createElement("img");
       img.src = imagen;
       img.alt = "";
       img.loading = "lazy";
+      img.decoding = "async";
       img.onerror = function () { media.replaceChildren(inicial(nombre, indice)); };
       media.appendChild(img);
     } else {
@@ -74,6 +71,9 @@
 
     var lista = datos.listar();
     var esPadre = datos.esPadre();
+    if (window.FMV_precargarImagenes) {
+      window.FMV_precargarImagenes(lista.slice(0, 40).map(function (item) { return item.imagen || item.image || ""; }));
+    }
     cuadricula.replaceChildren();
     lista.forEach(function (item, indice) {
       var tarjeta = crearTarjeta(item, indice);

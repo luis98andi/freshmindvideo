@@ -10,7 +10,7 @@ import { SpeechRecognition as NativeSpeechRecognition } from "@capacitor-communi
     if (!cajaBuscador || document.getElementById("btn-voz-ninos")) return;
 
     var input = cajaBuscador.querySelector('input[type="search"]');
-    if (!input || (!esAndroidNativo && !WebSpeechRecognition)) return;
+    if (!input) return;
 
     input.style.paddingRight = "54px";
 
@@ -133,13 +133,15 @@ import { SpeechRecognition as NativeSpeechRecognition } from "@capacitor-communi
             actualizarEstado("No se pudo iniciar la búsqueda por voz: " + (error.message || error));
           })
           .finally(detener);
-      } else {
+      } else if (WebSpeechRecognition) {
         try {
           iniciarWeb();
         } catch (error) {
           actualizarEstado("No se pudo iniciar la búsqueda por voz: " + (error.message || error));
           detener();
         }
+      } else {
+        actualizarEstado("La búsqueda por voz no está disponible en este navegador.");
       }
     });
   }

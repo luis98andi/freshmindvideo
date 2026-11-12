@@ -5,109 +5,6 @@
     return window.FMV_padresAPI;
   }
 
-  function abrirManual(api) {
-    var modal = api.modal(
-      '<h3 style="margin:0 0 10px">📖 Manual para Padres</h3>' +
-      '<p><a data-manual-link>Leer o descargar el manual completo</a></p>' +
-      '<pre data-manual style="max-height:55vh;overflow:auto;white-space:pre-wrap;font:13px/1.5 inherit"></pre>',
-      600
-    );
-    var enlace = modal.caja.querySelector("[data-manual-link]");
-    enlace.href = new URL("./MANUAL_PADRES.md", document.baseURI).href;
-    enlace.target = "_blank";
-    enlace.rel = "noopener";
-
-    fetch(enlace.href)
-      .then(function (response) {
-        if (!response.ok) throw new Error("HTTP " + response.status);
-        return response.text();
-      })
-      .then(function (texto) { modal.caja.querySelector("[data-manual]").textContent = texto; })
-      .catch(function (error) {
-        console.error("No se pudo cargar el manual para padres.", error);
-        modal.caja.querySelector("[data-manual]").textContent = "No se pudo cargar el manual. Usa el enlace para abrirlo directamente.";
-      });
-  }
-
-  function abrirCopiaSeguridad(api) {
-    var modal = api.modal(
-      '<h3 style="margin:0 0 8px">⚙️ Copia de seguridad y configuración</h3>' +
-      '<p>Exporta o restaura los ajustes guardados en este dispositivo.</p>' +
-      '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">' +
-      '<button type="button" data-export style="' + api.estiloBoton + ';background:#3b82f6;flex:1">💾 Exportar configuración</button>' +
-      '<label style="' + api.estiloBoton + ';background:#10b981;flex:1;text-align:center;cursor:pointer">📂 Importar configuración<input type="file" data-import accept=".json" style="display:none"></label>' +
-      '</div><p data-message role="status"></p>',
-      480
-    );
-    var mensaje = modal.caja.querySelector("[data-message]");
-    modal.caja.querySelector("[data-export]").addEventListener("click", function () {
-      var copia = {};
-      for (var i = 0; i < localStorage.length; i++) {
-        var clave = localStorage.key(i);
-        if (clave) copia[clave] = localStorage.getItem(clave);
-      }
-
-      var archivo = new Blob([JSON.stringify(copia, null, 2)], { type: "application/json;charset=utf-8" });
-      var url = URL.createObjectURL(archivo);
-      var enlace = document.createElement("a");
-      enlace.href = url;
-      enlace.download = "freshmind_backup_" + new Date().toISOString().slice(0, 10) + ".json";
-      document.body.appendChild(enlace);
-      enlace.click();
-      enlace.remove();
-      URL.revokeObjectURL(url);
-      mensaje.textContent = "Copia de seguridad exportada.";
-    });
-
-    modal.caja.querySelector("[data-import]").addEventListener("change", function (event) {
-      var archivo = event.target.files && event.target.files[0];
-      if (!archivo) return;
-      var lector = new FileReader();
-      lector.onerror = function () {
-        mensaje.textContent = "No se pudo leer el archivo seleccionado.";
-      };
-      lector.onload = function () {
-        try {
-          var copia = JSON.parse(lector.result);
-          if (!copia || typeof copia !== "object" || Array.isArray(copia)) throw new Error("Formato de copia no válido.");
-          Object.keys(copia).forEach(function (clave) {
-            if (typeof copia[clave] === "string") localStorage.setItem(clave, copia[clave]);
-          });
-          mensaje.textContent = "Configuración importada. Recargando…";
-          setTimeout(function () { location.reload(); }, 1200);
-        } catch (error) {
-          console.error("No se pudo importar la copia de seguridad.", error);
-          mensaje.textContent = "No se pudo importar: comprueba que el JSON sea válido y que haya espacio disponible.";
-        }
-      };
-      lector.readAsText(archivo);
-    });
-  }
-
-  function abrirEstiloTarjetas(api) {
-    var formaActual = localStorage.getItem("fmv_card_shape") || "rounded";
-    var modal = api.modal(
-      '<h3 style="margin:0 0 12px">🎨 Estilo de tarjetas</h3>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
-      '<button type="button" data-shape="rounded">🔵 Redondeado</button>' +
-      '<button type="button" data-shape="circle">⚪ Círculo</button>' +
-      '<button type="button" data-shape="square">◼ Cuadrado</button>' +
-      '<button type="button" data-shape="modern">🌟 Moderno</button></div>',
-      500
-    );
-
-    modal.caja.querySelectorAll("[data-shape]").forEach(function (boton) {
-      var forma = boton.getAttribute("data-shape");
-      boton.style.cssText = api.estiloBoton + ";padding:14px;background:" + (forma === formaActual ? "#10b981" : "#2f6fdd");
-      boton.addEventListener("click", function () {
-        localStorage.setItem("fmv_card_shape", forma);
-        document.body.classList.remove("card-circle", "card-square", "card-modern");
-        if (forma !== "rounded") document.body.classList.add("card-" + forma);
-        modal.cerrar();
-      });
-    });
-  }
-
   function abrirPanel() {
     var api = obtenerAPI();
     var tiempos = api.tiempos();
@@ -140,10 +37,10 @@
       acciones.appendChild(boton);
     }
 
-    agregarAccion("📖 Manual y Guía para Padres", "#0d9488", function () { abrirManual(api); }, true);
+    agregarAccion("📖 Manual y Guía para Padres", "#0d9488", function () { window.FMV_abrirManualPadres(api); }, true);
     agregarAccion("🔍 Buscar en YouTube y agregar", "#12a37f", api.abrirBuscador);
-    agregarAccion("⚙️ Copia de seguridad y ajustes", "#3b82f6", function () { abrirCopiaSeguridad(api); });
-    agregarAccion("🎨 Estilo de tarjetas", "#10b981", function () { abrirEstiloTarjetas(api); });
+    agregarAccion("⚙️ Copia de seguridad y ajustes", "#3b82f6", function () { window.FMV_abrirCopiaSeguridad(api); });
+    agregarAccion("🎨 Estilo de tarjetas", "#10b981", function () { window.FMV_abrirEstiloTarjetas(api); });
     agregarAccion("🚫 Palabras excluidas (" + api.palabrasExcluidas().length + ")", "#be123c", api.abrirConfigPalabras);
     agregarAccion("⏱ Tiempo de pantalla y temporizador", "#0284c7", api.abrirConfigTiempos);
     agregarAccion("🌙 Modo Calma y Apagado", "#4338ca", function () { if (window.FMV_abrirModoCalma) window.FMV_abrirModoCalma(); });

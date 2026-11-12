@@ -8,16 +8,42 @@
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
 
-  function leerReportes() {
+  function migrarReportesAntiguos() {
     try {
-      var d = JSON.parse(localStorage.getItem(LS_KEY));
+      var raw = localStorage.getItem(LS_KEY);
+      if (raw === null || !window.FMV_cuentas) return;
+      var antiguo = JSON.parse(raw);
+      if (!antiguo || typeof antiguo !== "object") return;
+      var completo = ["hija", "hijo"].every(function (perfil) {
+        if (window.FMV_cuentas.leer(LS_KEY, perfil) !== null) return true;
+        var dias = {};
+        Object.keys(antiguo.dias || {}).forEach(function (fecha) {
+          var segundos = Number(antiguo.dias[fecha] && antiguo.dias[fecha][perfil]) || 0;
+          if (segundos) dias[fecha] = segundos;
+        });
+        return window.FMV_cuentas.guardar(LS_KEY, JSON.stringify({ dias: dias, canales: {} }), perfil);
+      });
+      if (completo) {
+        localStorage.setItem(LS_KEY + "_legacy", raw);
+        localStorage.removeItem(LS_KEY);
+      }
+    } catch (e) {}
+  }
+
+  function leerReportes(perfil) {
+    if (!perfil || !window.FMV_cuentas) return { dias: {}, canales: {} };
+    try {
+      migrarReportesAntiguos();
+      var raw = window.FMV_cuentas.leer(LS_KEY, perfil);
+      if (raw === null) return { dias: {}, canales: {} };
+      var d = JSON.parse(raw);
       if (d && typeof d === "object") return d;
     } catch (e) {}
     return { dias: {}, canales: {} };
   }
 
-  function guardarReportes(r) {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(r)); } catch (e) {}
+  function guardarReportes(r, perfil) {
+    if (perfil && window.FMV_cuentas) window.FMV_cuentas.guardar(LS_KEY, JSON.stringify(r), perfil);
   }
 
   // Registrar cada 30 segundos mientras se reproduce un video
@@ -26,27 +52,28 @@
     var esPadre = document.body.classList.contains("padre");
     if (!estaViendo || esPadre) return;
 
-    var perfil = window.FMV_perfil || "general";
+    var perfil = window.FMV_perfil;
+    if (!perfil) return;
     var hk = hoyKey();
-    var r = leerReportes();
+    var r = leerReportes(perfil);
 
-    if (!r.dias[hk]) r.dias[hk] = { hija: 0, hijo: 0, general: 0 };
-    r.dias[hk][perfil] = (r.dias[hk][perfil] || 0) + 30; // 30 segundos
+    r.dias[hk] = (r.dias[hk] || 0) + 30;
 
     // Canal activo
     var titCanal = document.getElementById("titulo-canal-activo");
     var nomCanal = titCanal ? titCanal.textContent.trim() : "";
     if (nomCanal) {
-      if (!r.canales[nomCanal]) r.canales[nomCanal] = 0;
-      r.canales[nomCanal] += 30;
+      r.canales[nomCanal] = (r.canales[nomCanal] || 0) + 30;
     }
 
-    guardarReportes(r);
+    guardarReportes(r, perfil);
   }, 30000);
 
   // Modal con Gráficos y Estadísticas de Uso
   window.FMV_abrirReportes = function () {
-    var r = leerReportes();
+    var perfil = window.FMV_perfil;
+    if (!perfil) return;
+    var r = leerReportes(perfil);
     var modalEl = document.createElement("div");
     modalEl.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto";
 
@@ -63,10 +90,10 @@
       var f = new Date();
       f.setDate(f.getDate() - i);
       var k = f.getFullYear() + "-" + String(f.getMonth() + 1).padStart(2, "0") + "-" + String(f.getDate()).padStart(2, "0");
-      var datosDia = r.dias[k] || { hija: 0, hijo: 0, general: 0 };
-      var minHija = Math.round((datosDia.hija || 0) / 60);
-      var minHijo = Math.round((datosDia.hijo || 0) / 60);
-      var totalDia = minHija + minHijo + Math.round((datosDia.general || 0) / 60);
+      var minutosPerfil = Math.round((r.dias[k] || 0) / 60);
+      var minHija = perfil === "hija" ? minutosPerfil : 0;
+      var minHijo = perfil === "hijo" ? minutosPerfil : 0;
+      var totalDia = minutosPerfil;
 
       totalMinutosSemana += totalDia;
       if (totalDia > maxMinutos) maxMinutos = totalDia;
@@ -93,7 +120,7 @@
       '</div>' +
       '<button type="button" data-cerrar style="border:0;background:#e2e8f0;color:#334155;border-radius:999px;padding:6px 14px;font-weight:800;cursor:pointer">Cerrar</button>' +
       '</div>' +
-      '<p style="margin:0 0 16px;font-size:.88rem;opacity:.8">Monitorea el tiempo de pantalla y los canales favoritos durante los últimos 7 días.</p>' +
+      '<p style="margin:0 0 16px;font-size:.88rem;opacity:.8">Uso y canales favoritos de ' + (perfil === "hija" ? "Hija" : "Hijo") + ' durante los últimos 7 días.</p>' +
 
       // Resumen
       '<div style="background:#f4f8fb;border-radius:16px;padding:14px;margin-bottom:16px;display:flex;justify-content:space-around;text-align:center">' +
@@ -111,7 +138,7 @@
       '<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:16px;padding:16px;margin-bottom:16px">' +
       '<div style="font-size:.85rem;font-weight:800;margin-bottom:12px;display:flex;justify-content:space-between">' +
       '<span>Minutos por día (Última semana):</span>' +
-      '<span style="font-size:.75rem;color:#64748b">👧 Hija / 👦 Hijo</span>' +
+      '<span style="font-size:.75rem;color:#64748b">' + (perfil === "hija" ? "👧 Hija" : "👦 Hijo") + '</span>' +
       '</div>' +
       '<div style="display:flex;align-items:flex-end;justify-content:space-between;height:120px;padding:10px 4px 0;border-bottom:2px solid #cbd5e1;gap:6px">';
 
@@ -132,8 +159,7 @@
     html +=
       '</div>' +
       '<div style="display:flex;justify-content:center;gap:16px;margin-top:10px;font-size:.76rem;font-weight:800">' +
-      '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ec4899;border-radius:2px"></span> Hija</span>' +
-      '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#3b82f6;border-radius:2px"></span> Hijo</span>' +
+      (perfil === "hija" ? '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#ec4899;border-radius:2px"></span> Hija</span>' : '<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;background:#3b82f6;border-radius:2px"></span> Hijo</span>') +
       '</div>' +
       '</div>' +
 

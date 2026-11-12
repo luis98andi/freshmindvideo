@@ -20,7 +20,48 @@
     return s.trim();
   }
 
-  function leer(k, d) { try { var v = window.FMV_getItem ? window.FMV_getItem(k) : localStorage.getItem(k); return JSON.parse(v) || d; } catch (e) { return d; } }
+  var CUENTAS_SEPARADAS = {};
+  CUENTAS_SEPARADAS[LS_VID] = true;
+  CUENTAS_SEPARADAS[LS_VOCULTOS] = true;
+  function migrarVideosAntiguos() {
+    try {
+      var raw = localStorage.getItem(LS_VID);
+      if (raw === null || !window.FMV_cuentas) return;
+      var antiguos = JSON.parse(raw);
+      var perfilesAntiguos = JSON.parse(localStorage.getItem(LS_VPERF) || "{}");
+      if (!Array.isArray(antiguos)) return;
+      ["hija", "hijo"].forEach(function (perfil) {
+        if (window.FMV_cuentas.leer(LS_VID, perfil) !== null) return;
+        var propios = antiguos.filter(function (video) {
+          if (!video || !video.id) return false;
+          var perfiles = perfilesAntiguos[video.id] || video.perfiles;
+          return perfiles ? perfiles.indexOf(perfil) >= 0 : perfil === "hija";
+        }).map(function (video) {
+          var copia = Object.assign({}, video);
+          copia.perfiles = [perfil];
+          return copia;
+        });
+        if (!window.FMV_cuentas.guardar(LS_VID, JSON.stringify(propios), perfil)) return;
+      });
+      if (["hija", "hijo"].every(function (perfil) { return window.FMV_cuentas.leer(LS_VID, perfil) !== null; })) {
+        localStorage.removeItem(LS_VID);
+      }
+    } catch (e) {}
+  }
+  function leer(k, d) {
+    try {
+      var v = CUENTAS_SEPARADAS[k] && window.FMV_cuentas ? window.FMV_cuentas.leer(k) : (window.FMV_getItem ? window.FMV_getItem(k) : localStorage.getItem(k));
+      if (v === null && k === LS_VID) {
+        migrarVideosAntiguos();
+        v = window.FMV_cuentas ? window.FMV_cuentas.leer(k) : null;
+      }
+      if (v === null && k === LS_VOCULTOS && window.FMV_perfil === "hija" && window.FMV_cuentas) {
+        v = localStorage.getItem(k);
+        if (v !== null && window.FMV_cuentas.guardar(k, v)) localStorage.removeItem(k);
+      }
+      return JSON.parse(v) || d;
+    } catch (e) { return d; }
+  }
 
   function obtenerPinReal() {
     var p = "1234";
@@ -43,7 +84,7 @@
   };
   window.FMV_hayCambiosPadres = false;
 
-  function guardar(k, v) { try { if (window.FMV_setItem) window.FMV_setItem(k, JSON.stringify(v)); else localStorage.setItem(k, JSON.stringify(v)); if (k !== LS_CACHE && k !== LS_ORDEN_CANALES && k !== "fmv_historial" && k !== "fmv_pin_padres") { window.FMV_hayCambiosPadres = true; } } catch (e) {} return;
+  function guardar(k, v) { try { if (CUENTAS_SEPARADAS[k] && window.FMV_cuentas) window.FMV_cuentas.guardar(k, JSON.stringify(v)); else if (window.FMV_setItem) window.FMV_setItem(k, JSON.stringify(v)); else localStorage.setItem(k, JSON.stringify(v)); if (k !== LS_CACHE && k !== LS_ORDEN_CANALES && k !== "fmv_historial" && k !== "fmv_pin_padres") { window.FMV_hayCambiosPadres = true; } } catch (e) {} return;
     try {
       localStorage.setItem(k, JSON.stringify(v));
       if (k !== LS_CACHE && k !== "fmv_historial" && k !== "fmv_pin_padres") {
@@ -1209,18 +1250,48 @@
 
   try { localStorage.removeItem("fmv_github"); } catch (e) {}
   var LS_HIST = "fmv_historial", DIAS_HIST = 30, MAX_DIA = 100;
+  function migrarHistorialAntiguo() {
+    try {
+      var raw = localStorage.getItem(LS_HIST);
+      if (raw === null || !window.FMV_cuentas) return;
+      var antiguo = JSON.parse(raw);
+      if (!Array.isArray(antiguo)) return;
+      var completo = ["hija", "hijo"].every(function (perfil) {
+        if (window.FMV_cuentas.leer(LS_HIST, perfil) !== null) return true;
+        var historial = antiguo.filter(function (item) {
+          return item && (item.p === perfil || (!item.p && perfil === "hija"));
+        });
+        return window.FMV_cuentas.guardar(LS_HIST, JSON.stringify(historial), perfil);
+      });
+      if (completo) localStorage.removeItem(LS_HIST);
+    } catch (e) {}
+  }
+  function leerHistorial(perfil) {
+    if (!perfil || !window.FMV_cuentas) return [];
+    migrarHistorialAntiguo();
+    var guardado = window.FMV_cuentas.leer(LS_HIST, perfil);
+    if (guardado !== null) {
+      try { return JSON.parse(guardado) || []; } catch (e) { return []; }
+    }
+    return [];
+  }
+  function guardarHistorial(perfil, historial) {
+    if (perfil && window.FMV_cuentas) window.FMV_cuentas.guardar(LS_HIST, JSON.stringify(historial), perfil);
+  }
   window.FMV_historial = function (id, titulo, canal, uc) {
+    var perfil = window.FMV_perfil;
+    if (!perfil) return;
     var ahora = Date.now(), hoy = new Date().toDateString();
-    var h = leer(LS_HIST, []).filter(function (x) { return ahora - x.t < DIAS_HIST * 864e5 && !(x.id === id && new Date(x.t).toDateString() === hoy); });
-    h.push({ id: id, n: titulo || "", c: canal || "", u: uc || "", p: window.FMV_perfil || "", t: ahora });
+    var h = leerHistorial(perfil).filter(function (x) { return ahora - x.t < DIAS_HIST * 864e5 && !(x.id === id && new Date(x.t).toDateString() === hoy); });
+    h.push({ id: id, n: titulo || "", c: canal || "", u: uc || "", p: perfil, t: ahora });
     var sobran = h.filter(function (x) { return new Date(x.t).toDateString() === hoy; }).length - MAX_DIA;
     if (sobran > 0) h = h.filter(function (x) { if (sobran > 0 && new Date(x.t).toDateString() === hoy) { sobran--; return false; } return true; });
-    guardar(LS_HIST, h);
+    guardarHistorial(perfil, h);
   };
   function abrirHistorial() {
     var m = modal('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">🕘 Historial (' + DIAS_HIST + ' días)</h3><button type="button" style="' + ESTILO_BT + ';background:#5b6b7a">Cerrar</button></div><div data-h></div>', 700);
     m.caja.querySelector("button").addEventListener("click", m.cerrar);
-    var box = m.caja.querySelector("[data-h]"), h = leer(LS_HIST, []).slice().reverse(), dia = "";
+    var box = m.caja.querySelector("[data-h]"), h = leerHistorial(window.FMV_perfil).slice().reverse(), dia = "";
     if (!h.length) box.textContent = "Aún no hay videos en el historial.";
     h.forEach(function (x) {
       var d = new Date(x.t), ds = d.toDateString(), pf = (window.FMV_PERFILES || {})[x.p];
