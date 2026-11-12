@@ -27,9 +27,9 @@
     if (imagen) {
       var img = document.createElement("img");
       img.alt = "";
-      img.loading = indice < 12 ? "eager" : "lazy";
+      img.loading = "eager";
       img.decoding = "async";
-      img.fetchPriority = indice < 8 ? "high" : "auto";
+      img.fetchPriority = indice < 4 ? "high" : "auto";
       img.style.opacity = "0";
       img.onload = function () { img.style.opacity = "1"; };
       img.onerror = function () { img.remove(); };
@@ -74,9 +74,6 @@
 
     var lista = datos.listar();
     var esPadre = datos.esPadre();
-    if (window.FMV_precargarImagenes) {
-      window.FMV_precargarImagenes(lista.slice(0, 40).map(function (item) { return item.imagen || item.image || ""; }));
-    }
     cuadricula.replaceChildren();
     lista.forEach(function (item, indice) {
       var tarjeta = crearTarjeta(item, indice);

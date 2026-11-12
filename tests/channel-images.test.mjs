@@ -55,7 +55,7 @@ test("muestra un marcador inmediato y prioriza las imágenes de los primeros can
   const grid = new Element(null);
   const message = new Element(null);
   const sort = new Element(null);
-  let precargadas = [];
+  let precargaInvocada = false;
   const document = {
     getElementById(id) {
       return { cuadricula: grid, mensaje: message, "orden-canales": sort }[id] || null;
@@ -73,7 +73,7 @@ test("muestra un marcador inmediato y prioriza las imágenes de los primeros can
       establecerOrden() {},
       esPadre: () => false
     },
-    FMV_precargarImagenes: (urls) => { precargadas = urls; }
+    FMV_precargarImagenes: () => { precargaInvocada = true; }
   };
 
   vm.runInNewContext(source, { window, document });
@@ -81,13 +81,13 @@ test("muestra un marcador inmediato y prioriza las imágenes de los primeros can
 
   const firstMedia = grid.children[0].children[0];
   const firstImage = firstMedia.querySelector("img");
-  const twelfthImage = grid.children[11].children[0].querySelector("img");
-  const thirteenthImage = grid.children[12].children[0].querySelector("img");
+  const secondImage = grid.children[1].children[0].querySelector("img");
+  const lastImage = grid.children[13].children[0].querySelector("img");
 
   assert.equal(firstMedia.children[0].className, "inicial");
   assert.equal(firstImage.loading, "eager");
   assert.equal(firstImage.fetchPriority, "high");
-  assert.equal(twelfthImage.loading, "eager");
-  assert.equal(thirteenthImage.loading, "lazy");
-  assert.equal(precargadas.length, 14);
+  assert.equal(secondImage.loading, "eager");
+  assert.equal(lastImage.loading, "eager");
+  assert.equal(precargaInvocada, false);
 });

@@ -274,12 +274,12 @@
 
   /* Corrige IDs malos y pone la foto oficial (caché 7 días) */
   function resolver(lista) {
-    var cache = leer(LS_CACHE, {}), ahora = Date.now(), pend = [];
+    var cache = leer(LS_CACHE, {}), ahora = Date.now(), pend = [], cambiado = false;
     lista.forEach(function (c) {
       var h = cache[c.url];
       if (h && ahora - h.t < 6048e5) {
-        c.id = h.id || c.id;
-        c.imagen = h.img || c.imagen;
+        if (h.id && c.id !== h.id) { c.id = h.id; cambiado = true; }
+        if (h.img && c.imagen !== h.img) { c.imagen = h.img; cambiado = true; }
       }
       if (ID_OK.test((c.id || "").trim()) && c.imagen) {
         cache[c.url] = { id: c.id, img: c.imagen, t: ahora };
@@ -288,7 +288,7 @@
       }
     });
     guardar(LS_CACHE, cache);
-    if (sinClave || !pend.length) return Promise.resolve();
+    if (sinClave || !pend.length) return Promise.resolve(cambiado);
     var ids = pend.map(function (c) { return (c.id || "").trim(); }).filter(function (i) { return ID_OK.test(i); });
     var lotes = [];
     for (var i = 0; i < ids.length; i += 50) lotes.push(api("channels", "part=snippet&id=" + ids.slice(i, i + 50).join(",")));
@@ -303,11 +303,19 @@
     }).then(function (res) {
       pend.forEach(function (c, i) {
         var it = res[i];
-        if (it) { c.id = it.id; c.imagen = foto(it); cache[c.url] = { id: c.id, img: c.imagen, t: ahora }; }
+        if (it) {
+          var imagen = foto(it);
+          if (c.id !== it.id || c.imagen !== imagen) cambiado = true;
+          c.id = it.id;
+          c.imagen = imagen;
+          cache[c.url] = { id: c.id, img: c.imagen, t: ahora };
+        }
       });
       guardar(LS_CACHE, cache);
+      return cambiado;
     }).catch(function (error) {
       console.warn("No se pudieron actualizar algunas imágenes de canales; se conservan las disponibles.", error);
+      return false;
     });
   }
 
@@ -434,8 +442,8 @@
       if (window.FMV_alListo) window.FMV_alListo();
 
       // 🔄 Resolver/actualizar IDs e imágenes en segundo plano.
-      resolver(todos).then(function () {
-        pintar();
+      resolver(todos).then(function (imagenesActualizadas) {
+        if (imagenesActualizadas) pintar();
       });
     }).catch(function (error) {
       console.error("No se pudieron cargar los datos de canales y videos.", error);
