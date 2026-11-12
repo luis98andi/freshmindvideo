@@ -30,7 +30,7 @@
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./css/styles.css?v=29">
+<link rel="stylesheet" href="./css/styles.css?v=31">
 </head>
 <body>
 
@@ -237,6 +237,10 @@
             <span id="aviso-vivo-txt">⏳ Este video en vivo tiene horario programado y no está disponible por el momento.</span>
             <button type="button" id="aviso-vivo-sig">Siguiente video →</button>
           </div>
+          <div id="aviso-error-video" class="aviso-error-video" hidden role="alert">
+            <p id="aviso-error-video-texto"></p>
+            <button type="button" id="aviso-error-video-reintentar">Reintentar</button>
+          </div>
           <div class="marca-video" id="marca-video" hidden><span id="mv-num"></span><span class="vivo" id="mv-vivo" hidden>● EN VIVO</span></div>
         </div>
         <div class="controles" id="controles">
@@ -338,7 +342,7 @@
   </div>
 </div>
 
-<script src="./js/player/reproductor.js?v=28"></script>
+<script src="./js/player/reproductor.js?v=29"></script>
 <script src="./js/channels/mis-canales.js?v=3"></script>
 <script src="./js/pwa/pwa-install.js?v=26"></script>
 <script src="./js/features/logros-premios.js?v=24"></script>
@@ -355,6 +359,6 @@
 <script src="./js/parental/zona-padres.js?v=1"></script>
 <script type="module" src="./src/js/parental/sincronizacion-dispositivos.js"></script>
 <script src="./js/channels/mis-videos.js?v=1"></script>
-<script src="./js/search/buscador.js?v=25"></script>
+<script src="./js/search/buscador.js?v=26"></script>
 </body>
 </html>

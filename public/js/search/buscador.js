@@ -12,7 +12,8 @@
   var indice = {};          // id de canal -> { id, nombre, t, ids, titulos, norm }
   var db = null, cargado = false, pendiente = false;
   var ocupado = false, hechos = 0, total = 0, fallos = 0, sinClave = false;
-  var textoActual = "", resultados = [], resultadosRelacionados = [], mostrados = 0, espera = null, sugerenciaActual = "";
+  var textoActual = "", resultados = [], resultadosRelacionados = [], mostrados = 0, espera = null, esperaSync = null, sugerenciaActual = "";
+  var LIMITE_BUSQUEDA_RAPIDA = 24;
 
   /* ---------- Estilos y caja de búsqueda ---------- */
   var css = document.createElement("style");
@@ -118,7 +119,10 @@
       encodeURIComponent(lista) + "&key=" + encodeURIComponent(window.FMV_API_KEY) +
       (token ? "&pageToken=" + encodeURIComponent(token) : "");
     return fetch(url)
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (!r.ok) throw new Error("YouTube API respondió HTTP " + r.status + ".");
+        return r.json();
+      })
       .then(function (d) {
         if (d.error) throw new Error(d.error.message || "error");
         var v = [];
@@ -137,9 +141,12 @@
     var url = "https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&maxResults=50&channelId=" +
       encodeURIComponent(c.id) + "&key=" + encodeURIComponent(window.FMV_API_KEY);
     return fetch(url)
-      .then(function (r) { return r.json(); })
+      .then(function (r) {
+        if (!r.ok) throw new Error("YouTube API respondió HTTP " + r.status + ".");
+        return r.json();
+      })
       .then(function (d) {
-        if (d.error) return [];
+        if (d.error) throw new Error(d.error.message || "Error de YouTube Data API.");
         var pls = [];
         (d.items || []).forEach(function (it) {
           var s = it.snippet;
@@ -156,7 +163,10 @@
         });
         return pls;
       })
-      .catch(function () { return []; });
+      .catch(function (error) {
+        console.warn("No se pudieron cargar las listas del canal " + c.nombre + ".", error);
+        return [];
+      });
   }
 
   function indexarCanal(c) {
@@ -216,10 +226,13 @@
       var c = pend.shift();
       if (!c) return Promise.resolve();
       return (indice[c.id] ? refrescarCanal(c) : indexarCanal(c))
-        .catch(function () { fallos++; })
-        .then(function () { hechos++; refrescar(); return siguiente(); });
+        .catch(function (error) {
+          fallos++;
+          console.warn("No se pudo indexar el canal " + c.nombre + " para el buscador.", error);
+        })
+        .then(function () { hechos++; avisar(); return siguiente(); });
     }
-    Promise.all([siguiente(), siguiente(), siguiente()]).then(function () {
+    siguiente().then(function () {
       ocupado = false;
       refrescar();
     });
@@ -391,11 +404,6 @@
       var ok = variantes.some(function (v) { return tNorm.indexOf(v) >= 0; });
       if (ok) continue;
 
-      if (base.length <= 2) {
-        var letras = base.split("");
-        if (letras.some(function (ch) { return tNorm.indexOf(ch) >= 0; })) continue;
-      }
-
       return false;
     }
     return true;
@@ -513,6 +521,11 @@
       resultados = [];
       resultadosRelacionados = [];
       sugerenciaActual = "";
+      return;
+    }
+
+    if (norm(texto).length === 1) {
+      calcularBusquedaRapida(norm(texto));
       return;
     }
 
@@ -686,13 +699,15 @@
       }
     }
 
-    resultadosRelacionados = obtenerRelacionados(texto, 30).filter(function (r) {
+    resultadosRelacionados = norm(texto).replace(/\s/g, "").length >= 3
+      ? obtenerRelacionados(texto, 30).filter(function (r) {
       if (!r || !r.id) return false;
       return !resultados.some(function (x) { return x && x.id === r.id; });
-    });
+      })
+      : [];
 
     sugerenciaActual = "";
-    if (resultados.length === 0) {
+    if (resultados.length === 0 && norm(texto).replace(/\s/g, "").length >= 3) {
       var voc = obtenerVocabulario();
       var palabrasCorregidas = palabras.map(function (w) {
         return corregirPalabra(w, voc);
@@ -702,6 +717,54 @@
         sugerenciaActual = textoCorregido;
       }
     }
+  }
+
+  function calcularBusquedaRapida(letra) {
+    var salida = [], vistos = {};
+    var bloqueados = window.FMV_bloqueados ? window.FMV_bloqueados() : [];
+    var excluidas = (window.FMV_palabrasExcluidas ? window.FMV_palabrasExcluidas() : []).map(norm).filter(Boolean);
+    var misLista = window.FMV_misVideos ? window.FMV_misVideos() : [];
+
+    function tituloPermitido(titulo) {
+      var t = norm(titulo);
+      return t.indexOf(letra) >= 0 && !excluidas.some(function (palabra) {
+        return palabra && t.indexOf(palabra) >= 0;
+      });
+    }
+    function agregar(item) {
+      if (!item || !item.id || vistos[item.id] || salida.length >= LIMITE_BUSQUEDA_RAPIDA) return;
+      vistos[item.id] = true;
+      salida.push(item);
+    }
+
+    misLista.some(function (v) {
+      if (v && v.id && bloqueados.indexOf(v.id) < 0 && tituloPermitido(v.titulo || v.title)) {
+        agregar({
+          canal: { nombre: "⭐ Mis videos", id: "MIS" },
+          id: v.id,
+          titulo: v.titulo || v.title || "Sin título",
+          score: 1,
+          origen: "mis"
+        });
+      }
+      return salida.length >= LIMITE_BUSQUEDA_RAPIDA;
+    });
+
+    canalesActuales().some(function (c) {
+      var r = indice[c.id];
+      if (!r) return false;
+      for (var i = 0; i < r.titulos.length; i++) {
+        var id = r.ids[i];
+        if (bloqueados.indexOf(id) >= 0 || !tituloPermitido(r.norm[i] || r.titulos[i])) continue;
+        agregar({ canal: c, id: id, titulo: r.titulos[i], score: 1 });
+        if (salida.length >= LIMITE_BUSQUEDA_RAPIDA) return true;
+      }
+      return false;
+    });
+
+    resultados = salida;
+    resultadosRelacionados = [];
+    sugerenciaActual = "";
   }
 
   function avisar() {
@@ -721,6 +784,9 @@
       partes.push("El buscador necesita la clave de YouTube.");
     } else {
       partes.push("No encontré nada con tu búsqueda.");
+    }
+    if (norm(textoActual).replace(/\s/g, "").length === 1) {
+      partes.push("Búsqueda rápida; escribe más letras para afinar.");
     }
     if (ocupado) partes.push("(aún preparando: " + hechos + "/" + total + " canales)");
     else if (fallos) partes.push("(" + fallos + " canales no se pudieron cargar)");
@@ -923,16 +989,20 @@
       return;
     }
     document.body.classList.add("modo-buscar");
-    sincronizar();
     calcular(textoActual);
     zona.hidden = false;
     pintarResultados();
     avisar();
+    clearTimeout(esperaSync);
+    if (norm(textoActual).replace(/\s/g, "").length >= 3) {
+      esperaSync = setTimeout(function () {
+        if (textoActual === entrada.value.trim()) sincronizar();
+      }, 1200);
+    }
   }
 
   entrada.addEventListener("focus", function () {
     document.body.classList.add("modo-buscar");
-    sincronizar();
   });
   entrada.addEventListener("blur", function () {
     if (!entrada.value.trim()) document.body.classList.remove("modo-buscar");
@@ -940,10 +1010,15 @@
   entrada.addEventListener("input", function () {
     document.body.classList.add("modo-buscar");
     clearTimeout(espera);
-    espera = setTimeout(lanzar, 220);
+    espera = setTimeout(lanzar, 180);
   });
   entrada.addEventListener("keydown", function (e) {
-    if (e.key === "Enter") { clearTimeout(espera); lanzar(); }
+    if (e.key === "Enter") {
+      clearTimeout(espera);
+      lanzar();
+      clearTimeout(esperaSync);
+      if (norm(entrada.value).replace(/\s/g, "").length >= 3) sincronizar();
+    }
   });
 
   window.FMV_recargarBuscador = function () {

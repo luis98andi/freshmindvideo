@@ -31,6 +31,9 @@
   var cargadorVideo = document.getElementById("cargador-video");
   var cargadorTxt = document.getElementById("cargador-txt");
   var avisoVivo = document.getElementById("aviso-vivo");
+  var avisoErrorVideo = document.getElementById("aviso-error-video");
+  var avisoErrorVideoTexto = document.getElementById("aviso-error-video-texto");
+  var avisoErrorVideoReintentar = document.getElementById("aviso-error-video-reintentar");
   var wrapperVideo = document.querySelector(".video-marco-wrapper");
   var playCirculo = tapa.querySelector(".play-circulo");
 
@@ -54,7 +57,7 @@
   var listaVideos = [];   // IDs de los videos del canal
   var titulos = [];       // nombres, en el mismo orden que listaVideos
   var indiceActual = 0;
-  var temporizador = null, arrastrando = false, errores = 0, apiPendiente = null;
+  var temporizador = null, arrastrando = false, apiPendiente = null;
   var esperandoLista = false; // solo se usa si falla la API de datos
   var videoInicial = null;    // video que se debe dejar listo (viene del buscador)
   var videoActualId = null, yaPreparado = false;
@@ -128,6 +131,40 @@
     } else {
       restaurarSonidoReal();
     }
+  }
+
+  function mostrarErrorYoutube(codigo) {
+    var mensajes = {
+      2: "La solicitud del video no es válida. Prueba otro video.",
+      5: "YouTube no pudo cargar este video. Comprueba la conexión y vuelve a intentar.",
+      100: "Este video fue eliminado, es privado o ya no está disponible.",
+      101: "El propietario del video no permite reproducirlo dentro de esta app.",
+      150: "El propietario del video no permite reproducirlo dentro de esta app.",
+      153: "YouTube no pudo identificar el origen de la app. Actualiza Android System WebView y vuelve a abrir FreshMindVideo."
+    };
+    var texto = mensajes[codigo] ||
+      "YouTube no pudo reproducir el video. Comprueba que YouTube funcione en esta conexión y vuelve a intentar.";
+    if (codigo != null) texto += " Código de YouTube: " + codigo + ".";
+    clearTimeout(tCargador);
+    cargadorVideo.hidden = true;
+    avisoVivo.hidden = true;
+    tapa.hidden = true;
+    if (avisoErrorVideo && avisoErrorVideoTexto) {
+      avisoErrorVideoTexto.textContent = texto;
+      avisoErrorVideo.hidden = false;
+    } else {
+      mostrarCargador(true, texto);
+    }
+  }
+
+  if (avisoErrorVideoReintentar) {
+    avisoErrorVideoReintentar.addEventListener("click", function () {
+      if (!videoActualId || !jugador || !vistaCanal.classList.contains("activo")) return;
+      avisoErrorVideo.hidden = true;
+      var segundos = 0;
+      try { segundos = Math.floor(jugador.getCurrentTime() || 0); } catch (e) {}
+      cargarVideo(videoActualId, segundos);
+    });
   }
 
   /* Capa 4: Escudo Anti-Anuncios en el reproductor (detecta publicidad, la silencia al instante, muestra "Eliminando publicidad…" y la salta) */
@@ -761,12 +798,12 @@
           if (e.data === 1) {
             bloqueoAutoplay = false;
             clearTimeout(tBloqueoAutoplay);
+            if (avisoErrorVideo) avisoErrorVideo.hidden = true;
             if (vigilarAnuncios()) return;
             mostrarCargador(false);
             restaurarSonidoReal();
             tapa.hidden = modoControlesNativos;
             avisoVivo.hidden = true;
-            errores = 0;
             ocultarYa();
             if (videoConSubs !== videoActualId) { videoConSubs = videoActualId; aplicarSubs(); }
             sincronizarTituloEspanol();
@@ -804,10 +841,9 @@
             }
           }
         },
-        onError: function () {
-          mostrarCargador(false);
-          errores++;
-          if (errores < 5) siguienteVideo();
+        onError: function (e) {
+          console.warn("YouTube no pudo reproducir el video. Código:", e && e.data);
+          mostrarErrorYoutube(e && e.data);
         }
       }
     });
@@ -847,6 +883,7 @@
   /* Si el reproductor quedó con subtítulos forzados, se recrea normal para que el video siguiente arranque sin ellos */
   function cargarVideo(id, seg) {
     if (!vistaCanal.classList.contains("activo")) return;
+    if (avisoErrorVideo) avisoErrorVideo.hidden = true;
     cambioVideoEnCurso = true;
     bloqueoAutoplay = true;
     clearTimeout(tCambioVideo);
