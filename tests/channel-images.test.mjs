@@ -55,6 +55,7 @@ test("muestra un marcador inmediato y prioriza las imágenes de los primeros can
   const grid = new Element(null);
   const message = new Element(null);
   const sort = new Element(null);
+  let currentOrder = "recent";
   let precargaInvocada = false;
   const document = {
     getElementById(id) {
@@ -69,8 +70,8 @@ test("muestra un marcador inmediato y prioriza las imágenes de los primeros can
   const window = {
     FMV_datosMisCanales: {
       listar: () => canales,
-      orden: () => "recent",
-      establecerOrden() {},
+      orden: () => currentOrder,
+      establecerOrden(orden) { currentOrder = orden; },
       esPadre: () => false
     },
     FMV_precargarImagenes: () => { precargaInvocada = true; }
@@ -90,6 +91,7 @@ test("muestra un marcador inmediato y prioriza las imágenes de los primeros can
   const secondImage = grid.children[1].children[0].querySelector("img");
   const lastImage = grid.children[13].children[0].querySelector("img");
 
+  assert.equal(sort.textContent, "Orden: Más recientes");
   assert.equal(firstMedia.children[0].className, "inicial");
   assert.equal(firstImage.loading, "eager");
   assert.equal(firstImage.fetchPriority, "high");
@@ -107,4 +109,7 @@ test("muestra un marcador inmediato y prioriza las imágenes de los primeros can
   for (let index = 1; index < canales.length; index += 1) {
     grid.children[index].children[0].querySelector("img").onload();
   }
+  sort.listeners.click();
+  assert.equal(currentOrder, "oldest");
+  assert.equal(sort.textContent, "Orden: Más antiguos");
 });

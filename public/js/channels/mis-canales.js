@@ -1,6 +1,12 @@
 /* Render the "Mis canales" home section independently from the player. */
 (function () {
   var COLORES = ["#ffd166", "#7bdff2", "#b2f7b8", "#ffb3c1", "#cdb4ff", "#ffc98b"];
+  var ORDENES = ["recent", "oldest", "alphabetical"];
+  var ETIQUETAS_ORDEN = {
+    recent: "Más recientes",
+    oldest: "Más antiguos",
+    alphabetical: "Alfabético"
+  };
   var MAX_IMAGENES_SIMULTANEAS = 4;
   var imagenesPendientes = [];
   var imagenesActivas = 0;
@@ -116,10 +122,12 @@
 
     var controlOrden = document.getElementById("orden-canales");
     if (controlOrden) {
-      controlOrden.value = datos.orden();
+      controlOrden.textContent = "Orden: " + ETIQUETAS_ORDEN[datos.orden()];
       if (!controlOrden.dataset.fmvBound) {
-        controlOrden.addEventListener("change", function () {
-          datos.establecerOrden(controlOrden.value);
+        controlOrden.addEventListener("click", function () {
+          var actual = datos.orden();
+          var siguiente = (ORDENES.indexOf(actual) + 1) % ORDENES.length;
+          datos.establecerOrden(ORDENES[siguiente]);
           window.FMV_pintarMisCanales();
         });
         controlOrden.dataset.fmvBound = "1";

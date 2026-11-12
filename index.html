@@ -30,7 +30,7 @@
 <meta name="twitter:card" content="summary_large_image" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./css/styles.css?v=32">
+<link rel="stylesheet" href="./css/styles.css?v=33">
 </head>
 <body>
 
@@ -172,12 +172,7 @@
   <!-- VISTA PRINCIPAL: Cuadrícula de Canales y Mis videos -->
   <div id="vista-principal">
     <div id="controles-canales" class="controles-canales">
-      <label for="orden-canales">Ordenar canales</label>
-      <select id="orden-canales">
-        <option value="recent">Más recientes agregados</option>
-        <option value="oldest">Más antiguos agregados</option>
-        <option value="alphabetical">Orden alfabético</option>
-      </select>
+      <button id="orden-canales" type="button" title="Toca para cambiar el orden de los canales">Orden: Más recientes</button>
     </div>
     <div id="cuadricula" class="cuadricula"></div>
     <div id="cuadricula-mis" class="selector-grid"></div>
@@ -344,7 +339,7 @@
 </div>
 
 <script src="./js/player/reproductor.js?v=30"></script>
-<script src="./js/channels/mis-canales.js?v=6"></script>
+<script src="./js/channels/mis-canales.js?v=7"></script>
 <script src="./js/pwa/pwa-install.js?v=26"></script>
 <script src="./js/features/logros-premios.js?v=24"></script>
 <script src="./js/features/filtro-azul.js?v=24"></script>
