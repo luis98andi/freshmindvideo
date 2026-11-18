@@ -544,10 +544,7 @@
 
     var m = modal(
       '<h3 style="margin:0 0 6px">Zona de padres</h3>' +
-      '<div style="position:relative">' +
-      '<input type="password" inputmode="numeric" placeholder="PIN" style="' + ESTILO_IN + ';padding-right:44px">' +
-      '<button type="button" data-toggle-pin style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;font-size:18px;padding:4px" title="Mostrar/Ocultar PIN">👁️</button>' +
-      '</div>' +
+      '<input type="password" inputmode="numeric" placeholder="PIN" style="' + ESTILO_IN + '">' +
       '<p data-err style="color:#d93025;font-weight:700;margin:0 0 8px;display:none">PIN incorrecto</p>' +
       '<button style="' + ESTILO_BT + '">Entrar</button>',
       420
@@ -556,14 +553,6 @@
     if (modalEl) modalEl.style.zIndex = "200000";
 
     var inp = m.caja.querySelector("input"), b = m.caja.querySelector("button"), err = m.caja.querySelector("[data-err]");
-    var btnToggle = m.caja.querySelector("[data-toggle-pin]");
-    if (btnToggle) {
-      btnToggle.addEventListener("click", function () {
-        var esPass = inp.type === "password";
-        inp.type = esPass ? "text" : "password";
-        btnToggle.textContent = esPass ? "🙈" : "👁️";
-      });
-    }
 
     function ok() {
       var vPin = inp.value.trim();
