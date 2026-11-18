@@ -138,26 +138,32 @@
 
   function mostrarErrorYoutube(codigo) {
     var mensajes = {
-      2: "La solicitud del video no es válida. Prueba otro video.",
-      5: "YouTube no pudo cargar este video. Comprueba la conexión y vuelve a intentar.",
+      2: "La solicitud del video no es válida (Error 2).",
+      5: "YouTube no pudo cargar este video. Comprueba la conexión.",
       100: "Este video fue eliminado, es privado o ya no está disponible.",
-      101: "El propietario del video no permite reproducirlo dentro de esta app.",
-      150: "El propietario del video no permite reproducirlo dentro de esta app.",
-      153: "YouTube no pudo identificar el origen de la app. Actualiza Android System WebView y vuelve a abrir FreshMindVideo."
+      101: "El propietario del video no permite reproducirlo dentro de esta app (Error 101).",
+      150: "El propietario del video no permite reproducirlo dentro de esta app (Error 150).",
+      153: "YouTube no pudo identificar el origen de la app (Error 153)."
     };
     var texto = mensajes[codigo] ||
-      "YouTube no pudo reproducir el video. Comprueba que YouTube funcione en esta conexión y vuelve a intentar.";
-    if (codigo != null) texto += " Código de YouTube: " + codigo + ".";
+      "YouTube no pudo reproducir el video.";
+    if (codigo != null) texto += " Código: " + codigo + ".";
     clearTimeout(tCargador);
     cargadorVideo.hidden = true;
     avisoVivo.hidden = true;
     tapa.hidden = true;
     if (avisoErrorVideo && avisoErrorVideoTexto) {
-      avisoErrorVideoTexto.textContent = texto;
+      avisoErrorVideoTexto.textContent = texto + " Saltando al siguiente video automáticamente...";
       avisoErrorVideo.hidden = false;
     } else {
-      mostrarCargador(true, texto);
+      mostrarCargador(true, texto + " Saltando...");
     }
+    setTimeout(function () {
+      if (avisoErrorVideo) avisoErrorVideo.hidden = true;
+      if (typeof siguienteVideo === "function") {
+        siguienteVideo();
+      }
+    }, 1500);
   }
 
   if (avisoErrorVideoReintentar) {
